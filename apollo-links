@@ -1,0 +1,127 @@
+'use client';
+
+import {
+  ApolloLink,
+  HttpLink,
+  Observable,
+} from '@apollo/client';
+// FetchResult is type-only in Apollo Client 4
+import type { FetchResult } from '@apollo/client';
+import { onError }
+  from '@apollo/client/link/error';
+import { GQL_ENDPOINT }
+  from '@/lib/constants';
+
+// ── HTTP Link ────────────────────────────────
+export function createHttpLink(): HttpLink {
+  return new HttpLink({ uri: GQL_ENDPOINT });
+}
+
+// ── Auth Link ────────────────────────────────
+// Reads token via /api/auth/token bridge
+export function createAuthLink(): ApolloLink {
+  return new ApolloLink((operation, forward) => {
+    return new Observable<FetchResult>((observer) => {
+      fetch('/api/auth/token')
+        .then((r) => r.json())
+        .then(({ accessToken }: {
+          accessToken: string | null
+        }) => {
+          if (accessToken) {
+            operation.setContext(
+              ({ headers = {} }: {
+                headers?: Record<string, string>
+              }) => ({
+                headers: {
+                  ...headers,
+                  Authorization: `Bearer ${accessToken}`,
+                },
+              })
+            );
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          forward(operation).subscribe({
+            next:     (v) => observer.next(v),
+            error:    (e) => observer.error(e),
+            complete: ()  => observer.complete(),
+          });
+        });
+    });
+  });
+}
+
+// ── Error Link ───────────────────────────────
+// Handles UNAUTHENTICATED — queues concurrent requests
+// fromPromise() was removed in v4 — using Observable
+let isRefreshing = false;
+let pendingQueue: Array<() => void> = [];
+
+function drainQueue() {
+  pendingQueue.forEach((r) => r());
+  pendingQueue = [];
+}
+
+export function createErrorLink(): ApolloLink {
+  return onError(
+    ({ graphQLErrors, operation, forward }) => {
+      const isAuth = graphQLErrors?.some(
+        (e) => e.extensions?.code === 'UNAUTHENTICATED'
+      );
+      if (!isAuth) return;
+
+      // Queue request if already refreshing
+      if (isRefreshing) {
+        return new Observable<FetchResult>((observer) => {
+          pendingQueue.push(() => {
+            forward(operation).subscribe({
+              next:     (v) => observer.next(v),
+              error:    (e) => observer.error(e),
+              complete: ()  => observer.complete(),
+            });
+          });
+        });
+      }
+
+      isRefreshing = true;
+
+      return new Observable<FetchResult>((observer) => {
+        fetch('/api/auth/refresh', { method: 'POST' })
+          .then((res) => {
+            if (!res.ok) throw new Error('refresh_failed');
+            return res.json() as Promise<{
+              accessToken: string;
+            }>;
+          })
+          .then(({ accessToken }) => {
+            operation.setContext(
+              ({ headers = {} }: {
+                headers?: Record<string, string>
+              }) => ({
+                headers: {
+                  ...headers,
+                  Authorization: `Bearer ${accessToken}`,
+                },
+              })
+            );
+            drainQueue();
+          })
+          .catch(() => {
+            pendingQueue = [];
+            window.location.href = '/login';
+          })
+          .finally(() => {
+            isRefreshing = false;
+          })
+          .then(() => {
+            forward(operation).subscribe({
+              next:     (v) => observer.next(v),
+              error:    (e) => observer.error(e),
+              complete: ()  => observer.complete(),
+            });
+          });
+      });
+    }
+  );
+}
