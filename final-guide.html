@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Final Implementation Guide</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0F1827,#131C2E);border:1px solid var(--bd);border-radius:16px;padding:20px;margin-bottom:20px;text-align:center}
+.hero h1{font-size:18px;font-weight:700;color:var(--ac);margin-bottom:4px}.hero p{font-size:12px;color:var(--mt2)}
+.pills{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:12px}
+.pill{font-size:10px;font-weight:600;padding:3px 9px;border-radius:999px;letter-spacing:.04em}
+.pb{background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.2);color:var(--ac)}
+.pg{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2);color:var(--gn)}
+.pr{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);color:#F87171}
+.tabs{display:flex;gap:4px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2)}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin-bottom:10px}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.ch{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;user-select:none}
+.chi{flex:1;min-width:0}
+.ct{font-size:12.5px;font-weight:600;color:var(--tx);font-family:'SF Mono','Fira Code',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cp{font-size:10.5px;color:var(--mt);font-family:'SF Mono','Fira Code',monospace;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chev{color:var(--mt);font-size:11px;transition:transform .2s;flex-shrink:0}
+.card.open .chev{transform:rotate(180deg)}
+.cb{display:none;border-top:1px solid var(--bd)}.card.open .cb{display:block}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em;flex-shrink:0}
+.ts{background:rgba(52,211,153,.12);color:var(--gn);border:1px solid rgba(52,211,153,.2)}
+.tc{background:rgba(167,139,250,.12);color:var(--pu);border:1px solid rgba(167,139,250,.2)}
+.te{background:rgba(251,191,36,.12);color:var(--yw);border:1px solid rgba(251,191,36,.2)}
+.ta{background:rgba(56,189,248,.12);color:var(--ac);border:1px solid rgba(56,189,248,.2)}
+.tsh{background:rgba(100,116,139,.12);color:var(--mt2);border:1px solid rgba(100,116,139,.2)}
+.note{margin:12px 14px;padding:10px 12px;border-radius:8px;font-size:12px;line-height:1.6}
+.ni{background:rgba(56,189,248,.07);border-left:3px solid var(--ac);color:var(--mt2)}
+.nw{background:rgba(251,191,36,.07);border-left:3px solid var(--yw);color:#FDE68A}
+.ns{background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+pre{margin:0;padding:14px;overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);-webkit-overflow-scrolling:touch}
+.kw{color:#C792EA}.fn{color:#82AAFF}.s{color:#C3E88D}.c{color:#3D5165;font-style:italic}.n{color:#F78C6C}.i{color:var(--ac)}
+.steps{padding:14px;display:flex;flex-direction:column}
+.step{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(30,45,69,.6)}.step:last-child{border-bottom:none}
+.sn{width:22px;height:22px;border-radius:50%;background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.2);color:var(--ac);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.sb{flex:1;min-width:0}.stl{font-size:13px;font-weight:600;color:var(--tx);margin-bottom:3px}
+.sds{font-size:11.5px;color:var(--mt2)}.scm{margin-top:8px;background:var(--sf2);border-radius:7px;padding:10px 12px;font-family:'SF Mono','Fira Code',monospace;font-size:11px;color:var(--gn);word-break:break-all;white-space:pre-wrap}
+.tree{padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:1.9;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.d1{color:var(--ac)}.tn{color:var(--mt);font-style:italic}.tsc{color:var(--gn)}.tcc{color:var(--pu)}.tec{color:var(--yw)}
+.flow{padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2;overflow-x:auto}
+.fs{color:var(--tx)}.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}
+footer{text-align:center;padding:20px 0 8px;color:var(--mt);font-size:11px}
+</style></head><body>
+<div class="hero">
+<h1>Final Implementation Guide</h1>
+<p>Every file &middot; Every path &middot; In order &middot; No confusion</p>
+<div class="pills">
+<span class="pill pb">Next.js 15</span><span class="pill pb">TypeScript</span>
+<span class="pill pb">Apollo Client 4</span><span class="pill pg">graphql-request 7</span>
+<span class="pill pg">Cognito httpOnly</span>
+<span class="pill pr">&#10005; react-query removed</span>
+<span class="pill pr">&#10005; jsonwebtoken removed</span>
+</div></div>
+
+<div class="tabs">
+<div class="tab active" onclick="go('setup',this)">0 Setup</div>
+<div class="tab" onclick="go('structure',this)">1 Structure</div>
+<div class="tab" onclick="go('lib',this)">2 Lib</div>
+<div class="tab" onclick="go('auth',this)">3 Auth</div>
+<div class="tab" onclick="go('app',this)">4 App</div>
+<div class="tab" onclick="go('flow',this)">5 Flow</div>
+<div class="tab" onclick="go('patterns',this)">6 Patterns</div>
+</div>
+<div id="tab-setup" class="panel active">
+<div class="sec">Step-by-step setup</div>
+<div class="card open">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">Terminal commands</div><div class="cp">Run in order before writing code</div>
+</div><span class="chev">&#9660;</span></div>
+<div class="cb"><div class="steps">
+<div class="step"><div class="sn">1</div><div class="sb">
+<div class="stl">Remove unused packages</div>
+<div class="scm">npm uninstall jsonwebtoken @types/jsonwebtoken @tanstack/react-query @tanstack/react-query-devtools</div>
+</div></div>
+<div class="step"><div class="sn">2</div><div class="sb">
+<div class="stl">Install required packages</div>
+<div class="scm">npm install @apollo/client graphql server-only</div>
+</div></div>
+<div class="step"><div class="sn">3</div><div class="sb">
+<div class="stl">Rename route group folder</div>
+<div class="sds">Rename <strong>src/app/(dashboard)</strong> &rarr; <strong>src/app/(protected)</strong></div>
+</div></div>
+<div class="step"><div class="sn">4</div><div class="sb">
+<div class="stl">Clean .env.local &mdash; keep only this one line</div>
+<div class="scm">NEXT_PUBLIC_GRAPHQL_URL=https://sndgraphql.hlticketing.com/graphql</div>
+</div></div>
+<div class="step"><div class="sn">5</div><div class="sb">
+<div class="stl">Check tsconfig.json has path alias</div>
+<div class="scm">"paths": { "@/*": ["./src/*"] }</div>
+</div></div>
+</div></div></div>
+<div class="note ni" style="margin-bottom:8px">
+<strong>Tags:</strong>&nbsp;
+<span class="tag ts">SERVER</span> Node only &nbsp;
+<span class="tag tc">CLIENT</span> 'use client' &nbsp;
+<span class="tag te">EDGE</span> middleware &nbsp;
+<span class="tag ta">ACTION</span> 'use server' &nbsp;
+<span class="tag tsh">SHARED</span> both sides
+</div></div>
+<div id="tab-structure" class="panel">
+<div class="sec">Final project structure</div>
+<div class="card open">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">Complete file tree</div><div class="cp">All 20 files to create</div>
+</div><span class="chev">&#9660;</span></div>
+<div class="cb"><div class="tree">
+<span class="d1">src/</span>
+&#x251C; <span class="d1">app/</span>
+&#x2502; &#x251C; <span class="d1">(auth)/</span>
+&#x2502; &#x2502; &#x251C; <span class="tsc">layout.tsx</span>                <span class="tn">SERVER</span>
+&#x2502; &#x2502; &#x2514; <span class="d1">login/</span>
+&#x2502; &#x2502;   &#x2514; <span class="tsc">page.tsx</span>              <span class="tn">SERVER</span>
+&#x2502; &#x251C; <span class="d1">(protected)/</span>               <span class="tn">renamed from (dashboard)</span>
+&#x2502; &#x2502; &#x251C; <span class="tsc">layout.tsx</span>                <span class="tn">SERVER + ApolloProvider</span>
+&#x2502; &#x2502; &#x2514; <span class="d1">dashboard/</span>
+&#x2502; &#x2502;   &#x2514; <span class="tsc">page.tsx</span>              <span class="tn">SERVER</span>
+&#x2502; &#x251C; <span class="d1">api/auth/</span>
+&#x2502; &#x2502; &#x251C; <span class="d1">token/route.ts</span>            <span class="tn">GET cookie bridge</span>
+&#x2502; &#x2502; &#x251C; <span class="d1">refresh/route.ts</span>          <span class="tn">POST token refresh</span>
+&#x2502; &#x2502; &#x2514; <span class="d1">logout/route.ts</span>           <span class="tn">POST clear cookies</span>
+&#x2502; &#x2514; <span class="tsc">layout.tsx</span>                  <span class="tn">SERVER root HTML only</span>
+&#x2502;
+&#x251C; <span class="d1">modules/</span>
+&#x2502; &#x251C; <span class="d1">auth/</span>
+&#x2502; &#x2502; &#x251C; <span class="d1">actions/loginAction.ts</span>    <span class="tn">SERVER ACTION</span>
+&#x2502; &#x2502; &#x251C; <span class="d1">components/</span>
+&#x2502; &#x2502; &#x2502; &#x251C; <span class="tcc">LoginForm.tsx</span>         <span class="tn">CLIENT</span>
+&#x2502; &#x2502; &#x2502; &#x2514; <span class="tcc">LogoutButton.tsx</span>      <span class="tn">CLIENT</span>
+&#x2502; &#x2502; &#x251C; <span class="d1">graphql/auth.mutations.ts</span> <span class="tn">SHARED</span>
+&#x2502; &#x2502; &#x251C; <span class="d1">hooks/useSession.ts</span>       <span class="tn">CLIENT</span>
+&#x2502; &#x2502; &#x2514; <span class="d1">lib/</span>
+&#x2502; &#x2502;   &#x251C; <span class="tsc">cookies.ts</span>            <span class="tn">SERVER ONLY</span>
+&#x2502; &#x2502;   &#x2514; <span class="tsc">refresh.ts</span>            <span class="tn">SERVER ONLY</span>
+&#x2502; &#x251C; <span class="d1">users/</span>  <span class="d1">events/</span>  <span class="d1">locations/</span>  <span class="d1">tickets/</span>  <span class="tn">future</span>
+&#x2502;
+&#x251C; <span class="d1">lib/</span>
+&#x2502; &#x251C; <span class="d1">apollo/</span>
+&#x2502; &#x2502; &#x251C; <span class="tcc">apollo-client.ts</span>          <span class="tn">CLIENT singleton</span>
+&#x2502; &#x2502; &#x251C; <span class="tcc">apollo-links.ts</span>           <span class="tn">CLIENT auth+error+http</span>
+&#x2502; &#x2502; &#x2514; <span class="tsc">server-gql-fetcher.ts</span>     <span class="tn">SERVER fetcher</span>
+&#x2502; &#x2514; <span class="tsh">constants.ts</span>                <span class="tn">SHARED</span>
+&#x2502;
+&#x251C; <span class="d1">components/</span>
+&#x2502; &#x251C; <span class="d1">atoms/</span>  <span class="d1">layout/</span>  <span class="d1">nav/</span>  <span class="d1">widgets/</span>  <span class="tn">keep yours</span>
+&#x2502; &#x2514; <span class="d1">providers/ApolloProvider.tsx</span> <span class="tn">CLIENT</span>
+&#x251C; <span class="d1">types/auth.types.ts</span>           <span class="tn">SHARED</span>
+&#x251C; <span class="d1">hooks/</span>  <span class="d1">store/</span>  <span class="d1">utils/</span>          <span class="tn">keep yours</span>
+&#x2514; <span class="tec">middleware.ts</span>                  <span class="tn">EDGE</span>
+</div></div></div>
+<div class="note ni">Every future module copies the same internal structure as modules/auth/</div>
+</div>
+<div id="tab-lib" class="panel">
+<div class="sec">lib/ files</div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">constants.ts</div><div class="cp">src/lib/constants.ts</div>
+</div><span class="tag tsh">SHARED</span><span class="chev">&#9660;</span></div>
+<div class="cb"><pre><code><span class="kw">export const</span> <span class="fn">GQL_ENDPOINT</span> =
+  process.env.<span class="i">NEXT_PUBLIC_GRAPHQL_URL</span>!;
+
+<span class="kw">export const</span> <span class="fn">COOKIE_KEYS</span> = {
+  ACCESS_TOKEN:  <span class="s">'access_token'</span>,
+  ID_TOKEN:      <span class="s">'id_token'</span>,
+  REFRESH_TOKEN: <span class="s">'refresh_token'</span>,
+  USER_ID:       <span class="s">'user_id'</span>,
+} <span class="kw">as const</span>;
+
+<span class="kw">export const</span> <span class="fn">COOKIE_OPTIONS</span> = {
+  httpOnly: <span class="kw">true</span>,
+  secure: process.env.NODE_ENV === <span class="s">'production'</span>,
+  sameSite: <span class="s">'lax'</span> <span class="kw">as const</span>,
+  path: <span class="s">'/'</span>,
+  maxAge: <span class="n">60</span> * <span class="n">60</span> * <span class="n">24</span>,
+};
+
+<span class="kw">export const</span> <span class="fn">REFRESH_COOKIE_OPTIONS</span> = {
+  ...COOKIE_OPTIONS,
+  maxAge: <span class="n">60</span> * <span class="n">60</span> * <span class="n">24</span> * <span class="n">30</span>,
+};
+
+<span class="kw">export const</span> <span class="fn">ROUTES</span> = {
+  LOGIN:     <span class="s">'/login'</span>,
+  DASHBOARD: <span class="s">'/dashboard'</span>,
+} <span class="kw">as const</span>;</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">auth.types.ts</div><div class="cp">src/types/auth.types.ts</div>
+</div><span class="tag tsh">SHARED</span><span class="chev">&#9660;</span></div>
+<div class="cb"><pre><code><span class="kw">export interface</span> <span class="fn">AuthToken</span> {
+  token: <span class="kw">string</span>;
+  idToken: <span class="kw">string</span>;
+  refreshToken: <span class="kw">string</span>;
+}
+<span class="kw">export interface</span> <span class="fn">LoginMutationResponse</span> {
+  login: <span class="fn">AuthToken</span>;
+}
+<span class="kw">export interface</span> <span class="fn">RefreshAuthMutationResponse</span> {
+  refreshAuth: <span class="fn">AuthToken</span>;
+}
+<span class="kw">export interface</span> <span class="fn">DecodedIdToken</span> {
+  sub: <span class="kw">string</span>;
+  email: <span class="kw">string</span>;
+  exp: <span class="kw">number</span>;
+  iat: <span class="kw">number</span>;
+  [key: <span class="kw">string</span>]: <span class="kw">unknown</span>;
+}
+<span class="kw">export interface</span> <span class="fn">SessionUser</span> {
+  userId: <span class="kw">string</span>;
+  email: <span class="kw">string</span>;
+}
+<span class="kw">export type</span> <span class="fn">ActionResult</span>&lt;T = <span class="kw">void</span>&gt; =
+  | { success: <span class="kw">true</span>;  data: T }
+  | { success: <span class="kw">false</span>; error: <span class="kw">string</span> };</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">apollo-client.ts</div><div class="cp">src/lib/apollo/apollo-client.ts</div>
+</div><span class="tag tc">CLIENT</span><span class="chev">&#9660;</span></div>
+<div class="cb"><pre><code><span class="s">'use client'</span>;
+<span class="i">import</span> { ApolloClient, InMemoryCache, from }
+  <span class="kw">from</span> <span class="s">'@apollo/client'</span>;
+<span class="i">import</span> { createAuthLink, createErrorLink,
+  createHttpLink } <span class="kw">from</span> <span class="s">'./apollo-links'</span>;
+
+<span class="kw">let</span> instance: ApolloClient&lt;object&gt; | <span class="kw">null</span> = <span class="kw">null</span>;
+
+<span class="kw">function</span> <span class="fn">createApolloClient</span>() {
+  <span class="kw">return new</span> ApolloClient({
+    link: from([
+      createErrorLink(), <span class="c">// 1 catch UNAUTHENTICATED</span>
+      createAuthLink(),  <span class="c">// 2 attach Bearer token</span>
+      createHttpLink(),  <span class="c">// 3 HTTP transport</span>
+    ]),
+    cache: <span class="kw">new</span> InMemoryCache(),
+    defaultOptions: {
+      watchQuery: {
+        fetchPolicy: <span class="s">'cache-and-network'</span>,
+        errorPolicy: <span class="s">'all'</span>,
+      },
+      query: { errorPolicy: <span class="s">'all'</span> },
+    },
+  });
+}
+
+<span class="kw">export function</span> <span class="fn">getApolloClient</span>() {
+  <span class="kw">if</span> (!instance) instance = createApolloClient();
+  <span class="kw">return</span> instance;
+}
+
+<span class="c">// MUST call on logout to prevent data leak</span>
+<span class="kw">export function</span> <span class="fn">resetApolloClient</span>() {
+  instance?.clearStore();
+  instance = <span class="kw">null</span>;
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">apollo-links.ts</div><div class="cp">src/lib/apollo/apollo-links.ts</div>
+</div><span class="tag tc">CLIENT</span><span class="chev">&#9660;</span></div>
+<div class="cb">
+<div class="note nw">Error link queues concurrent requests. If 5 queries fire and all get 401, only ONE refresh happens. Others wait in queue.</div>
+<pre><code><span class="s">'use client'</span>;
+<span class="i">import</span> { ApolloLink, HttpLink, Observable,
+  FetchResult, fromPromise }
+  <span class="kw">from</span> <span class="s">'@apollo/client'</span>;
+<span class="i">import</span> { onError }
+  <span class="kw">from</span> <span class="s">'@apollo/client/link/error'</span>;
+<span class="i">import</span> { GQL_ENDPOINT }
+  <span class="kw">from</span> <span class="s">'@/lib/constants'</span>;
+
+<span class="kw">export function</span> <span class="fn">createHttpLink</span>() {
+  <span class="kw">return new</span> HttpLink({ uri: GQL_ENDPOINT });
+}
+
+<span class="kw">export function</span> <span class="fn">createAuthLink</span>(): ApolloLink {
+  <span class="kw">return new</span> ApolloLink((operation, forward) =&gt;
+    <span class="kw">new</span> Observable&lt;FetchResult&gt;(observer =&gt; {
+      fetch(<span class="s">'/api/auth/token'</span>)
+        .then(r =&gt; r.json())
+        .then(({ accessToken }) =&gt; {
+          <span class="kw">if</span> (accessToken) operation.setContext(
+            ({ headers = {} }: Record&lt;<span class="kw">string</span>, <span class="kw">unknown</span>&gt;) =&gt; ({
+              headers: {
+                ...(headers <span class="kw">as</span> object),
+                Authorization: `Bearer ${accessToken}`,
+              },
+            })
+          );
+        })
+        .catch(() =&gt; {})
+        .finally(() =&gt; {
+          forward(operation).subscribe({
+            next:     observer.next.bind(observer),
+            error:    observer.error.bind(observer),
+            complete: observer.complete.bind(observer),
+          });
+        });
+    })
+  );
+}
+
+<span class="kw">let</span> isRefreshing = <span class="kw">false</span>;
+<span class="kw">let</span> queue: Array&lt;() =&gt; <span class="kw">void</span>&gt; = [];
+
+<span class="kw">export function</span> <span class="fn">createErrorLink</span>(): ApolloLink {
+  <span class="kw">return</span> onError(
+    ({ graphQLErrors, operation, forward }) =&gt; {
+      <span class="kw">const</span> isAuth = graphQLErrors?.some(
+        e =&gt; e.extensions?.code === <span class="s">'UNAUTHENTICATED'</span>
+      );
+      <span class="kw">if</span> (!isAuth) <span class="kw">return</span>;
+      <span class="kw">if</span> (isRefreshing) {
+        <span class="kw">return</span> fromPromise(
+          <span class="kw">new</span> Promise&lt;<span class="kw">void</span>&gt;(res =&gt; queue.push(res))
+        ).flatMap(() =&gt; forward(operation));
+      }
+      isRefreshing = <span class="kw">true</span>;
+      <span class="kw">return</span> fromPromise(
+        fetch(<span class="s">'/api/auth/refresh'</span>, { method: <span class="s">'POST'</span> })
+          .then(res =&gt; {
+            <span class="kw">if</span> (!res.ok) <span class="kw">throw</span> <span class="s">'fail'</span>;
+            <span class="kw">return</span> res.json() <span class="kw">as</span>
+              Promise&lt;{ accessToken: <span class="kw">string</span> }&gt;;
+          })
+          .then(({ accessToken }) =&gt; {
+            operation.setContext(
+              ({ headers = {} }: Record&lt;<span class="kw">string</span>, <span class="kw">unknown</span>&gt;) =&gt; ({
+                headers: {
+                  ...(headers <span class="kw">as</span> object),
+                  Authorization: `Bearer ${accessToken}`,
+                },
+              })
+            );
+            queue.forEach(r =&gt; r()); queue = [];
+          })
+          .catch(() =&gt; {
+            queue = [];
+            window.location.href = <span class="s">'/login'</span>;
+          })
+          .finally(() =&gt; { isRefreshing = <span class="kw">false</span>; })
+      ).flatMap(() =&gt; forward(operation));
+    }
+  );
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">server-gql-fetcher.ts</div><div class="cp">src/lib/apollo/server-gql-fetcher.ts</div>
+</div><span class="tag ts">SERVER</span><span class="chev">&#9660;</span></div>
+<div class="cb">
+<div class="note ns">Use this in ALL Server Components. Never use Apollo Client hooks in Server Components.</div>
+<pre><code><span class="i">import</span> <span class="s">'server-only'</span>;
+<span class="i">import</span> { GraphQLClient, ClientError }
+  <span class="kw">from</span> <span class="s">'graphql-request'</span>;
+<span class="i">import</span> { GQL_ENDPOINT }
+  <span class="kw">from</span> <span class="s">'@/lib/constants'</span>;
+<span class="i">import</span> { getAccessToken }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/lib/cookies'</span>;
+<span class="i">import</span> { refreshAccessToken }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/lib/refresh'</span>;
+
+<span class="kw">function</span> <span class="fn">buildClient</span>(token: <span class="kw">string</span>) {
+  <span class="kw">return new</span> GraphQLClient(GQL_ENDPOINT, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+<span class="kw">function</span> <span class="fn">isAuthError</span>(e: <span class="kw">unknown</span>): <span class="kw">boolean</span> {
+  <span class="kw">if</span> (!(e <span class="kw">instanceof</span> ClientError)) <span class="kw">return false</span>;
+  <span class="kw">const</span> code =
+    e.response?.errors?.[<span class="n">0</span>]?.extensions?.code;
+  <span class="kw">return</span> e.response?.status === <span class="n">401</span>
+    || code === <span class="s">'UNAUTHENTICATED'</span>;
+}
+
+<span class="kw">export async function</span> <span class="fn">serverGqlFetch</span>&lt;
+  TData,
+  TVars <span class="kw">extends</span> object = Record&lt;<span class="kw">string</span>, never&gt;
+&gt;(query: <span class="kw">string</span>, variables?: TVars):
+  Promise&lt;TData&gt; {
+  <span class="kw">let</span> token = <span class="kw">await</span> getAccessToken();
+  <span class="kw">if</span> (!token) {
+    token = <span class="kw">await</span> refreshAccessToken();
+    <span class="kw">if</span> (!token) <span class="kw">throw new</span> Error(<span class="s">'SESSION_EXPIRED'</span>);
+  }
+  <span class="kw">try</span> {
+    <span class="kw">return await</span> buildClient(token)
+      .request&lt;TData&gt;(query, variables);
+  } <span class="kw">catch</span> (error) {
+    <span class="kw">if</span> (isAuthError(error)) {
+      <span class="kw">const</span> t = <span class="kw">await</span> refreshAccessToken();
+      <span class="kw">if</span> (!t) <span class="kw">throw new</span> Error(<span class="s">'SESSION_EXPIRED'</span>);
+      <span class="kw">return</span> buildClient(t)
+        .request&lt;TData&gt;(query, variables);
+    }
+    <span class="kw">throw</span> error;
+  }
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">ApolloProvider.tsx</div><div class="cp">src/components/providers/ApolloProvider.tsx</div>
+</div><span class="tag tc">CLIENT</span><span class="chev">&#9660;</span></div>
+<div class="cb"><pre><code><span class="s">'use client'</span>;
+<span class="i">import</span> { ApolloProvider <span class="kw">as</span> Base }
+  <span class="kw">from</span> <span class="s">'@apollo/client'</span>;
+<span class="i">import</span> { getApolloClient }
+  <span class="kw">from</span> <span class="s">'@/lib/apollo/apollo-client'</span>;
+
+<span class="kw">export function</span> <span class="fn">ApolloProvider</span>({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  <span class="kw">return</span> (
+    &lt;Base client={getApolloClient()}&gt;
+      {children}
+    &lt;/Base&gt;
+  );
+}</code></pre></div></div>
+</div>
+<div id="tab-auth" class="panel">
+<div class="sec">modules/auth/ files</div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">cookies.ts</div><div class="cp">src/modules/auth/lib/cookies.ts</div>
+</div><span class="tag ts">SERVER ONLY</span><span class="chev">&#9660;</span></div>
+<div class="cb">
+<div class="note nw">import 'server-only' causes a BUILD ERROR if imported in a client component. Hard protection by design.</div>
+<pre><code><span class="i">import</span> <span class="s">'server-only'</span>;
+<span class="i">import</span> { cookies } <span class="kw">from</span> <span class="s">'next/headers'</span>;
+<span class="i">import</span> {
+  COOKIE_KEYS, COOKIE_OPTIONS,
+  REFRESH_COOKIE_OPTIONS,
+} <span class="kw">from</span> <span class="s">'@/lib/constants'</span>;
+<span class="i">import type</span> { AuthToken, DecodedIdToken }
+  <span class="kw">from</span> <span class="s">'@/types/auth.types'</span>;
+
+<span class="kw">export function</span> <span class="fn">decodeJwtPayload</span>&lt;T&gt;(
+  token: <span class="kw">string</span>
+): T | <span class="kw">null</span> {
+  <span class="kw">try</span> {
+    <span class="kw">const</span> json = Buffer
+      .from(token.split(<span class="s">'.'</span>)[<span class="n">1</span>], <span class="s">'base64'</span>)
+      .toString(<span class="s">'utf-8'</span>);
+    <span class="kw">return</span> JSON.parse(json) <span class="kw">as</span> T;
+  } <span class="kw">catch</span> { <span class="kw">return null</span>; }
+}
+
+<span class="kw">export async function</span> <span class="fn">setAuthCookies</span>(
+  tokens: AuthToken
+): Promise&lt;<span class="kw">void</span>&gt; {
+  <span class="kw">const</span> store = <span class="kw">await</span> cookies();
+  <span class="kw">const</span> p =
+    decodeJwtPayload&lt;DecodedIdToken&gt;(tokens.idToken);
+  store.set(COOKIE_KEYS.ACCESS_TOKEN,
+    tokens.token, COOKIE_OPTIONS);
+  store.set(COOKIE_KEYS.ID_TOKEN,
+    tokens.idToken, COOKIE_OPTIONS);
+  store.set(COOKIE_KEYS.REFRESH_TOKEN,
+    tokens.refreshToken, REFRESH_COOKIE_OPTIONS);
+  store.set(COOKIE_KEYS.USER_ID,
+    p?.sub ?? <span class="s">''</span>, COOKIE_OPTIONS);
+}
+
+<span class="kw">export async function</span> <span class="fn">getAccessToken</span>() {
+  <span class="kw">return</span> (<span class="kw">await</span> cookies())
+    .get(COOKIE_KEYS.ACCESS_TOKEN)?.value;
+}
+<span class="kw">export async function</span> <span class="fn">getRefreshToken</span>() {
+  <span class="kw">return</span> (<span class="kw">await</span> cookies())
+    .get(COOKIE_KEYS.REFRESH_TOKEN)?.value;
+}
+<span class="kw">export async function</span> <span class="fn">getIdToken</span>() {
+  <span class="kw">return</span> (<span class="kw">await</span> cookies())
+    .get(COOKIE_KEYS.ID_TOKEN)?.value;
+}
+<span class="kw">export async function</span> <span class="fn">getUserId</span>() {
+  <span class="kw">return</span> (<span class="kw">await</span> cookies())
+    .get(COOKIE_KEYS.USER_ID)?.value;
+}
+<span class="kw">export async function</span> <span class="fn">clearAuthCookies</span>() {
+  <span class="kw">const</span> store = <span class="kw">await</span> cookies();
+  Object.values(COOKIE_KEYS)
+    .forEach(k =&gt; store.delete(k));
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">refresh.ts</div><div class="cp">src/modules/auth/lib/refresh.ts</div>
+</div><span class="tag ts">SERVER ONLY</span><span class="chev">&#9660;</span></div>
+<div class="cb">
+<div class="note ni">refreshAuth takes userId + token (accessToken) confirmed from schema. userId is stored in cookie after login.</div>
+<pre><code><span class="i">import</span> <span class="s">'server-only'</span>;
+<span class="i">import</span> { GraphQLClient }
+  <span class="kw">from</span> <span class="s">'graphql-request'</span>;
+<span class="i">import</span> { GQL_ENDPOINT }
+  <span class="kw">from</span> <span class="s">'@/lib/constants'</span>;
+<span class="i">import</span> {
+  getAccessToken, getUserId, setAuthCookies,
+} <span class="kw">from</span> <span class="s">'@/modules/auth/lib/cookies'</span>;
+<span class="i">import</span> { REFRESH_AUTH_MUTATION }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/graphql/auth.mutations'</span>;
+<span class="i">import type</span> { RefreshAuthMutationResponse }
+  <span class="kw">from</span> <span class="s">'@/types/auth.types'</span>;
+
+<span class="kw">export async function</span> <span class="fn">refreshAccessToken</span>():
+  Promise&lt;<span class="kw">string</span> | <span class="kw">null</span>&gt; {
+  <span class="kw">const</span> [token, userId] = <span class="kw">await</span> Promise.all([
+    getAccessToken(), getUserId(),
+  ]);
+  <span class="kw">if</span> (!token || !userId) <span class="kw">return null</span>;
+  <span class="kw">try</span> {
+    <span class="kw">const</span> data =
+      <span class="kw">await new</span> GraphQLClient(GQL_ENDPOINT)
+        .request&lt;<span class="fn">RefreshAuthMutationResponse</span>&gt;(
+          REFRESH_AUTH_MUTATION,
+          { userId, token }
+        );
+    <span class="kw">await</span> setAuthCookies(data.refreshAuth);
+    <span class="kw">return</span> data.refreshAuth.token;
+  } <span class="kw">catch</span> (err) {
+    console.error(<span class="s">'[Refresh Failed]'</span>, err);
+    <span class="kw">return null</span>;
+  }
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">auth.mutations.ts</div><div class="cp">src/modules/auth/graphql/auth.mutations.ts</div>
+</div><span class="tag tsh">SHARED</span><span class="chev">&#9660;</span></div>
+<div class="cb"><pre><code><span class="c">// Plain strings not gql`` tagged</span>
+<span class="c">// Used by graphql-request on server side</span>
+
+<span class="kw">export const</span> <span class="fn">LOGIN_MUTATION</span> = <span class="s">`
+  mutation Login(
+    $email: String!
+    $password: String!
+  ) {
+    login(email: $email, password: $password) {
+      token
+      idToken
+      refreshToken
+    }
+  }
+`</span>;
+
+<span class="c">// Confirmed from your schema screenshot</span>
+<span class="c">// Takes userId + token (accessToken)</span>
+<span class="kw">export const</span> <span class="fn">REFRESH_AUTH_MUTATION</span> = <span class="s">`
+  mutation RefreshAuth(
+    $userId: String!
+    $token: String!
+  ) {
+    refreshAuth(userId: $userId, token: $token) {
+      token
+      idToken
+      refreshToken
+    }
+  }
+`</span>;</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">loginAction.ts</div><div class="cp">src/modules/auth/actions/loginAction.ts</div>
+</div><span class="tag ta">SERVER ACTION</span><span class="chev">&#9660;</span></div>
+<div class="cb">
+<div class="note ni">LoginForm calls this directly. No API route. Tokens never in browser network tab.</div>
+<pre><code><span class="s">'use server'</span>;
+<span class="i">import</span> { GraphQLClient, ClientError }
+  <span class="kw">from</span> <span class="s">'graphql-request'</span>;
+<span class="i">import</span> { redirect }
+  <span class="kw">from</span> <span class="s">'next/navigation'</span>;
+<span class="i">import</span> { GQL_ENDPOINT, ROUTES }
+  <span class="kw">from</span> <span class="s">'@/lib/constants'</span>;
+<span class="i">import</span> { setAuthCookies }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/lib/cookies'</span>;
+<span class="i">import</span> { LOGIN_MUTATION }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/graphql/auth.mutations'</span>;
+<span class="i">import type</span> {
+  LoginMutationResponse, ActionResult,
+} <span class="kw">from</span> <span class="s">'@/types/auth.types'</span>;
+
+<span class="kw">export async function</span> <span class="fn">loginAction</span>(input: {
+  email: <span class="kw">string</span>;
+  password: <span class="kw">string</span>;
+}): Promise&lt;ActionResult&gt; {
+  <span class="kw">const</span> { email, password } = input;
+  <span class="kw">if</span> (!email || !password) <span class="kw">return</span> {
+    success: <span class="kw">false</span>,
+    error: <span class="s">'Email and password required.'</span>,
+  };
+  <span class="kw">try</span> {
+    <span class="kw">const</span> data =
+      <span class="kw">await new</span> GraphQLClient(GQL_ENDPOINT)
+        .request&lt;<span class="fn">LoginMutationResponse</span>&gt;(
+          LOGIN_MUTATION, {
+            email: email.trim().toLowerCase(),
+            password,
+          }
+        );
+    <span class="kw">await</span> setAuthCookies(data.login);
+  } <span class="kw">catch</span> (error) {
+    <span class="kw">if</span> (error <span class="kw">instanceof</span> ClientError) {
+      <span class="kw">const</span> msg =
+        error.response?.errors?.[<span class="n">0</span>]?.message ?? <span class="s">''</span>;
+      <span class="kw">if</span> (msg.toLowerCase().includes(<span class="s">'invalid'</span>))
+        <span class="kw">return</span> {
+          success: <span class="kw">false</span>,
+          error: <span class="s">'Invalid email or password.'</span>,
+        };
+      <span class="kw">return</span> {
+        success: <span class="kw">false</span>,
+        error: msg || <span class="s">'Login failed.'</span>,
+      };
+    }
+    <span class="kw">return</span> {
+      success: <span class="kw">false</span>,
+      error: <span class="s">'Something went wrong.'</span>,
+    };
+  }
+  <span class="c">// redirect() MUST be outside try/catch</span>
+  redirect(ROUTES.DASHBOARD);
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">LoginForm.tsx</div><div class="cp">src/modules/auth/components/LoginForm.tsx</div>
+</div><span class="tag tc">CLIENT</span><span class="chev">&#9660;</span></div>
+<div class="cb">
+<div class="note ni">Uses react-hook-form + zod already in your package.json.</div>
+<pre><code><span class="s">'use client'</span>;
+<span class="i">import</span> { useState, useTransition }
+  <span class="kw">from</span> <span class="s">'react'</span>;
+<span class="i">import</span> { useForm }
+  <span class="kw">from</span> <span class="s">'react-hook-form'</span>;
+<span class="i">import</span> { zodResolver }
+  <span class="kw">from</span> <span class="s">'@hookform/resolvers/zod'</span>;
+<span class="i">import</span> { z } <span class="kw">from</span> <span class="s">'zod'</span>;
+<span class="i">import</span> { loginAction }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/actions/loginAction'</span>;
+
+<span class="kw">const</span> schema = z.object({
+  email: z.string()
+    .min(<span class="n">1</span>, <span class="s">'Email is required'</span>)
+    .email(<span class="s">'Enter a valid email'</span>),
+  password: z.string()
+    .min(<span class="n">1</span>, <span class="s">'Password is required'</span>)
+    .min(<span class="n">6</span>, <span class="s">'Min 6 characters'</span>),
+});
+<span class="kw">type</span> <span class="fn">FormValues</span> = z.infer&lt;<span class="kw">typeof</span> schema&gt;;
+
+<span class="kw">export function</span> <span class="fn">LoginForm</span>() {
+  <span class="kw">const</span> [serverError, setServerError] =
+    useState&lt;<span class="kw">string</span> | <span class="kw">null</span>&gt;(<span class="kw">null</span>);
+  <span class="kw">const</span> [isPending, startTransition] =
+    useTransition();
+  <span class="kw">const</span> {
+    register, handleSubmit,
+    formState: { errors },
+  } = useForm&lt;<span class="fn">FormValues</span>&gt;({
+    resolver: zodResolver(schema),
+  });
+
+  <span class="kw">function</span> <span class="fn">onSubmit</span>(values: <span class="fn">FormValues</span>) {
+    setServerError(<span class="kw">null</span>);
+    startTransition(<span class="kw">async</span> () =&gt; {
+      <span class="kw">const</span> result = <span class="kw">await</span> loginAction(values);
+      <span class="kw">if</span> (!result.success)
+        setServerError(result.error);
+    });
+  }
+
+  <span class="kw">return</span> (
+    &lt;div className="login-card"&gt;
+      &lt;h1 className="login-title"&gt;Admin Portal&lt;/h1&gt;
+      &lt;p className="login-subtitle"&gt;Sign in&lt;/p&gt;
+      {serverError &amp;&amp; (
+        &lt;div className="error-banner" role="alert"&gt;
+          {serverError}
+        &lt;/div&gt;
+      )}
+      &lt;div className="form-fields"&gt;
+        &lt;div className="field-group"&gt;
+          &lt;label htmlFor="email"&gt;Email&lt;/label&gt;
+          &lt;input id="email" type="email"
+            placeholder="you@company.com"
+            disabled={isPending}
+            {...register('email')} /&gt;
+          {errors.email &amp;&amp; (
+            &lt;span className="field-error"&gt;
+              {errors.email.message}
+            &lt;/span&gt;
+          )}
+        &lt;/div&gt;
+        &lt;div className="field-group"&gt;
+          &lt;label htmlFor="password"&gt;Password&lt;/label&gt;
+          &lt;input id="password" type="password"
+            placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;"
+            disabled={isPending}
+            {...register('password')} /&gt;
+          {errors.password &amp;&amp; (
+            &lt;span className="field-error"&gt;
+              {errors.password.message}
+            &lt;/span&gt;
+          )}
+        &lt;/div&gt;
+        &lt;button
+          onClick={handleSubmit(onSubmit)}
+          disabled={isPending}
+          className="submit-button"&gt;
+          {isPending ? 'Signing in...' : 'Sign in'}
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">LogoutButton.tsx</div><div class="cp">src/modules/auth/components/LogoutButton.tsx</div>
+</div><span class="tag tc">CLIENT</span><span class="chev">&#9660;</span></div>
+<div class="cb"><pre><code><span class="s">'use client'</span>;
+<span class="i">import</span> { useState } <span class="kw">from</span> <span class="s">'react'</span>;
+<span class="i">import</span> { useRouter }
+  <span class="kw">from</span> <span class="s">'next/navigation'</span>;
+<span class="i">import</span> { resetApolloClient }
+  <span class="kw">from</span> <span class="s">'@/lib/apollo/apollo-client'</span>;
+<span class="i">import</span> { ROUTES }
+  <span class="kw">from</span> <span class="s">'@/lib/constants'</span>;
+
+<span class="kw">export function</span> <span class="fn">LogoutButton</span>() {
+  <span class="kw">const</span> router = useRouter();
+  <span class="kw">const</span> [loading, setLoading] = useState(<span class="kw">false</span>);
+
+  <span class="kw">async function</span> <span class="fn">handleLogout</span>() {
+    setLoading(<span class="kw">true</span>);
+    <span class="kw">try</span> {
+      <span class="kw">await</span> fetch(<span class="s">'/api/auth/logout'</span>, {
+        method: <span class="s">'POST'</span>,
+      });
+      resetApolloClient();
+      router.push(ROUTES.LOGIN);
+    } <span class="kw">finally</span> { setLoading(<span class="kw">false</span>); }
+  }
+
+  <span class="kw">return</span> (
+    &lt;button onClick={handleLogout}
+      disabled={loading}
+      className="logout-button"&gt;
+      {loading ? 'Signing out...' : 'Sign out'}
+    &lt;/button&gt;
+  );
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">useSession.ts</div><div class="cp">src/modules/auth/hooks/useSession.ts</div>
+</div><span class="tag tc">CLIENT</span><span class="chev">&#9660;</span></div>
+<div class="cb">
+<div class="note ni">Use in any client component that needs current user. No prop drilling.</div>
+<pre><code><span class="s">'use client'</span>;
+<span class="i">import</span> { useEffect, useState }
+  <span class="kw">from</span> <span class="s">'react'</span>;
+<span class="i">import type</span> { SessionUser }
+  <span class="kw">from</span> <span class="s">'@/types/auth.types'</span>;
+
+<span class="kw">export function</span> <span class="fn">useSession</span>() {
+  <span class="kw">const</span> [user, setUser] =
+    useState&lt;SessionUser | <span class="kw">null</span>&gt;(<span class="kw">null</span>);
+  <span class="kw">const</span> [loading, setLoading] =
+    useState(<span class="kw">true</span>);
+
+  useEffect(() =&gt; {
+    fetch(<span class="s">'/api/auth/token'</span>)
+      .then(r =&gt; r.json())
+      .then(({ accessToken }) =&gt; {
+        <span class="kw">if</span> (!accessToken) {
+          setUser(<span class="kw">null</span>); setLoading(<span class="kw">false</span>);
+          <span class="kw">return</span>;
+        }
+        <span class="kw">try</span> {
+          <span class="kw">const</span> p = JSON.parse(
+            atob(accessToken.split(<span class="s">'.'</span>)[<span class="n">1</span>])
+          );
+          setUser({ userId: p.sub, email: p.email });
+        } <span class="kw">catch</span> { setUser(<span class="kw">null</span>); }
+        setLoading(<span class="kw">false</span>);
+      })
+      .catch(() =&gt; {
+        setUser(<span class="kw">null</span>); setLoading(<span class="kw">false</span>);
+      });
+  }, []);
+
+  <span class="kw">return</span> { user, loading };
+}
+<span class="c">// const { user, loading } = useSession();</span>
+<span class="c">// if (loading) return &lt;Spinner /&gt;;</span>
+<span class="c">// return &lt;p&gt;{user?.email}&lt;/p&gt;;</span></code></pre></div></div>
+</div>
+<div id="tab-app" class="panel">
+<div class="sec">app/ files</div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">middleware.ts</div><div class="cp">src/middleware.ts</div>
+</div><span class="tag te">EDGE</span><span class="chev">&#9660;</span></div>
+<div class="cb">
+<div class="note nw">Runs before every request. First wall. Edge runtime only &mdash; cannot use async cookie functions here.</div>
+<pre><code><span class="i">import</span> { NextResponse }
+  <span class="kw">from</span> <span class="s">'next/server'</span>;
+<span class="i">import type</span> { NextRequest }
+  <span class="kw">from</span> <span class="s">'next/server'</span>;
+<span class="i">import</span> { COOKIE_KEYS, ROUTES }
+  <span class="kw">from</span> <span class="s">'@/lib/constants'</span>;
+
+<span class="kw">const</span> PUBLIC = [ROUTES.LOGIN];
+<span class="kw">const</span> BYPASS = [
+  <span class="s">'/api/auth'</span>,
+  <span class="s">'/_next'</span>,
+  <span class="s">'/favicon.ico'</span>,
+];
+
+<span class="kw">export function</span> <span class="fn">middleware</span>(req: NextRequest) {
+  <span class="kw">const</span> { pathname } = req.nextUrl;
+  <span class="kw">if</span> (BYPASS.some(p =&gt; pathname.startsWith(p)))
+    <span class="kw">return</span> NextResponse.next();
+
+  <span class="kw">const</span> token = req.cookies
+    .get(COOKIE_KEYS.ACCESS_TOKEN)?.value;
+  <span class="kw">const</span> isPublic =
+    PUBLIC.some(r =&gt; pathname.startsWith(r));
+
+  <span class="kw">if</span> (!isPublic &amp;&amp; !token) {
+    <span class="kw">const</span> url = <span class="kw">new</span> URL(ROUTES.LOGIN, req.url);
+    url.searchParams.set(<span class="s">'callbackUrl'</span>, pathname);
+    <span class="kw">return</span> NextResponse.redirect(url);
+  }
+  <span class="kw">if</span> (isPublic &amp;&amp; token)
+    <span class="kw">return</span> NextResponse.redirect(
+      <span class="kw">new</span> URL(ROUTES.DASHBOARD, req.url)
+    );
+  <span class="kw">return</span> NextResponse.next();
+}
+
+<span class="kw">export const</span> config = {
+  matcher: [
+    <span class="s">'/((?!_next/static|_next/image|favicon.ico).*)'</span>,
+  ],
+};</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">(auth)/login/page.tsx</div><div class="cp">src/app/(auth)/login/page.tsx</div>
+</div><span class="tag ts">SERVER</span><span class="chev">&#9660;</span></div>
+<div class="cb"><pre><code><span class="i">import</span> { redirect }
+  <span class="kw">from</span> <span class="s">'next/navigation'</span>;
+<span class="i">import</span> { getAccessToken }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/lib/cookies'</span>;
+<span class="i">import</span> { LoginForm }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/components/LoginForm'</span>;
+<span class="i">import</span> { ROUTES }
+  <span class="kw">from</span> <span class="s">'@/lib/constants'</span>;
+<span class="i">import type</span> { Metadata } <span class="kw">from</span> <span class="s">'next'</span>;
+
+<span class="kw">export const</span> metadata: Metadata = {
+  title: <span class="s">'Sign In | Admin Portal'</span>,
+};
+
+<span class="kw">export default async function</span> <span class="fn">LoginPage</span>() {
+  <span class="kw">const</span> token = <span class="kw">await</span> getAccessToken();
+  <span class="kw">if</span> (token) redirect(ROUTES.DASHBOARD);
+  <span class="kw">return</span> (
+    &lt;main className="login-page"&gt;
+      &lt;LoginForm /&gt;
+    &lt;/main&gt;
+  );
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">(protected)/layout.tsx</div><div class="cp">src/app/(protected)/layout.tsx</div>
+</div><span class="tag ts">SERVER</span><span class="chev">&#9660;</span></div>
+<div class="cb">
+<div class="note ni">ApolloProvider mounts here. Children can still be Server Components &mdash; RSC works through providers.</div>
+<pre><code><span class="i">import</span> { redirect }
+  <span class="kw">from</span> <span class="s">'next/navigation'</span>;
+<span class="i">import</span> { getAccessToken }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/lib/cookies'</span>;
+<span class="i">import</span> { ApolloProvider }
+  <span class="kw">from</span> <span class="s">'@/components/providers/ApolloProvider'</span>;
+<span class="i">import</span> { LogoutButton }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/components/LogoutButton'</span>;
+<span class="i">import</span> { ROUTES }
+  <span class="kw">from</span> <span class="s">'@/lib/constants'</span>;
+
+<span class="kw">export default async function</span> <span class="fn">ProtectedLayout</span>({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  <span class="kw">const</span> token = <span class="kw">await</span> getAccessToken();
+  <span class="kw">if</span> (!token) redirect(ROUTES.LOGIN);
+  <span class="kw">return</span> (
+    &lt;ApolloProvider&gt;
+      &lt;div className="app-shell"&gt;
+        &lt;aside className="app-sidebar"&gt;
+          &lt;div className="sidebar-logo"&gt;
+            Admin Portal
+          &lt;/div&gt;
+          &lt;nav className="sidebar-nav"&gt;
+            &lt;a href="/dashboard"
+              className="nav-item"&gt;
+              Dashboard
+            &lt;/a&gt;
+          &lt;/nav&gt;
+          &lt;div className="sidebar-footer"&gt;
+            &lt;LogoutButton /&gt;
+          &lt;/div&gt;
+        &lt;/aside&gt;
+        &lt;div className="app-content"&gt;
+          &lt;main className="app-main"&gt;
+            {children}
+          &lt;/main&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/ApolloProvider&gt;
+  );
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">API Routes &mdash; 3 files</div><div class="cp">src/app/api/auth/*/route.ts</div>
+</div><span class="tag ts">SERVER</span><span class="chev">&#9660;</span></div>
+<div class="cb"><pre><code><span class="c">// ── token/route.ts ─────────────────────</span>
+<span class="c">// GET /api/auth/token</span>
+<span class="c">// httpOnly cookie &#x2192; Apollo authLink</span>
+<span class="i">import</span> { NextResponse }
+  <span class="kw">from</span> <span class="s">'next/server'</span>;
+<span class="i">import</span> { getAccessToken }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/lib/cookies'</span>;
+
+<span class="kw">export async function</span> <span class="fn">GET</span>() {
+  <span class="kw">const</span> token = <span class="kw">await</span> getAccessToken();
+  <span class="kw">return</span> NextResponse.json({
+    accessToken: token ?? <span class="kw">null</span>,
+  });
+}
+
+<span class="c">// ── refresh/route.ts ───────────────────</span>
+<span class="c">// POST /api/auth/refresh</span>
+<span class="c">// Called by Apollo errorLink</span>
+<span class="i">import</span> { refreshAccessToken }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/lib/refresh'</span>;
+
+<span class="kw">export async function</span> <span class="fn">POST</span>() {
+  <span class="kw">const</span> t = <span class="kw">await</span> refreshAccessToken();
+  <span class="kw">if</span> (!t) <span class="kw">return</span> NextResponse.json(
+    { error: <span class="s">'Session expired'</span> },
+    { status: <span class="n">401</span> }
+  );
+  <span class="kw">return</span> NextResponse.json({ accessToken: t });
+}
+
+<span class="c">// ── logout/route.ts ────────────────────</span>
+<span class="c">// POST /api/auth/logout</span>
+<span class="c">// Called by LogoutButton</span>
+<span class="i">import</span> { clearAuthCookies }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/lib/cookies'</span>;
+
+<span class="kw">export async function</span> <span class="fn">POST</span>() {
+  <span class="kw">await</span> clearAuthCookies();
+  <span class="kw">return</span> NextResponse.json({ success: <span class="kw">true</span> });
+}</code></pre></div></div>
+</div>
+<div id="tab-flow" class="panel">
+<div class="sec">Token flows end to end</div>
+<div class="card open">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">Login flow</div><div class="cp">Form submit to dashboard</div>
+</div><span class="chev">&#9660;</span></div>
+<div class="cb"><div class="flow">
+<span class="fs">User submits form</span>
+<span class="fa">&#x2193;</span>
+<span class="fs">LoginForm (CLIENT)</span>
+<span class="fg">  react-hook-form + zod validates</span>
+<span class="fg">  startTransition &#x2192; loginAction()</span>
+<span class="fa">&#x2193; Server Action no fetch()</span>
+<span class="fs">loginAction (SERVER)</span>
+<span class="fg">  graphql-request &#x2192; BE GraphQL</span>
+<span class="fa">&#x2193;</span>
+<span class="fg">BE returns {token, idToken, refreshToken}</span>
+<span class="fa">&#x2193;</span>
+<span class="fs">setAuthCookies()</span>
+<span class="fg">  decode idToken.sub &#x2192; userId</span>
+<span class="fg">  access_token   24h httpOnly</span>
+<span class="fg">  id_token       24h httpOnly</span>
+<span class="fg">  refresh_token  30d httpOnly</span>
+<span class="fg">  user_id        24h httpOnly</span>
+<span class="fa">&#x2193;</span>
+<span class="fs">redirect('/dashboard')</span>
+</div></div></div>
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">Every request</div><div class="cp">Middleware then server or client path</div>
+</div><span class="chev">&#9660;</span></div>
+<div class="cb"><div class="flow">
+<span class="fw">middleware.ts FIRST (edge)</span>
+<span class="fs">  no token + protected &#x2192; /login</span>
+<span class="fs">  has token + /login &#x2192; /dashboard</span>
+<span class="fa">&#x2193; allowed through</span>
+<span class="fs">SERVER COMPONENTS</span>
+<span class="fg">  serverGqlFetch(QUERY, vars)</span>
+<span class="fg">  reads cookie &#x2192; Bearer token</span>
+<span class="fg">  401 &#x2192; refresh &#x2192; retry once</span>
+<span class="fg">  still fails &#x2192; SESSION_EXPIRED</span>
+<span class="fs">CLIENT COMPONENTS (Apollo)</span>
+<span class="fg">  authLink: GET /api/auth/token</span>
+<span class="fg">  &#x2192; Authorization: Bearer token</span>
+<span class="fg">  UNAUTHENTICATED &#x2192; errorLink</span>
+<span class="fg">  POST /api/auth/refresh</span>
+<span class="fg">  new cookies &#x2192; retry request</span>
+<span class="fg">  still fails &#x2192; window.href /login</span>
+</div></div></div>
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">Logout flow</div>
+</div><span class="chev">&#9660;</span></div>
+<div class="cb"><div class="flow">
+<span class="fs">LogoutButton click</span>
+<span class="fa">&#x2193;</span>
+<span class="fs">POST /api/auth/logout</span>
+<span class="fg">  clearAuthCookies() all 4 deleted</span>
+<span class="fa">&#x2193;</span>
+<span class="fs">resetApolloClient()</span>
+<span class="fg">  cache cleared prevents data leak</span>
+<span class="fa">&#x2193;</span>
+<span class="fs">router.push('/login')</span>
+</div></div></div>
+</div>
+<div id="tab-patterns" class="panel">
+<div class="sec">Patterns for future modules</div>
+<div class="card open">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">New protected page with data</div>
+<div class="cp">e.g. src/app/(protected)/users/page.tsx</div>
+</div><span class="tag ts">SERVER</span><span class="chev">&#9660;</span></div>
+<div class="cb"><pre><code><span class="i">import</span> { serverGqlFetch }
+  <span class="kw">from</span> <span class="s">'@/lib/apollo/server-gql-fetcher'</span>;
+<span class="i">import</span> { USERS_QUERY }
+  <span class="kw">from</span> <span class="s">'@/modules/users/graphql/users.queries'</span>;
+
+<span class="kw">export default async function</span> <span class="fn">UsersPage</span>() {
+  <span class="kw">const</span> { users } =
+    <span class="kw">await</span> serverGqlFetch&lt;{ users: User[] }&gt;(
+      USERS_QUERY
+    );
+  <span class="kw">return</span> &lt;UserTable users={users} /&gt;;
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">Client mutation with Apollo cache</div>
+</div><span class="tag tc">CLIENT</span><span class="chev">&#9660;</span></div>
+<div class="cb"><pre><code><span class="s">'use client'</span>;
+<span class="i">import</span> { useMutation, gql }
+  <span class="kw">from</span> <span class="s">'@apollo/client'</span>;
+
+<span class="kw">const</span> CREATE_USER = gql<span class="s">`
+  mutation CreateUser($email: String!) {
+    createUser(email: $email) { id email }
+  }
+`</span>;
+
+<span class="kw">export function</span> <span class="fn">CreateUserForm</span>() {
+  <span class="kw">const</span> [createUser, { loading }] =
+    useMutation(CREATE_USER, {
+      update(cache, { data }) {
+        <span class="c">// No manual refetch needed</span>
+        cache.modify({
+          fields: {
+            users: (existing = []) =&gt; [
+              ...existing, data.createUser
+            ],
+          },
+        });
+      },
+    });
+  <span class="kw">return</span> ( <span class="c">/* your form JSX */</span> );
+}</code></pre></div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">New module folder structure</div>
+<div class="cp">Same pattern for users, events, tickets, locations</div>
+</div><span class="chev">&#9660;</span></div>
+<div class="cb"><div class="tree">
+<span class="d1">modules/users/</span>
+&#x251C; <span class="d1">actions/createUserAction.ts</span>  <span class="tn">SERVER ACTION</span>
+&#x251C; <span class="d1">components/</span>
+&#x2502; &#x251C; <span class="tcc">UserTable.tsx</span>
+&#x2502; &#x2514; <span class="tcc">CreateUserForm.tsx</span>
+&#x251C; <span class="d1">graphql/</span>
+&#x2502; &#x251C; users.queries.ts
+&#x2502; &#x2514; users.mutations.ts
+&#x251C; <span class="d1">hooks/useUsers.ts</span>            <span class="tn">CLIENT</span>
+&#x2514; <span class="d1">types/users.types.ts</span>
+</div>
+<div class="note ni" style="margin-top:0">Self-contained. Each module owns its pieces. Easy to assign to another developer.</div>
+</div></div>
+
+<div class="card">
+<div class="ch" onclick="tog(this)"><div class="chi">
+<div class="ct">useSession in a component</div>
+</div><span class="tag tc">CLIENT</span><span class="chev">&#9660;</span></div>
+<div class="cb"><pre><code><span class="s">'use client'</span>;
+<span class="i">import</span> { useSession }
+  <span class="kw">from</span> <span class="s">'@/modules/auth/hooks/useSession'</span>;
+
+<span class="kw">export function</span> <span class="fn">Topbar</span>() {
+  <span class="kw">const</span> { user, loading } = useSession();
+  <span class="kw">if</span> (loading) <span class="kw">return</span> &lt;Spinner /&gt;;
+  <span class="kw">return</span> (
+    &lt;header&gt;
+      &lt;span&gt;{user?.email}&lt;/span&gt;
+    &lt;/header&gt;
+  );
+}</code></pre></div></div>
+</div>
+
+<footer>Complete Guide &middot; Next.js 15 &middot; Apollo Client 4 &middot; graphql-request 7</footer>
+
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+function tog(h){h.closest('.card').classList.toggle('open')}
+</script>
+</body></html>
