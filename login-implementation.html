@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Login Implementation</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center}
+.hero h1{font-size:18px;font-weight:700;color:var(--ac);margin-bottom:6px}
+.hero p{font-size:12px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 12px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.note{padding:12px 14px;font-size:12px;line-height:1.7}
+.ng{background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0;border-radius:0 8px 8px 0;margin:12px 0}
+.nw{background:rgba(251,191,36,.07);border-left:3px solid var(--yw);color:#FDE68A;border-radius:0 8px 8px 0;margin:12px 0}
+.ni{background:rgba(56,189,248,.07);border-left:3px solid var(--ac);color:var(--mt2);border-radius:0 8px 8px 0;margin:12px 0}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:16px;-webkit-overflow-scrolling:touch;border-radius:0 0 12px 12px}
+.fhdr{background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.ftitle{padding:12px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--bd)}
+.fname{font-family:'SF Mono','Fira Code',monospace;font-size:12px;font-weight:600;color:var(--tx)}
+.fpath{font-family:'SF Mono','Fira Code',monospace;font-size:10px;color:var(--mt)}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em;flex-shrink:0;margin-left:auto}
+.ts{background:rgba(52,211,153,.12);color:var(--gn);border:1px solid rgba(52,211,153,.2)}
+.tc{background:rgba(167,139,250,.12);color:var(--pu);border:1px solid rgba(167,139,250,.2)}
+.ta{background:rgba(56,189,248,.12);color:var(--ac);border:1px solid rgba(56,189,248,.2)}
+.tsh{background:rgba(100,116,139,.12);color:var(--mt2);border:1px solid rgba(100,116,139,.2)}
+.flow{background:var(--sf2);border-radius:8px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2;overflow-x:auto}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:16px 0 8px}
+footer{text-align:center;padding:20px 0 8px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Login Implementation</h1>
+  <p>
+    Email + Password &rarr; GraphQL mutation &rarr; 3 tokens &rarr; 4 httpOnly cookies<br>
+    7 files &middot; Delete old login/route.ts &middot; No Apollo Client needed for login
+  </p>
+</div>
+<div class="tabs">
+<div class="tab active" onclick="go('flow',this)">Flow</div>
+<div class="tab" onclick="go('f0',this)">auth.types.ts</div>
+<div class="tab" onclick="go('f1',this)">constants.ts</div>
+<div class="tab" onclick="go('f2',this)">cookies.ts</div>
+<div class="tab" onclick="go('f3',this)">auth.mutations.ts</div>
+<div class="tab" onclick="go('f4',this)">loginAction.ts</div>
+<div class="tab" onclick="go('f5',this)">LoginForm.tsx</div>
+<div class="tab" onclick="go('f6',this)">page.tsx</div>
+</div>
+<div id="tab-flow" class="panel active">
+<div class="sec">What to delete first</div>
+<div class="note nw">
+&#10060; DELETE these files — they conflict with the new approach:<br><br>
+<code>src/app/api/auth/login/route.ts</code> (entire login folder)<br>
+<code>src/app/api/auth/session/</code> (entire session folder)<br><br>
+Keep: <code>src/app/api/auth/logout/route.ts</code> and <code>src/app/api/auth/token/route.ts</code>
+</div>
+<div class="sec">Token storage flow</div>
+<div class="flow">
+<span class="ft">User types email + password</span>
+<span class="fa">&#x2193;</span>
+<span class="ft">LoginForm (CLIENT)</span>
+<span class="fg">  react-hook-form validates immediately</span>
+<span class="fg">  startTransition &#x2192; loginAction(values)</span>
+<span class="fa">&#x2193; Server Action — no fetch(), no API route</span>
+<span class="ft">loginAction (SERVER)</span>
+<span class="fg">  server-side validation runs again</span>
+<span class="fg">  GraphQLClient &#x2192; BE GraphQL endpoint</span>
+<span class="fa">&#x2193;</span>
+<span class="ft">BE returns AuthToken</span>
+<span class="fg">  &#123; token, idToken, refreshToken &#125;</span>
+<span class="fa">&#x2193;</span>
+<span class="ft">Validate — all 3 tokens present?</span>
+<span class="fa">&#x2193;</span>
+<span class="ft">setAuthCookies(data.login)</span>
+<span class="fg">  decodes idToken.sub &#x2192; userId</span>
+<span class="fg">  access_token   &#x2192; httpOnly cookie (24h)</span>
+<span class="fg">  id_token       &#x2192; httpOnly cookie (24h)</span>
+<span class="fg">  refresh_token  &#x2192; httpOnly cookie (30d)</span>
+<span class="fg">  user_id        &#x2192; httpOnly cookie (24h)</span>
+<span class="fa">&#x2193;</span>
+<span class="ft">redirect(&#x27;/dashboard&#x27;)</span>
+<span class="fg">  — tokens never visible in browser</span>
+<span class="fg">  — network tab shows zero token data</span>
+</div>
+<div class="sec">Why 4 cookies not 3</div>
+<div class="note ni">
+Your <code>refreshAuth</code> mutation requires <strong>userId</strong> as an argument (confirmed from your schema screenshot).<br><br>
+userId = <code>idToken.sub</code> (Cognito sub claim). We decode it at login time and store it separately so refresh can use it without an extra BE call.
+</div>
+<div class="sec">Files in implementation order</div>
+<div class="flow">
+<span class="ft">1. auth.types.ts</span>
+<span class="fg">   Define types first</span>
+<span class="ft">2. constants.ts</span>
+<span class="fg">   Cookie keys and options</span>
+<span class="ft">3. cookies.ts</span>
+<span class="fg">   Token storage layer (SERVER ONLY)</span>
+<span class="ft">4. auth.mutations.ts</span>
+<span class="fg">   GraphQL mutation strings</span>
+<span class="ft">5. loginAction.ts</span>
+<span class="fg">   Server Action — the core logic</span>
+<span class="ft">6. LoginForm.tsx</span>
+<span class="fg">   Client Component — UI only</span>
+<span class="ft">7. page.tsx</span>
+<span class="fg">   Server Component — mounts the form</span>
+</div>
+</div>
+<div id="tab-f0" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">auth.types.ts</div><div class="fpath">src/types/auth.types.ts</div></div>
+<span class="tag tsh">SHARED</span>
+</div>
+<div class="note ng"><span style="color:#A7F3D0">Matches your BE schema exactly. AuthToken has token, idToken, refreshToken. ActionResult is the Server Action return type — never throws raw errors to the client.</span></div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// AUTH TYPES — matches your BE GraphQL schema exactly
+// token     = accessToken (JWT)
+// idToken   = contains userId as sub claim
+// refreshToken = for refreshing expired access tokens
+// ─────────────────────────────────────────────────────────────
+
+export interface AuthToken &#123;
+  token: string;
+  idToken: string;
+  refreshToken: string;
+&#125;
+
+export interface LoginMutationResponse &#123;
+  login: AuthToken;
+&#125;
+
+// Decoded Cognito JWT payload
+export interface DecodedIdToken &#123;
+  sub: string;        // userId
+  email: string;
+  exp: number;
+  iat: number;
+  [key: string]: unknown;
+&#125;
+
+// Server Action always returns this shape — never throws to client
+export type ActionResult&lt;T = void&gt; =
+  | &#123; success: true; data: T &#125;
+  | &#123; success: false; error: string &#125;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">constants.ts</div><div class="fpath">src/lib/constants.ts</div></div>
+<span class="tag tsh">SHARED</span>
+</div>
+<div class="note ng"><span style="color:#A7F3D0">All cookie names and options in one place. Change maxAge here to match your Cognito token TTL settings.</span></div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// CONSTANTS — single source of truth
+// ─────────────────────────────────────────────────────────────
+
+export const GQL_ENDPOINT = process.env.NEXT_PUBLIC_GRAPHQL_URL!;
+
+export const COOKIE_KEYS = &#123;
+  ACCESS_TOKEN:  'access_token',
+  ID_TOKEN:      'id_token',
+  REFRESH_TOKEN: 'refresh_token',
+  USER_ID:       'user_id',   // decoded from idToken.sub — needed for refreshAuth
+&#125; as const;
+
+// accessToken and idToken expire when Cognito says (align maxAge with your Cognito config)
+export const COOKIE_OPTIONS = &#123;
+  httpOnly: true,                                    // JS cannot read this — XSS protection
+  secure:   process.env.NODE_ENV === 'production',   // HTTPS only in prod
+  sameSite: 'lax' as const,                          // CSRF protection
+  path:     '/',
+  maxAge:   60 * 60 * 24,                            // 24 hours — match your Cognito access token TTL
+&#125;;
+
+// Refresh token lives longer
+export const REFRESH_COOKIE_OPTIONS = &#123;
+  ...COOKIE_OPTIONS,
+  maxAge: 60 * 60 * 24 * 30,  // 30 days — match your Cognito refresh token TTL
+&#125;;
+
+export const ROUTES = &#123;
+  LOGIN:     '/login',
+  DASHBOARD: '/dashboard',
+&#125; as const;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">cookies.ts</div><div class="fpath">src/modules/auth/lib/cookies.ts</div></div>
+<span class="tag ts">SERVER ONLY</span>
+</div>
+<div class="note ng"><span style="color:#FDE68A">Has <code>import 'server-only'</code> at the top. This causes a BUILD ERROR if accidentally imported in a Client Component. Hard protection by design.</span></div>
+<pre><code>import 'server-only';
+
+// ─────────────────────────────────────────────────────────────
+// COOKIES — SERVER ONLY
+//
+// 'server-only' import causes a BUILD ERROR if this file is
+// accidentally imported in a Client Component. Hard protection.
+//
+// Stores 4 httpOnly cookies after login:
+//   access_token   → token from BE (accessToken JWT)
+//   id_token       → idToken from BE
+//   refresh_token  → refreshToken from BE
+//   user_id        → decoded from idToken.sub
+//                    (needed for refreshAuth mutation)
+// ─────────────────────────────────────────────────────────────
+
+import &#123; cookies &#125; from 'next/headers';
+import &#123;
+  COOKIE_KEYS,
+  COOKIE_OPTIONS,
+  REFRESH_COOKIE_OPTIONS,
+&#125; from '@/lib/constants';
+import type &#123; AuthToken, DecodedIdToken &#125; from '@/types/auth.types';
+
+// ── Decode JWT payload (no signature verification — BE's job) ─
+function decodeJwtPayload&lt;T&gt;(token: string): T | null &#123;
+  try &#123;
+    // JWT is base64url encoded: header.payload.signature
+    const base64 = token.split('.')[1];
+    // Replace base64url chars to standard base64
+    const standard = base64.replace(/-/g, '+').replace(/_/g, '/');
+    const json = Buffer.from(standard, 'base64').toString('utf-8');
+    return JSON.parse(json) as T;
+  &#125; catch &#123;
+    return null;
+  &#125;
+&#125;
+
+// ── WRITE — called after successful login or token refresh ────
+export async function setAuthCookies(tokens: AuthToken): Promise&lt;void&gt; &#123;
+  const cookieStore = await cookies();
+
+  // Decode userId from idToken — needed for refreshAuth mutation
+  const payload = decodeJwtPayload&lt;DecodedIdToken&gt;(tokens.idToken);
+  const userId = payload?.sub ?? '';
+
+  // Store all 4 cookies atomically
+  cookieStore.set(COOKIE_KEYS.ACCESS_TOKEN,  tokens.token,         COOKIE_OPTIONS);
+  cookieStore.set(COOKIE_KEYS.ID_TOKEN,      tokens.idToken,       COOKIE_OPTIONS);
+  cookieStore.set(COOKIE_KEYS.REFRESH_TOKEN, tokens.refreshToken,  REFRESH_COOKIE_OPTIONS);
+  cookieStore.set(COOKIE_KEYS.USER_ID,       userId,               COOKIE_OPTIONS);
+&#125;
+
+// ── READ — individual getters ─────────────────────────────────
+export async function getAccessToken(): Promise&lt;string | undefined&gt; &#123;
+  const cookieStore = await cookies();
+  return cookieStore.get(COOKIE_KEYS.ACCESS_TOKEN)?.value;
+&#125;
+
+export async function getRefreshToken(): Promise&lt;string | undefined&gt; &#123;
+  const cookieStore = await cookies();
+  return cookieStore.get(COOKIE_KEYS.REFRESH_TOKEN)?.value;
+&#125;
+
+export async function getIdToken(): Promise&lt;string | undefined&gt; &#123;
+  const cookieStore = await cookies();
+  return cookieStore.get(COOKIE_KEYS.ID_TOKEN)?.value;
+&#125;
+
+export async function getUserId(): Promise&lt;string | undefined&gt; &#123;
+  const cookieStore = await cookies();
+  return cookieStore.get(COOKIE_KEYS.USER_ID)?.value;
+&#125;
+
+// ── CLEAR — called on logout ──────────────────────────────────
+export async function clearAuthCookies(): Promise&lt;void&gt; &#123;
+  const cookieStore = await cookies();
+  Object.values(COOKIE_KEYS).forEach((key) =&gt; cookieStore.delete(key));
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">auth.mutations.ts</div><div class="fpath">src/modules/auth/graphql/auth.mutations.ts</div></div>
+<span class="tag tsh">SHARED</span>
+</div>
+<div class="note ng"><span style="color:#A7F3D0">Plain strings, not gql tagged. Used by graphql-request on the server. Field names match your exact BE schema confirmed from screenshots.</span></div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// AUTH MUTATIONS
+//
+// Plain strings — used by graphql-request on the server.
+// NOT gql&#96;&#96; tagged (that's Apollo Client syntax only).
+//
+// These match your exact BE schema confirmed from screenshots.
+// ─────────────────────────────────────────────────────────────
+
+export const LOGIN_MUTATION = &#96;
+  mutation Login($email: String!, $password: String!) &#123;
+    login(email: $email, password: $password) &#123;
+      token
+      idToken
+      refreshToken
+    &#125;
+  &#125;
+&#96;;
+
+// refreshAuth confirmed from your schema screenshot:
+// takes userId (String!) + token (String! = accessToken)
+export const REFRESH_AUTH_MUTATION = &#96;
+  mutation RefreshAuth($userId: String!, $token: String!) &#123;
+    refreshAuth(userId: $userId, token: $token) &#123;
+      token
+      idToken
+      refreshToken
+    &#125;
+  &#125;
+&#96;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f4" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">loginAction.ts</div><div class="fpath">src/modules/auth/actions/loginAction.ts</div></div>
+<span class="tag ta">SERVER ACTION</span>
+</div>
+<div class="note ng"><span style="color:#A7F3D0">Complete login flow. Server-side validation runs even if client validation was bypassed. Parses BE error messages into user-friendly text. redirect() is outside try/catch — critical.</span></div>
+<pre><code>'use server';
+
+// ─────────────────────────────────────────────────────────────
+// LOGIN ACTION — Server Action
+//
+// WHY Server Action instead of API Route:
+//   - Runs directly on the server — zero HTTP round trip
+//   - Has direct access to cookies() — no bridge needed
+//   - Tokens NEVER appear in the browser network tab
+//   - Form submits → this runs → cookies set → redirect
+//
+// Flow:
+//   LoginForm calls this → GraphQLClient → BE returns 3 tokens
+//   → setAuthCookies stores all 3 + userId as httpOnly cookies
+//   → redirect('/dashboard')
+// ─────────────────────────────────────────────────────────────
+
+import &#123; GraphQLClient, ClientError &#125; from 'graphql-request';
+import &#123; redirect &#125; from 'next/navigation';
+import &#123; GQL_ENDPOINT, ROUTES &#125; from '@/lib/constants';
+import &#123; setAuthCookies &#125; from '@/modules/auth/lib/cookies';
+import &#123; LOGIN_MUTATION &#125; from '@/modules/auth/graphql/auth.mutations';
+import type &#123; LoginMutationResponse, ActionResult &#125; from '@/types/auth.types';
+
+export async function loginAction(
+  input: &#123; email: string; password: string &#125;
+): Promise&lt;ActionResult&gt; &#123;
+  const &#123; email, password &#125; = input;
+
+  // ── 1. Server-side validation ──────────────────────────────
+  // Never trust client-only validation
+  if (!email?.trim()) &#123;
+    return &#123; success: false, error: 'Email is required.' &#125;;
+  &#125;
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) &#123;
+    return &#123; success: false, error: 'Enter a valid email address.' &#125;;
+  &#125;
+
+  if (!password) &#123;
+    return &#123; success: false, error: 'Password is required.' &#125;;
+  &#125;
+
+  if (password.length &lt; 6) &#123;
+    return &#123; success: false, error: 'Password must be at least 6 characters.' &#125;;
+  &#125;
+
+  // ── 2. Call BE GraphQL endpoint ────────────────────────────
+  const client = new GraphQLClient(GQL_ENDPOINT, &#123;
+    // No Authorization header — login is a public mutation
+    headers: &#123;
+      'Content-Type': 'application/json',
+    &#125;,
+  &#125;);
+
+  try &#123;
+    const data = await client.request&lt;LoginMutationResponse&gt;(
+      LOGIN_MUTATION,
+      &#123;
+        email:    email.trim().toLowerCase(),
+        password: password,
+      &#125;
+    );
+
+    // ── 3. Validate BE response ──────────────────────────────
+    if (!data?.login?.token) &#123;
+      return &#123;
+        success: false,
+        error: 'Login failed: no token received from server.',
+      &#125;;
+    &#125;
+
+    if (!data.login.idToken) &#123;
+      return &#123;
+        success: false,
+        error: 'Login failed: no idToken received from server.',
+      &#125;;
+    &#125;
+
+    if (!data.login.refreshToken) &#123;
+      return &#123;
+        success: false,
+        error: 'Login failed: no refreshToken received from server.',
+      &#125;;
+    &#125;
+
+    // ── 4. Store all 3 tokens as httpOnly cookies ───────────
+    // setAuthCookies also decodes idToken.sub → stores userId
+    // userId is needed later for the refreshAuth mutation
+    await setAuthCookies(data.login);
+
+  &#125; catch (error) &#123;
+    // ── 5. Parse BE error for user-friendly message ──────────
+    if (error instanceof ClientError) &#123;
+      const beMessage =
+        error.response?.errors?.[0]?.message ?? '';
+
+      // Map common BE error messages to user-friendly text
+      if (
+        beMessage.toLowerCase().includes('invalid') ||
+        beMessage.toLowerCase().includes('incorrect') ||
+        beMessage.toLowerCase().includes('wrong password') ||
+        beMessage.toLowerCase().includes('bad credentials')
+      ) &#123;
+        return &#123;
+          success: false,
+          error: 'Invalid email or password. Please try again.',
+        &#125;;
+      &#125;
+
+      if (
+        beMessage.toLowerCase().includes('not found') ||
+        beMessage.toLowerCase().includes('no user') ||
+        beMessage.toLowerCase().includes('does not exist')
+      ) &#123;
+        return &#123;
+          success: false,
+          error: 'No account found with this email.',
+        &#125;;
+      &#125;
+
+      if (
+        beMessage.toLowerCase().includes('disabled') ||
+        beMessage.toLowerCase().includes('blocked') ||
+        beMessage.toLowerCase().includes('suspended')
+      ) &#123;
+        return &#123;
+          success: false,
+          error: 'Your account has been disabled. Contact support.',
+        &#125;;
+      &#125;
+
+      // Return actual BE message if we don't recognise it
+      return &#123;
+        success: false,
+        error: beMessage || 'Login failed. Please try again.',
+      &#125;;
+    &#125;
+
+    // Network error or unexpected failure
+    console.error('[loginAction] Unexpected error:', error);
+    return &#123;
+      success: false,
+      error: 'Unable to connect. Please check your connection and try again.',
+    &#125;;
+  &#125;
+
+  // ── 6. Redirect MUST be outside try/catch ─────────────────
+  // redirect() throws a special Next.js error internally.
+  // If it's inside catch, the catch block will swallow it.
+  redirect(ROUTES.DASHBOARD);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f5" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">LoginForm.tsx</div><div class="fpath">src/modules/auth/components/LoginForm.tsx</div></div>
+<span class="tag tc">CLIENT</span>
+</div>
+<div class="note ng"><span style="color:#A7F3D0">Uses react-hook-form + zod (already in your package.json). useTransition gives isPending loading state. Clears password on error — security best practice.</span></div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// LOGIN FORM — Client Component
+//
+// Responsibilities (UI only):
+//   ✓ Controlled form with react-hook-form
+//   ✓ Client-side validation with zod (instant feedback)
+//   ✓ Loading state via useTransition
+//   ✓ Server error display
+//   ✓ Calls loginAction (Server Action) — no fetch needed
+//
+// Does NOT:
+//   ✗ Store tokens
+//   ✗ Know about cookies
+//   ✗ Handle redirects
+//   All of that is loginAction's responsibility
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useState, useTransition &#125; from 'react';
+import &#123; useForm &#125; from 'react-hook-form';
+import &#123; zodResolver &#125; from '@hookform/resolvers/zod';
+import &#123; z &#125; from 'zod';
+import &#123; loginAction &#125; from '@/modules/auth/actions/loginAction';
+
+// ── Validation schema ────────────────────────────────────────
+const loginSchema = z.object(&#123;
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Enter a valid email address'),
+  password: z
+    .string()
+    .min(1, 'Password is required')
+    .min(6, 'Password must be at least 6 characters'),
+&#125;);
+
+type LoginFormValues = z.infer&lt;typeof loginSchema&gt;;
+
+// ── Component ────────────────────────────────────────────────
+export function LoginForm() &#123;
+  // Server-returned errors (wrong credentials etc)
+  const [serverError, setServerError] = useState&lt;string | null&gt;(null);
+
+  // useTransition gives isPending loading state for free
+  // No need for a separate loading useState
+  const [isPending, startTransition] = useTransition();
+
+  const &#123;
+    register,
+    handleSubmit,
+    formState: &#123; errors &#125;,
+    reset,
+  &#125; = useForm&lt;LoginFormValues&gt;(&#123;
+    resolver: zodResolver(loginSchema),
+    defaultValues: &#123; email: '', password: '' &#125;,
+  &#125;);
+
+  function onSubmit(values: LoginFormValues) &#123;
+    setServerError(null); // clear previous server error
+
+    startTransition(async () =&gt; &#123;
+      const result = await loginAction(values);
+
+      // If loginAction redirected, this code never runs.
+      // It only runs when loginAction returned an error object.
+      if (!result.success) &#123;
+        setServerError(result.error);
+        // Clear password field on error — security best practice
+        reset(&#123; email: values.email, password: '' &#125;);
+      &#125;
+    &#125;);
+  &#125;
+
+  return (
+    &lt;div className="min-h-screen flex items-center justify-center bg-gray-950"&gt;
+      &lt;div className="w-full max-w-md px-6"&gt;
+
+        &#123;/* Card */&#125;
+        &lt;div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl"&gt;
+
+          &#123;/* Header */&#125;
+          &lt;div className="text-center mb-8"&gt;
+            &lt;div className="inline-flex items-center justify-center w-12 h-12 bg-blue-500/10 border border-blue-500/20 rounded-xl mb-4"&gt;
+              &lt;svg width="24" height="24" viewBox="0 0 24 24" fill="none"&gt;
+                &lt;path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                  stroke="#38BDF8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/&gt;
+              &lt;/svg&gt;
+            &lt;/div&gt;
+            &lt;h1 className="text-xl font-semibold text-white tracking-tight"&gt;
+              Admin Portal
+            &lt;/h1&gt;
+            &lt;p className="text-sm text-gray-400 mt-1"&gt;
+              Sign in to your account
+            &lt;/p&gt;
+          &lt;/div&gt;
+
+          &#123;/* Server Error Banner */&#125;
+          &#123;serverError &amp;&amp; (
+            &lt;div
+              role="alert"
+              className="flex items-start gap-3 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 mb-6"
+            &gt;
+              &lt;svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mt-0.5 shrink-0"&gt;
+                &lt;circle cx="8" cy="8" r="7" stroke="#F87171" strokeWidth="1.5"/&gt;
+                &lt;path d="M8 5v3.5M8 11v.5" stroke="#F87171" strokeWidth="1.5" strokeLinecap="round"/&gt;
+              &lt;/svg&gt;
+              &lt;span className="text-sm text-red-300"&gt;&#123;serverError&#125;&lt;/span&gt;
+            &lt;/div&gt;
+          )&#125;
+
+          &#123;/* Form */&#125;
+          &lt;div className="space-y-5"&gt;
+
+            &#123;/* Email */&#125;
+            &lt;div&gt;
+              &lt;label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-300 mb-1.5"
+              &gt;
+                Email address
+              &lt;/label&gt;
+              &lt;input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@company.com"
+                disabled=&#123;isPending&#125;
+                className=&#123;&#96;
+                  w-full h-10 px-3 rounded-lg text-sm
+                  bg-gray-800 text-white placeholder-gray-500
+                  border transition-colors outline-none
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20
+                  $&#123;errors.email
+                    ? 'border-red-500'
+                    : 'border-gray-700'
+                  &#125;
+                &#96;&#125;
+                &#123;...register('email')&#125;
+              /&gt;
+              &#123;errors.email &amp;&amp; (
+                &lt;p className="text-xs text-red-400 mt-1"&gt;
+                  &#123;errors.email.message&#125;
+                &lt;/p&gt;
+              )&#125;
+            &lt;/div&gt;
+
+            &#123;/* Password */&#125;
+            &lt;div&gt;
+              &lt;label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-300 mb-1.5"
+              &gt;
+                Password
+              &lt;/label&gt;
+              &lt;input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                disabled=&#123;isPending&#125;
+                className=&#123;&#96;
+                  w-full h-10 px-3 rounded-lg text-sm
+                  bg-gray-800 text-white placeholder-gray-500
+                  border transition-colors outline-none
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20
+                  $&#123;errors.password
+                    ? 'border-red-500'
+                    : 'border-gray-700'
+                  &#125;
+                &#96;&#125;
+                &#123;...register('password')&#125;
+              /&gt;
+              &#123;errors.password &amp;&amp; (
+                &lt;p className="text-xs text-red-400 mt-1"&gt;
+                  &#123;errors.password.message&#125;
+                &lt;/p&gt;
+              )&#125;
+            &lt;/div&gt;
+
+            &#123;/* Submit */&#125;
+            &lt;button
+              type="button"
+              onClick=&#123;handleSubmit(onSubmit)&#125;
+              disabled=&#123;isPending&#125;
+              className="
+                w-full h-10 rounded-lg text-sm font-medium
+                bg-blue-500 hover:bg-blue-400
+                text-white
+                transition-colors
+                disabled:opacity-60 disabled:cursor-not-allowed
+                focus:outline-none focus:ring-2 focus:ring-blue-400/50
+                mt-2
+              "
+            &gt;
+              &#123;isPending ? (
+                &lt;span className="flex items-center justify-center gap-2"&gt;
+                  &lt;svg
+                    className="animate-spin w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  &gt;
+                    &lt;circle
+                      className="opacity-25"
+                      cx="12" cy="12" r="10"
+                      stroke="currentColor" strokeWidth="4"
+                    /&gt;
+                    &lt;path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"
+                    /&gt;
+                  &lt;/svg&gt;
+                  Signing in...
+                &lt;/span&gt;
+              ) : (
+                'Sign in'
+              )&#125;
+            &lt;/button&gt;
+
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f6" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">page.tsx</div><div class="fpath">src/app/(auth)/login/page.tsx</div></div>
+<span class="tag ts">SERVER</span>
+</div>
+<div class="note ng"><span style="color:#A7F3D0">Server Component checks token before rendering. Already-logged-in users redirected server-side — no client flicker.</span></div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// LOGIN PAGE — Server Component (no 'use client')
+//
+// Runs on the server. Checks if user already has a valid token.
+// If yes → redirect to dashboard (no flicker, no client code).
+// If no  → render LoginForm client component.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; redirect &#125; from 'next/navigation';
+import &#123; getAccessToken &#125; from '@/modules/auth/lib/cookies';
+import &#123; LoginForm &#125; from '@/modules/auth/components/LoginForm';
+import &#123; ROUTES &#125; from '@/lib/constants';
+import type &#123; Metadata &#125; from 'next';
+
+export const metadata: Metadata = &#123;
+  title: 'Sign In | Admin Portal',
+  description: 'Sign in to your admin account',
+&#125;;
+
+export default async function LoginPage() &#123;
+  // Already logged in? Skip login page entirely.
+  // Server-side redirect — no client-side flicker.
+  const token = await getAccessToken();
+  if (token) &#123;
+    redirect(ROUTES.DASHBOARD);
+  &#125;
+
+  return (
+    &lt;LoginForm /&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+
+<footer>Login Implementation &middot; 7 files &middot; graphql-request &middot; httpOnly cookies</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
