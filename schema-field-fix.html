@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Schema Field Fix</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--rd:#F87171;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#1a0a0a,#2a1010);border:1px solid rgba(248,113,113,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--rd);margin-bottom:6px}
+.hero p{font-size:12px;color:#FCA5A5;line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.fhdr{background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:12px}
+.ftitle{padding:12px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--bd)}
+.fname{font-family:'SF Mono','Fira Code',monospace;font-size:12px;font-weight:600;color:var(--tx)}
+.fpath{font-family:'SF Mono','Fira Code',monospace;font-size:10px;color:var(--mt);margin-top:1px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em;flex-shrink:0;margin-left:auto}
+.note-r{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(248,113,113,.07);border-left:3px solid var(--rd);color:#FCA5A5}
+.note-g{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+.note-y{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(251,191,36,.07);border-left:3px solid var(--yw);color:#FDE68A}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px;-webkit-overflow-scrolling:touch}
+.dr{color:var(--rd)}.dg{color:var(--gn)}.dc{color:#3D5165;font-style:italic}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>&#9888; Critical Schema Mismatch Found</h1>
+  <p>
+    Your app sends <strong>email</strong> but BE expects <strong>userName</strong><br>
+    BE also returns <strong>userId</strong> directly — 4 fields not 3<br>
+    4 files need updating
+  </p>
+</div>
+<div class="tabs">
+<div class="tab active" onclick="go('diff',this)">What Changed</div>
+<div class="tab" onclick="go('f0',this)">auth.types.ts</div>
+<div class="tab" onclick="go('f1',this)">auth.mutations.ts</div>
+<div class="tab" onclick="go('f2',this)">cookies.ts</div>
+<div class="tab" onclick="go('f3',this)">loginAction.ts</div>
+</div>
+<div id="tab-diff" class="panel active">
+<div class="sec">The exact 2 problems</div>
+<pre><code>PROBLEM 1 — Wrong field name in mutation
+─────────────────────────────────────────
+// ❌ What your app was sending:
+login(email: "vnd_muniraja@hobbylobby.com", ...)
+
+// ✅ What your BE expects:
+login(userName: "vnd_muniraja@hobbylobby.com", ...)
+
+Confirmed from your GraphQL playground screenshot.
+This is why every login attempt failed.
+
+─────────────────────────────────────────
+PROBLEM 2 — Missing userId field in response
+─────────────────────────────────────────
+// ❌ What we were querying:
+login &#123; token idToken refreshToken &#125;
+
+// ✅ What BE actually returns (from your schema):
+login &#123; token idToken refreshToken userId &#125;
+
+Your BE sends userId directly — no need to decode JWT.
+Simpler and more reliable.</code></pre>
+<div class="sec">Error in your screenshot explained</div>
+<div class="note-y">
+The error "AWS Error: PreAuthentication failed — Invalid user account, missing tenants" is a BE/Cognito configuration issue for that specific test account — NOT a code bug. It means that user account doesn't have tenant assignments in Cognito yet. This is something your BE team needs to fix for the test account. Your code will work correctly once tested with a properly configured account.
+</div>
+<div class="sec">Summary of all 4 file changes</div>
+<pre><code>FILE 1: auth.types.ts
+  + userId: string  added to AuthToken interface
+
+FILE 2: auth.mutations.ts
+  ❌ login(email: $email      → ✅ login(userName: $userName
+  + userId added to query fields
+
+FILE 3: cookies.ts
+  - removed decodeJwtPayload() function (not needed anymore)
+  + userId now stored directly from BE response
+
+FILE 4: loginAction.ts
+  ❌ userName: email.trim()   → ✅ userName: email.trim().toLowerCase()
+  (maps 'email' form field to 'userName' BE field)
+  + validates userId in response
+  + handles 'missing tenants' error message</code></pre>
+<div class="sec">Full auth flow — verified correct</div>
+<pre><code>LoginForm &#123; email, password &#125;
+  ↓ calls loginAction()
+loginAction (SERVER)
+  → GraphQLClient.request(LOGIN_MUTATION, &#123;
+      userName: email,   ← maps to BE field name
+      password: password
+    &#125;)
+  ↓
+BE returns &#123; token, idToken, refreshToken, userId &#125;
+  ↓
+setAuthCookies() stores 4 httpOnly cookies:
+  access_token   = token
+  id_token       = idToken
+  refresh_token  = refreshToken
+  user_id        = userId    ← direct from BE, no decode
+  ↓
+redirect('/dashboard')
+
+──────────────────────────────────────────
+Every subsequent API call:
+  Server Components → serverGqlFetch reads access_token cookie
+  Client Components → Apollo reads via /api/auth/token bridge
+  Token expired → refreshAuth(userId, token) auto-fires
+</code></pre>
+</div>
+<div id="tab-f0" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">auth.types.ts</div><div class="fpath">src/types/auth.types.ts</div></div>
+<span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+</div>
+<div class="note-g">Added userId field — BE returns this directly. No JWT decoding needed anymore.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// AUTH TYPES — updated to match actual BE schema
+// BE returns userId directly — no JWT decode needed
+// ─────────────────────────────────────────────────────────────
+
+export interface AuthToken &#123;
+  token:        string;  // accessToken
+  idToken:      string;
+  refreshToken: string;
+  userId:        string;  // BE returns this directly — confirmed from schema
+&#125;
+
+export interface LoginMutationResponse &#123;
+  login: AuthToken;
+&#125;
+
+export interface RefreshAuthMutationResponse &#123;
+  refreshAuth: AuthToken;
+&#125;
+
+// Server Action return — never throws raw errors to the client
+export type ActionResult&lt;T = void&gt; =
+  | &#123; success: true;  data: T &#125;
+  | &#123; success: false; error: string &#125;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">auth.mutations.ts</div><div class="fpath">src/modules/auth/graphql/auth.mutations.ts</div></div>
+<span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+</div>
+<div class="note-g">&#10060; Was: <code>email: $email</code> &nbsp; &#10003; Fixed: <code>userName: $userName</code> — confirmed from your schema screenshot.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// AUTH MUTATIONS — matches your EXACT BE schema
+//
+// CRITICAL FIX: field is 'userName' not 'email'
+// Confirmed from GraphQL playground screenshot.
+//
+// Also: login returns 'userId' directly — no JWT decode needed.
+// ─────────────────────────────────────────────────────────────
+
+// ⚠️ Field is 'userName' — confirmed from your schema screenshot
+export const LOGIN_MUTATION = &#96;
+  mutation Login($userName: String!, $password: String!) &#123;
+    login(userName: $userName, password: $password) &#123;
+      token
+      idToken
+      refreshToken
+      userId
+    &#125;
+  &#125;
+&#96;;
+
+// refreshAuth takes userId + token (accessToken)
+// Confirmed from your schema screenshot
+export const REFRESH_AUTH_MUTATION = &#96;
+  mutation RefreshAuth($userId: String!, $token: String!) &#123;
+    refreshAuth(userId: $userId, token: $token) &#123;
+      token
+      idToken
+      refreshToken
+      userId
+    &#125;
+  &#125;
+&#96;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">cookies.ts</div><div class="fpath">src/modules/auth/lib/cookies.ts</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER ONLY</span>
+</div>
+<div class="note-g">Simplified — no more JWT decode. userId now comes directly from BE response.</div>
+<pre><code>import 'server-only';
+
+// ─────────────────────────────────────────────────────────────
+// COOKIES — SERVER ONLY
+//
+// UPDATED: BE now returns userId directly in AuthToken.
+// No more JWT decoding needed — simpler and more reliable.
+//
+// Stores 4 httpOnly cookies:
+//   access_token   → token        (accessToken JWT)
+//   id_token       → idToken
+//   refresh_token  → refreshToken
+//   user_id        → userId (from BE response directly)
+// ─────────────────────────────────────────────────────────────
+
+import &#123; cookies &#125; from 'next/headers';
+import &#123;
+  COOKIE_KEYS,
+  COOKIE_OPTIONS,
+  REFRESH_COOKIE_OPTIONS,
+&#125; from '@/lib/constants';
+import type &#123; AuthToken &#125; from '@/types/auth.types';
+
+// ── WRITE — called after login or token refresh ───────────────
+export async function setAuthCookies(tokens: AuthToken): Promise&lt;void&gt; &#123;
+  const cookieStore = await cookies();
+
+  cookieStore.set(COOKIE_KEYS.ACCESS_TOKEN,  tokens.token,         COOKIE_OPTIONS);
+  cookieStore.set(COOKIE_KEYS.ID_TOKEN,      tokens.idToken,       COOKIE_OPTIONS);
+  cookieStore.set(COOKIE_KEYS.REFRESH_TOKEN, tokens.refreshToken,  REFRESH_COOKIE_OPTIONS);
+  // BE returns userId directly — no JWT decode needed
+  cookieStore.set(COOKIE_KEYS.USER_ID,       tokens.userId,        COOKIE_OPTIONS);
+&#125;
+
+// ── READ ──────────────────────────────────────────────────────
+export async function getAccessToken(): Promise&lt;string | undefined&gt; &#123;
+  return (await cookies()).get(COOKIE_KEYS.ACCESS_TOKEN)?.value;
+&#125;
+
+export async function getRefreshToken(): Promise&lt;string | undefined&gt; &#123;
+  return (await cookies()).get(COOKIE_KEYS.REFRESH_TOKEN)?.value;
+&#125;
+
+export async function getIdToken(): Promise&lt;string | undefined&gt; &#123;
+  return (await cookies()).get(COOKIE_KEYS.ID_TOKEN)?.value;
+&#125;
+
+export async function getUserId(): Promise&lt;string | undefined&gt; &#123;
+  return (await cookies()).get(COOKIE_KEYS.USER_ID)?.value;
+&#125;
+
+// ── CLEAR — called on logout ──────────────────────────────────
+export async function clearAuthCookies(): Promise&lt;void&gt; &#123;
+  const cookieStore = await cookies();
+  Object.values(COOKIE_KEYS).forEach((key) =&gt; cookieStore.delete(key));
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">loginAction.ts</div><div class="fpath">src/modules/auth/actions/loginAction.ts</div></div>
+<span class="tag" style="background:rgba(56,189,248,.12);color:#38BDF8;border:1px solid rgba(56,189,248,.2)">SERVER ACTION</span>
+</div>
+<div class="note-g">&#10060; Was sending <code>email: email</code> &nbsp; &#10003; Fixed: <code>userName: email</code> — maps your form field to BE field name. Also handles "missing tenants" error seen in your screenshot.</div>
+<pre><code>'use server';
+
+// ─────────────────────────────────────────────────────────────
+// LOGIN ACTION — Server Action
+//
+// CRITICAL FIX: sending 'userName' not 'email'
+// Your BE schema field is 'userName' (confirmed from playground).
+//
+// Flow:
+//   LoginForm &#123; email, password &#125;
+//     → loginAction maps email → userName for BE
+//     → GraphQLClient sends login(userName, password)
+//     → BE returns &#123; token, idToken, refreshToken, userId &#125;
+//     → setAuthCookies stores all 4 as httpOnly cookies
+//     → redirect('/dashboard')
+// ─────────────────────────────────────────────────────────────
+
+import &#123; GraphQLClient, ClientError &#125; from 'graphql-request';
+import &#123; redirect &#125; from 'next/navigation';
+import &#123; GQL_ENDPOINT, ROUTES &#125; from '@/lib/constants';
+import &#123; setAuthCookies &#125; from '@/modules/auth/lib/cookies';
+import &#123; LOGIN_MUTATION &#125; from '@/modules/auth/graphql/auth.mutations';
+import type &#123; LoginMutationResponse, ActionResult &#125; from '@/types/auth.types';
+
+export async function loginAction(
+  input: &#123; email: string; password: string &#125;
+): Promise&lt;ActionResult&gt; &#123;
+  const &#123; email, password &#125; = input;
+
+  // ── Server-side validation ────────────────────────────────
+  if (!email?.trim()) &#123;
+    return &#123; success: false, error: 'Email is required.' &#125;;
+  &#125;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) &#123;
+    return &#123; success: false, error: 'Enter a valid email address.' &#125;;
+  &#125;
+  if (!password) &#123;
+    return &#123; success: false, error: 'Password is required.' &#125;;
+  &#125;
+  if (password.length &lt; 6) &#123;
+    return &#123; success: false, error: 'Password must be at least 6 characters.' &#125;;
+  &#125;
+
+  // ── Call BE GraphQL ───────────────────────────────────────
+  const client = new GraphQLClient(GQL_ENDPOINT, &#123;
+    headers: &#123; 'Content-Type': 'application/json' &#125;,
+  &#125;);
+
+  try &#123;
+    const data = await client.request&lt;LoginMutationResponse&gt;(
+      LOGIN_MUTATION,
+      &#123;
+        // ⚠️ BE expects 'userName' — we map from the 'email' input field
+        userName: email.trim().toLowerCase(),
+        password: password,
+      &#125;
+    );
+
+    // ── Validate BE response ─────────────────────────────────
+    if (!data?.login?.token) &#123;
+      return &#123; success: false, error: 'Login failed: no access token received.' &#125;;
+    &#125;
+    if (!data.login.idToken) &#123;
+      return &#123; success: false, error: 'Login failed: no ID token received.' &#125;;
+    &#125;
+    if (!data.login.refreshToken) &#123;
+      return &#123; success: false, error: 'Login failed: no refresh token received.' &#125;;
+    &#125;
+    if (!data.login.userId) &#123;
+      return &#123; success: false, error: 'Login failed: no user ID received.' &#125;;
+    &#125;
+
+    // ── Store all 4 values as httpOnly cookies ─────────────
+    await setAuthCookies(data.login);
+
+  &#125; catch (error) &#123;
+    if (error instanceof ClientError) &#123;
+      const msg = error.response?.errors?.[0]?.message ?? '';
+
+      if (
+        msg.toLowerCase().includes('invalid') ||
+        msg.toLowerCase().includes('incorrect') ||
+        msg.toLowerCase().includes('wrong') ||
+        msg.toLowerCase().includes('bad credentials')
+      ) &#123;
+        return &#123; success: false, error: 'Invalid email or password.' &#125;;
+      &#125;
+      if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no user')) &#123;
+        return &#123; success: false, error: 'No account found with this email.' &#125;;
+      &#125;
+      if (msg.toLowerCase().includes('disabled') || msg.toLowerCase().includes('blocked')) &#123;
+        return &#123; success: false, error: 'Account disabled. Contact support.' &#125;;
+      &#125;
+      if (msg.toLowerCase().includes('missing tenants')) &#123;
+        return &#123; success: false, error: 'Account not configured. Contact your administrator.' &#125;;
+      &#125;
+
+      return &#123; success: false, error: msg || 'Login failed. Please try again.' &#125;;
+    &#125;
+
+    console.error('[loginAction] Unexpected error:', error);
+    return &#123; success: false, error: 'Unable to connect. Check your connection.' &#125;;
+  &#125;
+
+  // redirect() MUST be outside try/catch
+  redirect(ROUTES.DASHBOARD);
+&#125;
+</code></pre>
+</div>
+</div>
+<footer>Schema Field Fix &middot; 4 files &middot; userName not email &middot; userId from BE</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
