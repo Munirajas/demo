@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Middleware + Refresh Fix</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--ac);margin-bottom:4px}
+.hero p{font-size:11.5px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.fhdr{background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:14px}
+.ftitle{padding:12px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--bd)}
+.fname{font-family:'SF Mono','Fira Code',monospace;font-size:12px;font-weight:600;color:var(--tx)}
+.fpath{font-family:'SF Mono','Fira Code',monospace;font-size:10px;color:var(--mt);margin-top:1px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em;flex-shrink:0;margin-left:auto}
+.note{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px;-webkit-overflow-scrolling:touch}
+.flow{background:var(--sf2);border-radius:8px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2.1;overflow-x:auto;margin-bottom:14px}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}.fr{color:#F87171}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+.diff-r{color:#F87171}.diff-g{color:#34D399}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Middleware + Refresh Fix</h1>
+  <p>
+    6 files &middot; Fixed middleware &middot; Complete refresh flow<br>
+    Answers: where is refreshAuth and how does it work
+  </p>
+</div>
+<div class="tabs">
+<div class="tab active" onclick="go('flow',this)">Overview</div>
+<div class="tab" onclick="go('f0',this)">middleware.ts</div>
+<div class="tab" onclick="go('f1',this)">refresh.ts</div>
+<div class="tab" onclick="go('f2',this)">server-gql-fetcher.ts</div>
+<div class="tab" onclick="go('f3',this)">token/route.ts</div>
+<div class="tab" onclick="go('f4',this)">refresh/route.ts</div>
+<div class="tab" onclick="go('f5',this)">logout/route.ts</div>
+</div>
+<div id="tab-flow" class="panel active">
+<div class="sec">Middleware bug fixes</div>
+<pre><code>// YOUR OLD MIDDLEWARE — 3 bugs
+import &#123; SESSION_COOKIE &#125; from './modules/auth/lib/cookies'; // ❌ wrong import
+const session = req.cookies.get(SESSION_COOKIE)?.value;       // ❌ wrong cookie name
+
+if (session &amp;&amp; isPublicRoute)                                  // ❌ logic wrong
+  return redirect('/');                                        // ❌ should be /dashboard
+if (!session &amp;&amp; !isPublicRoute)                               // ❌ logic wrong
+  return redirect('/login');
+
+// FIXED MIDDLEWARE — reads correct cookie, correct redirects
+const accessToken = req.cookies.get('access_token')?.value;   // ✅ our cookie name
+const isAuthenticated = Boolean(accessToken);
+
+if (!isPublicRoute &amp;&amp; !isAuthenticated)                       // ✅ no token = go to login
+  redirect('/login?callbackUrl=' + pathname);
+if (isPublicRoute &amp;&amp; isAuthenticated)                         // ✅ logged in = skip login
+  redirect('/dashboard');</code></pre>
+<div class="sec">Where refreshAuth is used — full picture</div>
+<div class="flow">
+<span class="fw">TOKEN EXPIRY — TWO PATHS:</span>
+
+<span class="ft">PATH A: Server Component request expires</span>
+<span class="fg">  serverGqlFetch() catches 401 error</span>
+<span class="fa">  &#x2193; calls refreshAccessToken() directly</span>
+<span class="fg">  refreshAuth(userId, token) &#x2192; BE</span>
+<span class="fg">  new tokens &#x2192; setAuthCookies()</span>
+<span class="fg">  retry original GQL request</span>
+<span class="fg">  if still fails &#x2192; throw SESSION_EXPIRED</span>
+
+<span class="ft">PATH B: Client Component query expires (Apollo)</span>
+<span class="fg">  useQuery/useMutation gets UNAUTHENTICATED</span>
+<span class="fa">  &#x2193; Apollo errorLink fires</span>
+<span class="fg">  POST /api/auth/refresh</span>
+<span class="fa">  &#x2193; calls refreshAccessToken() on server</span>
+<span class="fg">  refreshAuth(userId, token) &#x2192; BE</span>
+<span class="fg">  new tokens &#x2192; setAuthCookies()</span>
+<span class="fg">  returns new accessToken to Apollo</span>
+<span class="fg">  Apollo retries original failed request</span>
+<span class="fr">  if refresh fails &#x2192; window.href = '/login'</span>
+</div>
+<div class="sec">refreshAuth mutation — confirmed from your schema</div>
+<pre><code># Your BE schema (confirmed from screenshot):
+refreshAuth(
+  userId: String!   ← stored in user_id cookie (decoded from idToken.sub)
+  token:  String!   ← current accessToken (access_token cookie)
+): AuthToken!
+
+# Returns same shape as login:
+AuthToken &#123;
+  token        ← new accessToken
+  idToken      ← new idToken
+  refreshToken ← new refreshToken
+&#125;
+
+# All 3 are written back to cookies by setAuthCookies()</code></pre>
+<div class="sec">Files in this guide</div>
+<div class="flow">
+<span class="ft">middleware.ts</span>
+<span class="fg">  EDGE  — route protection, cookie reading</span>
+<span class="ft">refresh.ts</span>
+<span class="fg">  SERVER— calls refreshAuth mutation on BE</span>
+<span class="ft">server-gql-fetcher.ts</span>
+<span class="fg">  SERVER— uses refresh for Server Components</span>
+<span class="ft">api/auth/token/route.ts</span>
+<span class="fg">  SERVER— httpOnly cookie bridge for Apollo</span>
+<span class="ft">api/auth/refresh/route.ts</span>
+<span class="fg">  SERVER— refresh endpoint for Apollo client</span>
+<span class="ft">api/auth/logout/route.ts</span>
+<span class="fg">  SERVER— clears all cookies on logout</span>
+</div>
+</div>
+<div id="tab-f0" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">middleware.ts</div><div class="fpath">src/middleware.ts</div></div>
+<span class="tag" style="background:rgba(251,191,36,.12);color:#FBBF24;border:1px solid rgba(251,191,36,.2)">EDGE</span>
+</div>
+<div class="note">Fixed: correct cookie name (access_token), correct redirect logic, proper bypass for API routes and static files.</div>
+<pre><code>import &#123; NextRequest, NextResponse &#125; from 'next/server';
+
+// ─────────────────────────────────────────────────────────────
+// MIDDLEWARE — runs at the Edge BEFORE any page renders
+//
+// This is the FIRST line of defence for route protection.
+// It reads the access_token httpOnly cookie directly from
+// the request — fast, no async, no DB calls.
+//
+// Three jobs:
+//   1. Let internal Next.js + auth API routes pass through
+//   2. Unauthenticated user hits protected route → /login
+//   3. Authenticated user hits /login or /register → /dashboard
+// ─────────────────────────────────────────────────────────────
+
+// Routes anyone can access without being logged in
+const PUBLIC_ROUTES = ['/login', '/register'];
+
+// Prefixes that must ALWAYS pass through — never intercepted
+const BYPASS_PREFIXES = [
+  '/api/auth',        // our own auth API routes (token, refresh, logout)
+  '/_next/static',    // Next.js static assets
+  '/_next/image',     // Next.js image optimisation
+  '/favicon.ico',
+  '/public',
+];
+
+export default function middleware(req: NextRequest) &#123;
+  const &#123; pathname &#125; = req.nextUrl;
+
+  // ── 1. Always bypass internal routes ───────────────────────
+  // Without this, middleware would intercept /api/auth/token
+  // and cause an infinite loop
+  if (BYPASS_PREFIXES.some((prefix) =&gt; pathname.startsWith(prefix))) &#123;
+    return NextResponse.next();
+  &#125;
+
+  // ── 2. Read access_token from httpOnly cookie ───────────────
+  // This is the cookie set by setAuthCookies() after login.
+  // Middleware can read httpOnly cookies directly from request.
+  const accessToken = req.cookies.get('access_token')?.value;
+  const isAuthenticated = Boolean(accessToken);
+
+  const isPublicRoute = PUBLIC_ROUTES.some(
+    (route) =&gt; pathname === route || pathname.startsWith(route)
+  );
+
+  // ── 3. Protected route + not logged in → send to login ─────
+  if (!isPublicRoute &amp;&amp; !isAuthenticated) &#123;
+    const loginUrl = new URL('/login', req.url);
+    // Remember where user was trying to go
+    // After login they'll be redirected back here
+    loginUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(loginUrl);
+  &#125;
+
+  // ── 4. Already logged in + hitting public route → dashboard ─
+  if (isPublicRoute &amp;&amp; isAuthenticated) &#123;
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  &#125;
+
+  // ── 5. All other cases — let the request through ────────────
+  return NextResponse.next();
+&#125;
+
+// Tell Next.js which paths this middleware runs on.
+// Excludes static files and images for performance.
+export const config = &#123;
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$).*)',
+  ],
+&#125;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">refresh.ts</div><div class="fpath">src/modules/auth/lib/refresh.ts</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER ONLY</span>
+</div>
+<div class="note">Calls refreshAuth(userId, token) — matches your exact schema. On success writes 4 new cookies. On failure clears all cookies so user gets clean login.</div>
+<pre><code>import 'server-only';
+
+// ─────────────────────────────────────────────────────────────
+// TOKEN REFRESH — SERVER ONLY
+//
+// Called when:
+//   A) Server Component gets SESSION_EXPIRED from serverGqlFetch
+//   B) Apollo errorLink gets UNAUTHENTICATED from a client query
+//      (via POST /api/auth/refresh route)
+//
+// refreshAuth mutation requires:
+//   userId: String!  → stored in user_id cookie after login
+//   token:  String!  → current accessToken (access_token cookie)
+//   (confirmed from your schema screenshot)
+//
+// On success: writes 4 new httpOnly cookies, returns new accessToken
+// On failure: returns null — caller must redirect to /login
+// ─────────────────────────────────────────────────────────────
+
+import &#123; GraphQLClient, ClientError &#125; from 'graphql-request';
+import &#123; GQL_ENDPOINT &#125; from '@/lib/constants';
+import &#123;
+  getAccessToken,
+  getUserId,
+  setAuthCookies,
+  clearAuthCookies,
+&#125; from '@/modules/auth/lib/cookies';
+import type &#123; RefreshAuthMutationResponse &#125; from '@/types/auth.types';
+
+// Must match your BE schema exactly
+const REFRESH_AUTH_MUTATION = &#96;
+  mutation RefreshAuth($userId: String!, $token: String!) &#123;
+    refreshAuth(userId: $userId, token: $token) &#123;
+      token
+      idToken
+      refreshToken
+    &#125;
+  &#125;
+&#96;;
+
+export async function refreshAccessToken(): Promise&lt;string | null&gt; &#123;
+  // We need both to call refreshAuth
+  const [currentToken, userId] = await Promise.all([
+    getAccessToken(),
+    getUserId(),
+  ]);
+
+  // Can't refresh without both — session is broken
+  if (!currentToken || !userId) &#123;
+    console.warn('[refreshAccessToken] Missing token or userId — cannot refresh');
+    return null;
+  &#125;
+
+  try &#123;
+    const client = new GraphQLClient(GQL_ENDPOINT, &#123;
+      headers: &#123; 'Content-Type': 'application/json' &#125;,
+    &#125;);
+
+    const data = await client.request&lt;RefreshAuthMutationResponse&gt;(
+      REFRESH_AUTH_MUTATION,
+      &#123;
+        userId,
+        token: currentToken,  // accessToken — confirmed from your schema
+      &#125;
+    );
+
+    // Validate the response
+    if (!data?.refreshAuth?.token) &#123;
+      console.error('[refreshAccessToken] BE returned no token');
+      return null;
+    &#125;
+
+    // Write all 4 new cookies atomically
+    await setAuthCookies(data.refreshAuth);
+
+    return data.refreshAuth.token;
+
+  &#125; catch (error) &#123;
+    if (error instanceof ClientError) &#123;
+      const msg = error.response?.errors?.[0]?.message ?? '';
+      console.error('[refreshAccessToken] BE error:', msg);
+
+      // If refresh itself returns auth error — tokens fully expired
+      // Clear all cookies so user gets clean login page
+      if (
+        msg.toLowerCase().includes('expired') ||
+        msg.toLowerCase().includes('invalid') ||
+        msg.toLowerCase().includes('unauthenticated')
+      ) &#123;
+        await clearAuthCookies();
+      &#125;
+    &#125; else &#123;
+      console.error('[refreshAccessToken] Unexpected error:', error);
+    &#125;
+
+    return null;
+  &#125;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">server-gql-fetcher.ts</div><div class="fpath">src/lib/apollo/server-gql-fetcher.ts</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="note">Use in ALL Server Components. Auto-refreshes expired token before throwing SESSION_EXPIRED.</div>
+<pre><code>import 'server-only';
+
+// ─────────────────────────────────────────────────────────────
+// SERVER GQL FETCHER
+//
+// Use this in ALL Server Components for data fetching.
+// Never use Apollo Client hooks in Server Components.
+//
+// Auto-refresh flow:
+//   1. Read accessToken from cookie
+//   2. If no token → try refresh once → if still nothing → SESSION_EXPIRED
+//   3. Send request with Bearer token
+//   4. If 401 → try refresh once → retry request → or SESSION_EXPIRED
+//
+// Callers (Server Component pages) handle SESSION_EXPIRED
+// by catching the error and redirecting to /login.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; GraphQLClient, ClientError &#125; from 'graphql-request';
+import &#123; GQL_ENDPOINT &#125; from '@/lib/constants';
+import &#123; getAccessToken &#125; from '@/modules/auth/lib/cookies';
+import &#123; refreshAccessToken &#125; from '@/modules/auth/lib/refresh';
+
+function buildClient(token: string): GraphQLClient &#123;
+  return new GraphQLClient(GQL_ENDPOINT, &#123;
+    headers: &#123;
+      Authorization: &#96;Bearer $&#123;token&#125;&#96;,
+      'Content-Type': 'application/json',
+    &#125;,
+  &#125;);
+&#125;
+
+function isAuthError(error: unknown): boolean &#123;
+  if (error instanceof ClientError) &#123;
+    const status = error.response?.status;
+    const code   = error.response?.errors?.[0]?.extensions?.code;
+    return status === 401 || code === 'UNAUTHENTICATED';
+  &#125;
+  return false;
+&#125;
+
+export async function serverGqlFetch&lt;
+  TData,
+  TVars extends object = Record&lt;string, never&gt;
+&gt;(
+  query:      string,
+  variables?: TVars
+): Promise&lt;TData&gt; &#123;
+
+  let token = await getAccessToken();
+
+  // No token — attempt silent refresh before giving up
+  if (!token) &#123;
+    token = await refreshAccessToken();
+    if (!token) &#123;
+      throw new Error('SESSION_EXPIRED');
+    &#125;
+  &#125;
+
+  try &#123;
+    return await buildClient(token).request&lt;TData&gt;(query, variables);
+
+  &#125; catch (error) &#123;
+    // Token expired mid-session — refresh once and retry
+    if (isAuthError(error)) &#123;
+      const newToken = await refreshAccessToken();
+      if (!newToken) &#123;
+        throw new Error('SESSION_EXPIRED');
+      &#125;
+      // Retry original request with new token
+      return buildClient(newToken).request&lt;TData&gt;(query, variables);
+    &#125;
+
+    // Non-auth error — rethrow as-is
+    throw error;
+  &#125;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">token/route.ts</div><div class="fpath">src/app/api/auth/token/route.ts</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="note">Bridge: httpOnly cookie → Apollo authLink. Apollo runs in browser and needs the token to set Authorization header.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// /api/auth/token  — GET
+//
+// WHY this exists:
+// httpOnly cookies are INVISIBLE to JavaScript by design.
+// Apollo Client's authLink runs in the browser and needs the
+// accessToken to set the Authorization header.
+// This route is the ONLY secure bridge:
+//
+//   Browser (Apollo) → GET /api/auth/token
+//   → Next.js reads httpOnly cookie (server-side)
+//   → Returns &#123; accessToken &#125;
+//   → Apollo sets Authorization: Bearer &lt;token&gt;
+//
+// This is safe because:
+//   - Same-origin only (no CORS issue)
+//   - Cookie is still httpOnly (JS can't steal it via XSS)
+//   - Only exposes the token value, not the cookie itself
+// ─────────────────────────────────────────────────────────────
+
+import &#123; NextResponse &#125; from 'next/server';
+import &#123; getAccessToken &#125; from '@/modules/auth/lib/cookies';
+
+export async function GET() &#123;
+  const accessToken = await getAccessToken();
+  return NextResponse.json(&#123;
+    accessToken: accessToken ?? null,
+  &#125;);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f4" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">refresh/route.ts</div><div class="fpath">src/app/api/auth/refresh/route.ts</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="note">Called by Apollo errorLink on UNAUTHENTICATED. Triggers server-side token refresh, returns new accessToken.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// /api/auth/refresh  — POST
+//
+// Called by Apollo's errorLink when a CLIENT-SIDE query gets
+// an UNAUTHENTICATED error.
+//
+// Flow:
+//   Apollo errorLink → POST /api/auth/refresh
+//   → refreshAccessToken() calls refreshAuth mutation on BE
+//   → new tokens written to httpOnly cookies
+//   → returns new accessToken so Apollo can retry failed request
+//
+// If refresh fails → 401 → Apollo errorLink redirects to /login
+// ─────────────────────────────────────────────────────────────
+
+import &#123; NextResponse &#125; from 'next/server';
+import &#123; refreshAccessToken &#125; from '@/modules/auth/lib/refresh';
+
+export async function POST() &#123;
+  const newToken = await refreshAccessToken();
+
+  if (!newToken) &#123;
+    return NextResponse.json(
+      &#123; error: 'Session expired. Please sign in again.' &#125;,
+      &#123; status: 401 &#125;
+    );
+  &#125;
+
+  return NextResponse.json(&#123; accessToken: newToken &#125;);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f5" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">logout/route.ts</div><div class="fpath">src/app/api/auth/logout/route.ts</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="note">Clears all 4 cookies. Called by LogoutButton.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// /api/auth/logout  — POST
+//
+// Clears all 4 httpOnly auth cookies.
+// Called by the LogoutButton client component.
+// After this, middleware will redirect any protected route back to /login.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; NextResponse &#125; from 'next/server';
+import &#123; clearAuthCookies &#125; from '@/modules/auth/lib/cookies';
+
+export async function POST() &#123;
+  await clearAuthCookies();
+  return NextResponse.json(&#123; success: true &#125;);
+&#125;
+</code></pre>
+</div>
+</div>
+<footer>Middleware + Refresh &middot; 6 files &middot; Complete auth cycle</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
