@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Complete Auth Guide</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--rd:#F87171;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--ac);margin-bottom:4px}
+.hero p{font-size:11.5px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.fhdr{background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:12px}
+.ftitle{padding:12px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--bd)}
+.fname{font-family:'SF Mono','Fira Code',monospace;font-size:12px;font-weight:600;color:var(--tx)}
+.fpath{font-family:'SF Mono','Fira Code',monospace;font-size:10px;color:var(--mt);margin-top:1px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em;flex-shrink:0;margin-left:auto}
+.ng{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+.ny{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(251,191,36,.07);border-left:3px solid var(--yw);color:#FDE68A}
+.ni{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(56,189,248,.07);border-left:3px solid var(--ac);color:var(--mt2)}
+.nr{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(248,113,113,.07);border-left:3px solid var(--rd);color:#FCA5A5}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px;-webkit-overflow-scrolling:touch}
+.flow{background:var(--sf2);border-radius:8px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2.1;overflow-x:auto;margin-bottom:12px}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}.fr{color:var(--rd)}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Complete Auth Guide</h1>
+  <p>graphql-request + TanStack Query &middot; 14 files &middot; Full auth cycle<br>
+  Login &middot; Session Refresh &middot; Idle Handling &middot; Logout &middot; User Profile</p>
+</div>
+<div class="tabs">
+<div class="tab active" onclick="go('q',this)">Answers</div>
+<div class="tab" onclick="go('f0',this)">gql-client.ts</div>
+<div class="tab" onclick="go('f1',this)">auth.types.ts</div>
+<div class="tab" onclick="go('f2',this)">cookies.ts</div>
+<div class="tab" onclick="go('f3',this)">refresh.ts</div>
+<div class="tab" onclick="go('f4',this)">loginAction.ts</div>
+<div class="tab" onclick="go('f5',this)">logoutAction.ts</div>
+<div class="tab" onclick="go('f6',this)">useAuthQuery.ts</div>
+<div class="tab" onclick="go('f7',this)">useSession.ts</div>
+<div class="tab" onclick="go('f8',this)">LogoutButton.tsx</div>
+<div class="tab" onclick="go('f9',this)">UserProfile.tsx</div>
+<div class="tab" onclick="go('f10',this)">TokenRefreshProvider.tsx</div>
+<div class="tab" onclick="go('f11',this)">layout.tsx</div>
+<div class="tab" onclick="go('f12',this)">session/route.ts</div>
+<div class="tab" onclick="go('f13',this)">usage-examples.ts</div>
+</div>
+
+<div id="tab-q" class="panel active">
+<div class="sec">Q1 — graphql-request + TanStack Query is fine for your app</div>
+<div class="ni">
+<strong>Stay with graphql-request + TanStack Query.</strong> For your current situation it is the right call. Apollo setup has been painful and the benefit (normalized cache) is only worth it when you have complex cross-component data relationships. You can always migrate later. The manual cache invalidation with <code>invalidateQueries</code> is straightforward once you see the pattern.
+</div>
+<div class="flow">
+<span class="fg">graphql-request + TanStack Query</span>
+<span class="ft">  &#10003; Already working in your app</span>
+<span class="ft">  &#10003; ~18kb bundle vs ~47kb Apollo</span>
+<span class="ft">  &#10003; TanStack Query has excellent caching</span>
+<span class="ft">  &#10003; Works great with Server Components</span>
+<span class="fw">  &#9888; Cache invalidation is manual</span>
+<span class="fw">  &#9888; No normalized cache (edit user = no auto-update)</span>
+
+<span class="fr">Apollo Client</span>
+<span class="ft">  &#10003; Normalized cache — edit once, update everywhere</span>
+<span class="fr">  &#10007; Complex setup (you experienced this)</span>
+<span class="fr">  &#10007; 47kb bundle</span>
+</div>
+<div class="sec">Q3 — Session refresh flows</div>
+<div class="flow">
+<span class="fw">FLOW A: Active user — token expires mid-session</span>
+<span class="ft">  useAuthQuery fires API call</span>
+<span class="fa">  &#x2193; gets 401 / UNAUTHENTICATED</span>
+<span class="ft">  POST /api/auth/refresh</span>
+<span class="fa">  &#x2193; refreshAuth(userId, token) on BE</span>
+<span class="fg">  new tokens &#x2192; cookies updated</span>
+<span class="fg">  original query retried automatically</span>
+<span class="fg">  user sees nothing &#x2014; transparent</span>
+
+<span class="fw">FLOW B: Idle user returns to app</span>
+<span class="ft">  Tab becomes visible &#x2192; visibilitychange fires</span>
+<span class="fa">  &#x2193; TokenRefreshProvider checks token exp</span>
+<span class="ft">  if expiring in &lt; 5min &#x2192; proactive refresh</span>
+<span class="fg">  if refresh ok &#x2192; continues normally</span>
+<span class="fr">  if refresh fails &#x2192; redirect /login?reason=expired</span>
+
+<span class="fw">FLOW C: Proactive (every 4 minutes)</span>
+<span class="ft">  TokenRefreshProvider interval fires</span>
+<span class="ft">  decodes JWT exp claim</span>
+<span class="ft">  if &lt; 5min remaining &#x2192; refresh now</span>
+<span class="fg">  user never hits 401 at all</span>
+</div>
+<div class="sec">Q4 — Logout needs both BE call AND cookie clear</div>
+<div class="flow">
+<span class="fw">WHY you must call the BE on logout:</span>
+<span class="fr">  If you ONLY clear cookies, the tokens still work</span>
+<span class="fr">  until they naturally expire (could be 24h)</span>
+<span class="fr">  For enterprise SaaS this is a security risk</span>
+<span class="ft">  Your schema has endSession mutation &#x2192; use it</span>
+
+<span class="fw">LOGOUT FLOW (logoutAction.ts):</span>
+<span class="ft">  User clicks LogoutButton</span>
+<span class="fa">  &#x2193;</span>
+<span class="ft">  queryClient.clear()  &#x2190; clears TanStack cache FIRST</span>
+<span class="fa">  &#x2193;</span>
+<span class="ft">  logoutAction() Server Action</span>
+<span class="ft">  1. endSession mutation &#x2192; BE invalidates tokens</span>
+<span class="ft">  2. clearAuthCookies() &#x2192; all 4 cookies deleted</span>
+<span class="ft">  3. redirect(&#x27;/login&#x27;)</span>
+<span class="fg">  Even if endSession fails &#x2192; cookies are ALWAYS cleared</span>
+</div>
+<div class="sec">Q5 — User details and including cookies in further calls</div>
+<div class="flow">
+<span class="fw">USER DETAILS (zero extra API calls):</span>
+<span class="ft">  idToken is already stored as a cookie after login</span>
+<span class="ft">  It contains: email, name, sub (userId), etc.</span>
+<span class="ft">  GET /api/auth/session decodes it server-side</span>
+<span class="ft">  useSession() hook calls this &#x2192; returns SessionUser</span>
+<span class="fg">  name, email, initials available instantly</span>
+
+<span class="fw">HOW COOKIES ARE INCLUDED IN FURTHER API CALLS:</span>
+<span class="ft">  Server Components:</span>
+<span class="fg">    gqlFetch() reads access_token cookie directly</span>
+<span class="fg">    sets Authorization: Bearer token header</span>
+<span class="fg">    you never touch cookies manually</span>
+<span class="ft">  Client Components:</span>
+<span class="fg">    useAuthQuery() fetches GET /api/auth/token</span>
+<span class="fg">    /api/auth/token reads httpOnly cookie server-side</span>
+<span class="fg">    returns token &#x2192; hook sets Authorization header</span>
+<span class="fg">    you never touch cookies manually</span>
+</div>
+<div class="sec">File map — what each file does</div>
+<div class="flow">
+<span class="ft">gql-client.ts</span>
+<span class="fg">  Server GQL factory — all server-side calls</span>
+<span class="ft">auth.types.ts</span>
+<span class="fg">  Types: AuthToken, SessionUser, ActionResult</span>
+<span class="ft">cookies.ts</span>
+<span class="fg">  Read/write/clear 4 httpOnly cookies</span>
+<span class="ft">refresh.ts</span>
+<span class="fg">  refreshAuth mutation — called automatically</span>
+<span class="ft">loginAction.ts</span>
+<span class="fg">  Login flow — sends userName to BE</span>
+<span class="ft">logoutAction.ts</span>
+<span class="fg">  Logout — endSession then clear cookies</span>
+<span class="ft">useAuthQuery.ts</span>
+<span class="fg">  Client hook — replaces Apollo useQuery</span>
+<span class="ft">useSession.ts</span>
+<span class="fg">  Client hook — get user name/email</span>
+<span class="ft">LogoutButton.tsx</span>
+<span class="fg">  UI — clears cache then calls logoutAction</span>
+<span class="ft">UserProfile.tsx</span>
+<span class="fg">  UI — topbar dropdown with name+initials</span>
+<span class="ft">TokenRefreshProvider.tsx</span>
+<span class="fg">  UI — proactive refresh + idle handling</span>
+<span class="ft">layout.tsx</span>
+<span class="fg">  Protected layout — mounts all providers</span>
+<span class="ft">session/route.ts</span>
+<span class="fg">  GET /api/auth/session — user info for hooks</span>
+<span class="ft">usage-examples.ts</span>
+<span class="fg">  How to write your own queries/mutations</span>
+</div>
+</div>
+<div id="tab-f0" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">gql-client.ts</div><div class="fpath">src/lib/gql-client.ts</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="ng">All server-side GQL calls go through gqlFetch(). Auto-refreshes token. Use this in Server Components.</div>
+<pre><code>import 'server-only';
+
+// ─────────────────────────────────────────────────────────────
+// GQL CLIENT — SERVER ONLY
+// Single factory for all server-side GraphQL calls.
+// Automatically attaches Bearer token from cookies.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; GraphQLClient, ClientError &#125; from 'graphql-request';
+import &#123; getAccessToken &#125; from '@/modules/auth/lib/cookies';
+import &#123; refreshAccessToken &#125; from '@/modules/auth/lib/refresh';
+
+const GQL_ENDPOINT = process.env.NEXT_PUBLIC_GRAPHQL_URL!;
+
+// ── Build a client with the given token ───────────────────────
+function createClient(token?: string): GraphQLClient &#123;
+  return new GraphQLClient(GQL_ENDPOINT, &#123;
+    headers: &#123;
+      'Content-Type': 'application/json',
+      ...(token &amp;&amp; &#123; Authorization: &#96;Bearer $&#123;token&#125;&#96; &#125;),
+    &#125;,
+  &#125;);
+&#125;
+
+// ── Public client — no token (for login mutation) ────────────
+export function createPublicClient(): GraphQLClient &#123;
+  return createClient();
+&#125;
+
+// ── Authenticated client — reads token from cookie ───────────
+// Auto-refreshes if token is expired.
+// Throws 'SESSION_EXPIRED' if refresh also fails.
+export async function createAuthenticatedClient(): Promise&lt;GraphQLClient&gt; &#123;
+  let token = await getAccessToken();
+
+  if (!token) &#123;
+    // Try silent refresh before giving up
+    token = await refreshAccessToken();
+    if (!token) throw new Error('SESSION_EXPIRED');
+  &#125;
+
+  return createClient(token);
+&#125;
+
+// ── Helper — typed GQL fetch with auto-refresh ───────────────
+export async function gqlFetch&lt;
+  TData,
+  TVars extends object = Record&lt;string, never&gt;
+&gt;(
+  query: string,
+  variables?: TVars
+): Promise&lt;TData&gt; &#123;
+  const client = await createAuthenticatedClient();
+
+  try &#123;
+    return await client.request&lt;TData&gt;(query, variables);
+  &#125; catch (error) &#123;
+    // Token expired mid-request — refresh and retry once
+    if (isAuthError(error)) &#123;
+      const newToken = await refreshAccessToken();
+      if (!newToken) throw new Error('SESSION_EXPIRED');
+      return createClient(newToken).request&lt;TData&gt;(query, variables);
+    &#125;
+    throw error;
+  &#125;
+&#125;
+
+function isAuthError(error: unknown): boolean &#123;
+  if (error instanceof ClientError) &#123;
+    const status = error.response?.status;
+    const code   = error.response?.errors?.[0]?.extensions?.code as string | undefined;
+    return status === 401 || code === 'UNAUTHENTICATED';
+  &#125;
+  return false;
+&#125;
+
+export &#123; GQL_ENDPOINT &#125;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">auth.types.ts</div><div class="fpath">src/types/auth.types.ts</div></div>
+<span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+</div>
+<div class="ng">Added SessionUser type with initials. BE returns userId directly.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// AUTH TYPES — matches your BE schema exactly
+// ─────────────────────────────────────────────────────────────
+
+// Matches AuthToken! return from BE (login + refreshAuth)
+export interface AuthToken &#123;
+  token:        string;   // accessToken JWT
+  idToken:      string;   // contains user claims
+  refreshToken: string;
+  userId:       string;   // BE returns this directly
+&#125;
+
+// Decoded idToken payload — Cognito standard claims
+export interface DecodedIdToken &#123;
+  sub:                  string;
+  email:                string;
+  name?:                string;
+  'cognito:username'?:  string;
+  given_name?:          string;
+  family_name?:         string;
+  exp:                  number;
+  iat:                  number;
+  [key: string]:        unknown;
+&#125;
+
+// What we expose to the UI for the logged-in user
+export interface SessionUser &#123;
+  userId:    string;
+  email:     string;
+  name:      string;
+  initials:  string;  // derived — e.g. "MV" for "Muniraja Vnd"
+&#125;
+
+// GQL mutation response shapes
+export interface LoginMutationResponse &#123;
+  login: AuthToken;
+&#125;
+export interface RefreshAuthMutationResponse &#123;
+  refreshAuth: AuthToken;
+&#125;
+export interface EndSessionMutationResponse &#123;
+  endSession: &#123; success: boolean &#125;;
+&#125;
+
+// Server Action return — never throws raw errors to UI
+export type ActionResult&lt;T = void&gt; =
+  | &#123; success: true;  data: T &#125;
+  | &#123; success: false; error: string &#125;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">cookies.ts</div><div class="fpath">src/modules/auth/lib/cookies.ts</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="ng">Added getSessionUser() which decodes idToken for user profile. No extra API call.</div>
+<pre><code>import 'server-only';
+
+import &#123; cookies &#125; from 'next/headers';
+import type &#123; AuthToken, DecodedIdToken, SessionUser &#125; from '@/types/auth.types';
+
+const COOKIE_KEYS = &#123;
+  ACCESS_TOKEN:  'access_token',
+  ID_TOKEN:      'id_token',
+  REFRESH_TOKEN: 'refresh_token',
+  USER_ID:       'user_id',
+&#125; as const;
+
+const BASE_OPTIONS = &#123;
+  httpOnly: true,
+  secure:   process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path:     '/',
+&#125;;
+
+const ACCESS_OPTIONS  = &#123; ...BASE_OPTIONS, maxAge: 60 * 60 * 24 &#125;;       // 24h
+const REFRESH_OPTIONS = &#123; ...BASE_OPTIONS, maxAge: 60 * 60 * 24 * 30 &#125;;  // 30d
+
+// ── Decode JWT without verification ──────────────────────────
+export function decodeToken&lt;T&gt;(token: string): T | null &#123;
+  try &#123;
+    const base64 = token.split('.')[1]
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+    return JSON.parse(Buffer.from(base64, 'base64').toString('utf-8')) as T;
+  &#125; catch &#123;
+    return null;
+  &#125;
+&#125;
+
+// ── WRITE — after login or refresh ───────────────────────────
+export async function setAuthCookies(tokens: AuthToken): Promise&lt;void&gt; &#123;
+  const store = await cookies();
+  store.set(COOKIE_KEYS.ACCESS_TOKEN,  tokens.token,         ACCESS_OPTIONS);
+  store.set(COOKIE_KEYS.ID_TOKEN,      tokens.idToken,       ACCESS_OPTIONS);
+  store.set(COOKIE_KEYS.REFRESH_TOKEN, tokens.refreshToken,  REFRESH_OPTIONS);
+  store.set(COOKIE_KEYS.USER_ID,       tokens.userId,        ACCESS_OPTIONS);
+&#125;
+
+// ── READ ──────────────────────────────────────────────────────
+export async function getAccessToken()  &#123; return (await cookies()).get(COOKIE_KEYS.ACCESS_TOKEN)?.value;  &#125;
+export async function getRefreshToken() &#123; return (await cookies()).get(COOKIE_KEYS.REFRESH_TOKEN)?.value; &#125;
+export async function getIdToken()      &#123; return (await cookies()).get(COOKIE_KEYS.ID_TOKEN)?.value;      &#125;
+export async function getUserId()       &#123; return (await cookies()).get(COOKIE_KEYS.USER_ID)?.value;       &#125;
+
+// ── Get session user from stored cookies ─────────────────────
+// Used by Server Components to pass user info to client tree
+export async function getSessionUser(): Promise&lt;SessionUser | null&gt; &#123;
+  const [idToken, userId] = await Promise.all([getIdToken(), getUserId()]);
+  if (!idToken || !userId) return null;
+
+  const payload = decodeToken&lt;DecodedIdToken&gt;(idToken);
+  if (!payload) return null;
+
+  const email = payload.email ?? '';
+  const name = payload.name
+    ?? payload['cognito:username']
+    ?? &#96;$&#123;payload.given_name ?? ''&#125; $&#123;payload.family_name ?? ''&#125;&#96;.trim()
+    ?? email.split('@')[0];
+
+  // Build initials from name
+  const parts = name.trim().split(' ').filter(Boolean);
+  const initials = parts.length &gt;= 2
+    ? &#96;$&#123;parts[0][0]&#125;$&#123;parts[parts.length - 1][0]&#125;&#96;.toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+
+  return &#123; userId, email, name, initials &#125;;
+&#125;
+
+// ── Check if access token is close to expiry ─────────────────
+// Used for proactive refresh (refresh before user hits 401)
+export async function isTokenExpiringSoon(thresholdMinutes = 5): Promise&lt;boolean&gt; &#123;
+  const token = await getAccessToken();
+  if (!token) return true;
+
+  const payload = decodeToken&lt;DecodedIdToken&gt;(token);
+  if (!payload?.exp) return true;
+
+  const expiresInMs = (payload.exp * 1000) - Date.now();
+  return expiresInMs &lt; thresholdMinutes * 60 * 1000;
+&#125;
+
+// ── CLEAR — on logout ─────────────────────────────────────────
+export async function clearAuthCookies(): Promise&lt;void&gt; &#123;
+  const store = await cookies();
+  Object.values(COOKIE_KEYS).forEach((key) =&gt; store.delete(key));
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">refresh.ts</div><div class="fpath">src/modules/auth/lib/refresh.ts</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="ng">Calls refreshAuth(userId, token) — matches your exact schema.</div>
+<pre><code>import 'server-only';
+
+import &#123; GraphQLClient, ClientError &#125; from 'graphql-request';
+import &#123; GQL_ENDPOINT &#125; from '@/lib/gql-client';
+import &#123; getAccessToken, getUserId, setAuthCookies, clearAuthCookies &#125; from '@/modules/auth/lib/cookies';
+import type &#123; RefreshAuthMutationResponse &#125; from '@/types/auth.types';
+
+const REFRESH_AUTH_MUTATION = &#96;
+  mutation RefreshAuth($userId: String!, $token: String!) &#123;
+    refreshAuth(userId: $userId, token: $token) &#123;
+      token
+      idToken
+      refreshToken
+      userId
+    &#125;
+  &#125;
+&#96;;
+
+export async function refreshAccessToken(): Promise&lt;string | null&gt; &#123;
+  const [token, userId] = await Promise.all([getAccessToken(), getUserId()]);
+
+  if (!token || !userId) &#123;
+    console.warn('[refresh] Missing token or userId');
+    return null;
+  &#125;
+
+  try &#123;
+    const client = new GraphQLClient(GQL_ENDPOINT, &#123;
+      headers: &#123; 'Content-Type': 'application/json' &#125;,
+    &#125;);
+
+    const data = await client.request&lt;RefreshAuthMutationResponse&gt;(
+      REFRESH_AUTH_MUTATION,
+      &#123; userId, token &#125;
+    );
+
+    if (!data?.refreshAuth?.token) return null;
+
+    await setAuthCookies(data.refreshAuth);
+    return data.refreshAuth.token;
+
+  &#125; catch (error) &#123;
+    if (error instanceof ClientError) &#123;
+      const msg = (error.response?.errors?.[0]?.message ?? '').toLowerCase();
+      // If tokens are truly expired/invalid — clear everything
+      if (msg.includes('expired') || msg.includes('invalid') || msg.includes('unauthenticated')) &#123;
+        await clearAuthCookies();
+      &#125;
+    &#125;
+    console.error('[refresh] Failed:', error);
+    return null;
+  &#125;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f4" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">loginAction.ts</div><div class="fpath">src/modules/auth/actions/loginAction.ts</div></div>
+<span class="tag" style="background:rgba(56,189,248,.12);color:#38BDF8;border:1px solid rgba(56,189,248,.2)">ACTION</span>
+</div>
+<div class="ny">&#9888; Sends userName not email — confirmed from your schema. Maps form field name to BE field name.</div>
+<pre><code>'use server';
+
+import &#123; GraphQLClient, ClientError &#125; from 'graphql-request';
+import &#123; redirect &#125; from 'next/navigation';
+import &#123; GQL_ENDPOINT &#125; from '@/lib/gql-client';
+import &#123; setAuthCookies &#125; from '@/modules/auth/lib/cookies';
+import type &#123; LoginMutationResponse, ActionResult &#125; from '@/types/auth.types';
+
+// ⚠️ BE uses 'userName' not 'email' — confirmed from schema screenshot
+const LOGIN_MUTATION = &#96;
+  mutation Login($userName: String!, $password: String!) &#123;
+    login(userName: $userName, password: $password) &#123;
+      token
+      idToken
+      refreshToken
+      userId
+    &#125;
+  &#125;
+&#96;;
+
+export async function loginAction(
+  input: &#123; email: string; password: string &#125;
+): Promise&lt;ActionResult&gt; &#123;
+  const &#123; email, password &#125; = input;
+
+  if (!email?.trim()) return &#123; success: false, error: 'Email is required.' &#125;;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+    return &#123; success: false, error: 'Enter a valid email.' &#125;;
+  if (!password) return &#123; success: false, error: 'Password is required.' &#125;;
+
+  try &#123;
+    const client = new GraphQLClient(GQL_ENDPOINT, &#123;
+      headers: &#123; 'Content-Type': 'application/json' &#125;,
+    &#125;);
+
+    const data = await client.request&lt;LoginMutationResponse&gt;(LOGIN_MUTATION, &#123;
+      userName: email.trim().toLowerCase(), // maps form 'email' → BE 'userName'
+      password,
+    &#125;);
+
+    if (!data?.login?.token || !data.login.userId) &#123;
+      return &#123; success: false, error: 'Login failed: incomplete response from server.' &#125;;
+    &#125;
+
+    await setAuthCookies(data.login);
+
+  &#125; catch (error) &#123;
+    if (error instanceof ClientError) &#123;
+      const msg = error.response?.errors?.[0]?.message ?? '';
+      if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('incorrect'))
+        return &#123; success: false, error: 'Invalid email or password.' &#125;;
+      if (msg.toLowerCase().includes('missing tenants'))
+        return &#123; success: false, error: 'Account not configured. Contact your administrator.' &#125;;
+      if (msg.toLowerCase().includes('disabled') || msg.toLowerCase().includes('blocked'))
+        return &#123; success: false, error: 'Account disabled. Contact support.' &#125;;
+      return &#123; success: false, error: msg || 'Login failed. Please try again.' &#125;;
+    &#125;
+    console.error('[loginAction]', error);
+    return &#123; success: false, error: 'Unable to connect. Check your connection.' &#125;;
+  &#125;
+
+  redirect('/dashboard'); // outside try/catch — critical
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f5" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">logoutAction.ts</div><div class="fpath">src/modules/auth/actions/logoutAction.ts</div></div>
+<span class="tag" style="background:rgba(56,189,248,.12);color:#38BDF8;border:1px solid rgba(56,189,248,.2)">ACTION</span>
+</div>
+<div class="ng">Calls endSession mutation (seen in your schema) then clears all 4 cookies. Logout always succeeds even if BE call fails.</div>
+<pre><code>'use server';
+
+import &#123; GraphQLClient, ClientError &#125; from 'graphql-request';
+import &#123; redirect &#125; from 'next/navigation';
+import &#123; GQL_ENDPOINT &#125; from '@/lib/gql-client';
+import &#123; getAccessToken, getUserId, clearAuthCookies &#125; from '@/modules/auth/lib/cookies';
+import type &#123; ActionResult &#125; from '@/types/auth.types';
+
+// Seen in your schema screenshot — endSession SessionResponse
+const END_SESSION_MUTATION = &#96;
+  mutation EndSession &#123;
+    endSession &#123;
+      success
+    &#125;
+  &#125;
+&#96;;
+
+export async function logoutAction(): Promise&lt;ActionResult&gt; &#123;
+  const [token, userId] = await Promise.all([getAccessToken(), getUserId()]);
+
+  // ── Step 1: Inform BE to invalidate the session ───────────
+  // This revokes the token server-side (Cognito + BE session)
+  // Even if this fails, we STILL clear cookies — user must be logged out
+  if (token) &#123;
+    try &#123;
+      const client = new GraphQLClient(GQL_ENDPOINT, &#123;
+        headers: &#123;
+          'Content-Type': 'application/json',
+          Authorization: &#96;Bearer $&#123;token&#125;&#96;,
+        &#125;,
+      &#125;);
+      await client.request(END_SESSION_MUTATION);
+    &#125; catch (error) &#123;
+      // Log but don't block logout — always clear cookies
+      if (error instanceof ClientError) &#123;
+        console.warn('[logoutAction] endSession BE call failed:', error.response?.errors?.[0]?.message);
+      &#125; else &#123;
+        console.warn('[logoutAction] endSession network error');
+      &#125;
+    &#125;
+  &#125;
+
+  // ── Step 2: Clear all 4 httpOnly cookies ──────────────────
+  await clearAuthCookies();
+
+  // ── Step 3: Redirect to login ─────────────────────────────
+  redirect('/login');
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f6" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">useAuthQuery.ts</div><div class="fpath">src/modules/auth/hooks/useAuthQuery.ts</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">Drop-in replacement for Apollo useQuery/useMutation. Auto token refresh. invalidateKeys for cache management.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// useAuthQuery — TanStack Query wrapper with auto token refresh
+//
+// This replaces Apollo Client's auth link for client components.
+// Every query goes through this hook which:
+//   1. Gets the access token from /api/auth/token
+//   2. Makes the GraphQL request with Bearer token
+//   3. On 401 → calls /api/auth/refresh → retries once
+//   4. On failed refresh → redirects to /login
+//
+// Usage:
+//   const &#123; data, isLoading, error &#125; = useAuthQuery(
+//     ['users'],
+//     USERS_QUERY,
+//     &#123; role: 'admin' &#125;  // optional variables
+//   );
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useQuery, useMutation, useQueryClient, type UseQueryOptions &#125; from '@tanstack/react-query';
+import &#123; useRouter &#125; from 'next/navigation';
+import &#123; GraphQLClient, ClientError &#125; from 'graphql-request';
+
+const GQL_ENDPOINT = process.env.NEXT_PUBLIC_GRAPHQL_URL!;
+
+// ── Fetch access token from cookie bridge ────────────────────
+async function getToken(): Promise&lt;string | null&gt; &#123;
+  try &#123;
+    const res = await fetch('/api/auth/token');
+    if (!res.ok) return null;
+    const &#123; accessToken &#125; = await res.json() as &#123; accessToken: string | null &#125;;
+    return accessToken;
+  &#125; catch &#123;
+    return null;
+  &#125;
+&#125;
+
+// ── Try to refresh token ──────────────────────────────────────
+async function tryRefresh(): Promise&lt;string | null&gt; &#123;
+  try &#123;
+    const res = await fetch('/api/auth/refresh', &#123; method: 'POST' &#125;);
+    if (!res.ok) return null;
+    const &#123; accessToken &#125; = await res.json() as &#123; accessToken: string | null &#125;;
+    return accessToken;
+  &#125; catch &#123;
+    return null;
+  &#125;
+&#125;
+
+// ── Core GQL fetcher — used by both useAuthQuery and useAuthMutation
+async function gqlFetch&lt;TData&gt;(
+  query: string,
+  variables?: object,
+  onSessionExpired?: () =&gt; void
+): Promise&lt;TData&gt; &#123;
+  let token = await getToken();
+
+  if (!token) &#123;
+    token = await tryRefresh();
+    if (!token) &#123; onSessionExpired?.(); throw new Error('SESSION_EXPIRED'); &#125;
+  &#125;
+
+  const client = new GraphQLClient(GQL_ENDPOINT, &#123;
+    headers: &#123; Authorization: &#96;Bearer $&#123;token&#125;&#96;, 'Content-Type': 'application/json' &#125;,
+  &#125;);
+
+  try &#123;
+    return await client.request&lt;TData&gt;(query, variables);
+  &#125; catch (error) &#123;
+    if (isAuthError(error)) &#123;
+      // Token expired mid-request — refresh once and retry
+      const newToken = await tryRefresh();
+      if (!newToken) &#123; onSessionExpired?.(); throw new Error('SESSION_EXPIRED'); &#125;
+
+      const retryClient = new GraphQLClient(GQL_ENDPOINT, &#123;
+        headers: &#123; Authorization: &#96;Bearer $&#123;newToken&#125;&#96;, 'Content-Type': 'application/json' &#125;,
+      &#125;);
+      return retryClient.request&lt;TData&gt;(query, variables);
+    &#125;
+    throw error;
+  &#125;
+&#125;
+
+function isAuthError(error: unknown): boolean &#123;
+  if (error instanceof ClientError) &#123;
+    const code = error.response?.errors?.[0]?.extensions?.code as string | undefined;
+    return error.response?.status === 401 || code === 'UNAUTHENTICATED';
+  &#125;
+  return false;
+&#125;
+
+// ── useAuthQuery — for data fetching ─────────────────────────
+export function useAuthQuery&lt;TData&gt;(
+  queryKey: unknown[],
+  query: string,
+  variables?: object,
+  options?: Omit&lt;UseQueryOptions&lt;TData&gt;, 'queryKey' | 'queryFn'&gt;
+) &#123;
+  const router = useRouter();
+
+  return useQuery&lt;TData&gt;(&#123;
+    queryKey,
+    queryFn: () =&gt;
+      gqlFetch&lt;TData&gt;(query, variables, () =&gt; router.push('/login?reason=expired')),
+    staleTime: 1000 * 60 * 5,       // 5 min — don't refetch if data is fresh
+    retry: 1,                        // retry once on network error
+    ...options,
+  &#125;);
+&#125;
+
+// ── useAuthMutation — for mutations ───────────────────────────
+export function useAuthMutation&lt;TData, TVars extends object = object&gt;(
+  mutation: string,
+  options?: &#123;
+    onSuccess?: (data: TData) =&gt; void;
+    onError?: (error: Error) =&gt; void;
+    invalidateKeys?: unknown[][];    // query keys to invalidate after mutation
+  &#125;
+) &#123;
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  return useMutation&lt;TData, Error, TVars&gt;(&#123;
+    mutationFn: (variables: TVars) =&gt;
+      gqlFetch&lt;TData&gt;(mutation, variables, () =&gt; router.push('/login?reason=expired')),
+    onSuccess: (data) =&gt; &#123;
+      // Invalidate specified query caches after mutation
+      if (options?.invalidateKeys) &#123;
+        options.invalidateKeys.forEach((key) =&gt; &#123;
+          queryClient.invalidateQueries(&#123; queryKey: key &#125;);
+        &#125;);
+      &#125;
+      options?.onSuccess?.(data);
+    &#125;,
+    onError: options?.onError,
+  &#125;);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f7" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">useSession.ts</div><div class="fpath">src/modules/auth/hooks/useSession.ts</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">Get current user in any client component. Reads idToken from cookie — zero extra API calls.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// useSession — get current user in any client component
+//
+// Reads the idToken from /api/auth/token and decodes the
+// user claims (email, name) client-side.
+// No extra BE call needed — data is already in the token.
+//
+// Usage:
+//   const &#123; user, isLoading &#125; = useSession();
+//   if (isLoading) return &lt;Skeleton /&gt;;
+//   return &lt;p&gt;Hello, &#123;user?.name&#125;&lt;/p&gt;;
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useQuery &#125; from '@tanstack/react-query';
+import type &#123; SessionUser &#125; from '@/types/auth.types';
+
+async function fetchSession(): Promise&lt;SessionUser | null&gt; &#123;
+  const res = await fetch('/api/auth/session');
+  if (!res.ok) return null;
+  return res.json() as Promise&lt;SessionUser | null&gt;;
+&#125;
+
+export function useSession() &#123;
+  const &#123; data: user, isLoading &#125; = useQuery&lt;SessionUser | null&gt;(&#123;
+    queryKey:  ['session'],
+    queryFn:   fetchSession,
+    staleTime: 1000 * 60 * 10,  // 10 min — user details don't change often
+    retry:     false,
+  &#125;);
+
+  return &#123; user: user ?? null, isLoading &#125;;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f8" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">LogoutButton.tsx</div><div class="fpath">src/modules/auth/components/LogoutButton.tsx</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">Clears TanStack Query cache then calls logoutAction. Works as standalone button or inside dropdown.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// LOGOUT BUTTON
+//
+// Flow on click:
+//   1. logoutAction (Server Action):
+//      a. Calls endSession mutation on BE (invalidates server-side)
+//      b. Clears all 4 httpOnly cookies
+//      c. redirect('/login')
+//   2. TanStack Query cache cleared (stale data won't leak)
+//
+// The queryClient.clear() is called BEFORE the server action
+// so there's no moment where stale data is visible.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useState, useTransition &#125; from 'react';
+import &#123; useQueryClient &#125; from '@tanstack/react-query';
+import &#123; logoutAction &#125; from '@/modules/auth/actions/logoutAction';
+
+interface LogoutButtonProps &#123;
+  className?: string;
+  children?: React.ReactNode;
+&#125;
+
+export function LogoutButton(&#123; className, children &#125;: LogoutButtonProps) &#123;
+  const queryClient = useQueryClient();
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState&lt;string | null&gt;(null);
+
+  function handleLogout() &#123;
+    // Clear all cached query data immediately
+    // Prevents stale data showing if another user logs in
+    queryClient.clear();
+
+    startTransition(async () =&gt; &#123;
+      const result = await logoutAction();
+      // If logoutAction redirected, this never runs
+      // Only runs if there was an error
+      if (!result.success) &#123;
+        setError('Logout failed. Please try again.');
+      &#125;
+    &#125;);
+  &#125;
+
+  return (
+    &lt;div&gt;
+      &#123;error &amp;&amp; (
+        &lt;p className="text-xs text-red-400 mb-1"&gt;&#123;error&#125;&lt;/p&gt;
+      )&#125;
+      &lt;button
+        onClick=&#123;handleLogout&#125;
+        disabled=&#123;isPending&#125;
+        className=&#123;className ?? &#96;
+          flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm
+          text-gray-400 hover:text-white hover:bg-gray-800
+          transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+        &#96;&#125;
+      &gt;
+        &#123;isPending ? (
+          &lt;&gt;
+            &lt;svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"&gt;
+              &lt;circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/&gt;
+              &lt;path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/&gt;
+            &lt;/svg&gt;
+            Signing out...
+          &lt;/&gt;
+        ) : (
+          children ?? (
+            &lt;&gt;
+              &lt;svg width="16" height="16" viewBox="0 0 24 24" fill="none"&gt;
+                &lt;path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/&gt;
+              &lt;/svg&gt;
+              Sign out
+            &lt;/&gt;
+          )
+        )&#125;
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f9" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">UserProfile.tsx</div><div class="fpath">src/modules/auth/components/UserProfile.tsx</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">Dropdown showing user name, email, initials in topbar/sidebar. Uses useSession hook.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// USER PROFILE — shown in topbar/sidebar
+//
+// Gets user info from useSession hook which reads the idToken
+// already stored in cookies. Zero extra API calls.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useSession &#125; from '@/modules/auth/hooks/useSession';
+import &#123; LogoutButton &#125; from './LogoutButton';
+import &#123; useState, useRef, useEffect &#125; from 'react';
+
+export function UserProfile() &#123;
+  const &#123; user, isLoading &#125; = useSession();
+  const [open, setOpen] = useState(false);
+  const ref = useRef&lt;HTMLDivElement&gt;(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() =&gt; &#123;
+    function handleClick(e: MouseEvent) &#123;
+      if (ref.current &amp;&amp; !ref.current.contains(e.target as Node)) &#123;
+        setOpen(false);
+      &#125;
+    &#125;
+    document.addEventListener('mousedown', handleClick);
+    return () =&gt; document.removeEventListener('mousedown', handleClick);
+  &#125;, []);
+
+  if (isLoading) &#123;
+    return (
+      &lt;div className="flex items-center gap-3"&gt;
+        &lt;div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse" /&gt;
+        &lt;div className="w-24 h-3 rounded bg-gray-700 animate-pulse" /&gt;
+      &lt;/div&gt;
+    );
+  &#125;
+
+  if (!user) return null;
+
+  return (
+    &lt;div className="relative" ref=&#123;ref&#125;&gt;
+      &lt;button
+        onClick=&#123;() =&gt; setOpen(!open)&#125;
+        className="flex items-center gap-3 hover:bg-gray-800 px-2 py-1.5 rounded-lg transition-colors"
+      &gt;
+        &#123;/* Avatar with initials */&#125;
+        &lt;div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0"&gt;
+          &lt;span className="text-xs font-semibold text-blue-400"&gt;
+            &#123;user.initials&#125;
+          &lt;/span&gt;
+        &lt;/div&gt;
+
+        &#123;/* Name and email */&#125;
+        &lt;div className="text-left hidden sm:block"&gt;
+          &lt;p className="text-sm font-medium text-white leading-tight"&gt;
+            &#123;user.name&#125;
+          &lt;/p&gt;
+          &lt;p className="text-xs text-gray-400 leading-tight"&gt;
+            &#123;user.email&#125;
+          &lt;/p&gt;
+        &lt;/div&gt;
+
+        &#123;/* Chevron */&#125;
+        &lt;svg
+          width="14" height="14" viewBox="0 0 24 24" fill="none"
+          className=&#123;&#96;text-gray-400 transition-transform shrink-0 $&#123;open ? 'rotate-180' : ''&#125;&#96;&#125;
+        &gt;
+          &lt;path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/&gt;
+        &lt;/svg&gt;
+      &lt;/button&gt;
+
+      &#123;/* Dropdown */&#125;
+      &#123;open &amp;&amp; (
+        &lt;div className="absolute right-0 mt-2 w-56 bg-gray-900 border border-gray-700 rounded-xl shadow-xl py-1 z-50"&gt;
+          &#123;/* User info header */&#125;
+          &lt;div className="px-4 py-3 border-b border-gray-800"&gt;
+            &lt;p className="text-sm font-medium text-white"&gt;&#123;user.name&#125;&lt;/p&gt;
+            &lt;p className="text-xs text-gray-400 truncate"&gt;&#123;user.email&#125;&lt;/p&gt;
+          &lt;/div&gt;
+
+          &#123;/* Menu items — add more as needed */&#125;
+          &lt;div className="py-1"&gt;
+            &lt;button className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"&gt;
+              Profile settings
+            &lt;/button&gt;
+          &lt;/div&gt;
+
+          &#123;/* Logout */&#125;
+          &lt;div className="border-t border-gray-800 py-1"&gt;
+            &lt;LogoutButton className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-red-400 transition-colors"&gt;
+              Sign out
+            &lt;/LogoutButton&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      )&#125;
+    &lt;/div&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f10" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">TokenRefreshProvider.tsx</div><div class="fpath">src/modules/auth/components/TokenRefreshProvider.tsx</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">Proactive refresh every 4 min + on tab visibility change. Handles idle user scenario transparently.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// TOKEN REFRESH PROVIDER
+//
+// Handles the idle user scenario:
+//   - Checks token expiry every 4 minutes
+//   - If token expires in &lt; 5 minutes → refreshes proactively
+//   - User never hits a 401 — completely transparent
+//   - If app window becomes active after being hidden (user returns
+//     from idle) → immediately checks and refreshes if needed
+//
+// Mount this in your (protected)/layout.tsx
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useEffect, useCallback &#125; from 'react';
+import &#123; useQueryClient &#125; from '@tanstack/react-query';
+import &#123; useRouter &#125; from 'next/navigation';
+
+const CHECK_INTERVAL_MS  = 4  * 60 * 1000;  // check every 4 minutes
+const REFRESH_THRESHOLD  = 5  * 60;          // refresh if &lt; 5 min remaining (seconds)
+
+export function TokenRefreshProvider(&#123; children &#125;: &#123; children: React.ReactNode &#125;) &#123;
+  const router      = useRouter();
+  const queryClient = useQueryClient();
+
+  const checkAndRefresh = useCallback(async () =&gt; &#123;
+    try &#123;
+      // Get token from cookie bridge
+      const tokenRes = await fetch('/api/auth/token');
+      if (!tokenRes.ok) return;
+      const &#123; accessToken &#125; = await tokenRes.json() as &#123; accessToken: string | null &#125;;
+
+      if (!accessToken) return;
+
+      // Decode exp claim from JWT payload
+      const payload = JSON.parse(atob(accessToken.split('.')[1])) as &#123; exp: number &#125;;
+      const secondsUntilExpiry = payload.exp - Math.floor(Date.now() / 1000);
+
+      // Token already expired — redirect to login
+      if (secondsUntilExpiry &lt;= 0) &#123;
+        console.log('[TokenRefresh] Token expired — redirecting to login');
+        router.push('/login?reason=expired');
+        return;
+      &#125;
+
+      // Token expiring soon — proactive refresh
+      if (secondsUntilExpiry &lt; REFRESH_THRESHOLD) &#123;
+        console.log(&#96;[TokenRefresh] Token expires in $&#123;secondsUntilExpiry&#125;s — refreshing&#96;);
+        const refreshRes = await fetch('/api/auth/refresh', &#123; method: 'POST' &#125;);
+
+        if (refreshRes.ok) &#123;
+          // Invalidate all queries so they refetch with new token
+          queryClient.invalidateQueries();
+          console.log('[TokenRefresh] Token refreshed successfully');
+        &#125; else &#123;
+          // Refresh failed — session truly expired
+          console.log('[TokenRefresh] Refresh failed — redirecting to login');
+          router.push('/login?reason=expired');
+        &#125;
+      &#125;
+    &#125; catch (err) &#123;
+      // Network error — don't redirect, user might just be offline temporarily
+      console.warn('[TokenRefresh] Check failed:', err);
+    &#125;
+  &#125;, [router, queryClient]);
+
+  useEffect(() =&gt; &#123;
+    // Check immediately on mount
+    checkAndRefresh();
+
+    // Check every 4 minutes while app is open
+    const interval = setInterval(checkAndRefresh, CHECK_INTERVAL_MS);
+
+    // Check when user returns to the tab after being away
+    // This handles the "idle user" scenario
+    const handleVisibilityChange = () =&gt; &#123;
+      if (document.visibilityState === 'visible') &#123;
+        console.log('[TokenRefresh] Tab became visible — checking token');
+        checkAndRefresh();
+      &#125;
+    &#125;;
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () =&gt; &#123;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    &#125;;
+  &#125;, [checkAndRefresh]);
+
+  // This component renders nothing — it's purely a side-effect provider
+  return &lt;&gt;&#123;children&#125;&lt;/&gt;;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f11" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">layout.tsx</div><div class="fpath">src/app/(protected)/layout.tsx</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="ng">Mount TokenRefreshProvider here. Server Component checks auth before rendering.</div>
+<pre><code>// src/app/(protected)/layout.tsx
+// SERVER COMPONENT — no 'use client'
+
+import &#123; redirect &#125; from 'next/navigation';
+import &#123; getAccessToken &#125; from '@/modules/auth/lib/cookies';
+import &#123; TokenRefreshProvider &#125; from '@/modules/auth/components/TokenRefreshProvider';
+import &#123; UserProfile &#125; from '@/modules/auth/components/UserProfile';
+import &#123; LogoutButton &#125; from '@/modules/auth/components/LogoutButton';
+
+export default async function ProtectedLayout(&#123;
+  children,
+&#125;: &#123;
+  children: React.ReactNode;
+&#125;) &#123;
+  // Second wall of auth defence (middleware is first)
+  const token = await getAccessToken();
+  if (!token) redirect('/login');
+
+  return (
+    // TokenRefreshProvider handles proactive refresh + idle user scenario
+    &lt;TokenRefreshProvider&gt;
+      &lt;div className="flex min-h-screen bg-gray-950"&gt;
+
+        &#123;/* Sidebar */&#125;
+        &lt;aside className="w-60 bg-gray-900 border-r border-gray-800 flex flex-col"&gt;
+          &lt;div className="h-14 flex items-center px-5 border-b border-gray-800"&gt;
+            &lt;span className="font-semibold text-white text-sm"&gt;Admin Portal&lt;/span&gt;
+          &lt;/div&gt;
+
+          &lt;nav className="flex-1 px-3 py-4 space-y-1"&gt;
+            &lt;a href="/dashboard"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"&gt;
+              Dashboard
+            &lt;/a&gt;
+            &#123;/* Add more nav items as you build pages */&#125;
+          &lt;/nav&gt;
+
+          &#123;/* User profile + logout at bottom of sidebar */&#125;
+          &lt;div className="px-3 py-3 border-t border-gray-800"&gt;
+            &lt;UserProfile /&gt;
+          &lt;/div&gt;
+        &lt;/aside&gt;
+
+        &#123;/* Main content */&#125;
+        &lt;div className="flex-1 flex flex-col"&gt;
+          &lt;main className="flex-1 p-8"&gt;
+            &#123;children&#125;
+          &lt;/main&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/TokenRefreshProvider&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f12" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">session/route.ts</div><div class="fpath">src/app/api/auth/session/route.ts</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="ng">GET /api/auth/session — returns decoded user info from idToken. Used by useSession hook.</div>
+<pre><code>// src/app/api/auth/session/route.ts
+// ─────────────────────────────────────────────────────────────
+// GET /api/auth/session
+// Returns decoded user info from idToken cookie.
+// Used by useSession() hook in client components.
+// No extra BE call — decodes the JWT we already have.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; NextResponse &#125; from 'next/server';
+import &#123; getSessionUser &#125; from '@/modules/auth/lib/cookies';
+
+export async function GET() &#123;
+  const user = await getSessionUser();
+
+  if (!user) &#123;
+    return NextResponse.json(null, &#123; status: 401 &#125;);
+  &#125;
+
+  return NextResponse.json(user);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f13" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">usage-examples.ts</div><div class="fpath">src/usage-examples.ts</div></div>
+<span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+</div>
+<div class="ng">Shows how to use all hooks for further protected API calls with and without cookies.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// USAGE EXAMPLES — how to use hooks for protected API calls
+// ─────────────────────────────────────────────────────────────
+
+// ── Example 1: Fetch data in a Client Component ───────────────
+// src/modules/users/components/UserList.tsx
+
+'use client';
+
+import &#123; useAuthQuery, useAuthMutation &#125; from '@/modules/auth/hooks/useAuthQuery';
+
+const USERS_QUERY = &#96;
+  query GetUsers &#123;
+    users &#123;
+      id
+      email
+      role
+      status
+    &#125;
+  &#125;
+&#96;;
+
+const UPDATE_USER_ROLE = &#96;
+  mutation UpdateUserRole($userId: String!, $role: String!) &#123;
+    updateUserRole(userId: $userId, role: $role) &#123;
+      id role
+    &#125;
+  &#125;
+&#96;;
+
+interface User &#123; id: string; email: string; role: string; status: string; &#125;
+
+export function UserList() &#123;
+  // Fetch users — auto-refreshes token if expired
+  const &#123; data, isLoading, error &#125; = useAuthQuery&lt;&#123; users: User[] &#125;&gt;(
+    ['users'],    // cache key — invalidate this after mutations
+    USERS_QUERY
+  );
+
+  // Mutation — invalidates users cache after success
+  const updateRole = useAuthMutation&lt;&#123; updateUserRole: User &#125;, &#123; userId: string; role: string &#125;&gt;(
+    UPDATE_USER_ROLE,
+    &#123;
+      invalidateKeys: [['users']],  // auto-refetch users after role update
+      onSuccess: () =&gt; console.log('Role updated'),
+    &#125;
+  );
+
+  if (isLoading) return &lt;div&gt;Loading...&lt;/div&gt;;
+  if (error)     return &lt;div&gt;Error loading users&lt;/div&gt;;
+
+  return (
+    &lt;ul&gt;
+      &#123;data?.users.map((u) =&gt; (
+        &lt;li key=&#123;u.id&#125;&gt;
+          &#123;u.email&#125; — &#123;u.role&#125;
+          &lt;button
+            onClick=&#123;() =&gt; updateRole.mutate(&#123; userId: u.id, role: 'admin' &#125;)&#125;
+            disabled=&#123;updateRole.isPending&#125;
+          &gt;
+            Make Admin
+          &lt;/button&gt;
+        &lt;/li&gt;
+      ))&#125;
+    &lt;/ul&gt;
+  );
+&#125;
+
+// ── Example 2: Fetch data in a Server Component ───────────────
+// src/app/(protected)/users/page.tsx
+
+/*
+import &#123; gqlFetch &#125; from '@/lib/gql-client';
+
+const USERS_QUERY = &#96;
+  query GetUsers &#123; users &#123; id email role &#125; &#125;
+&#96;;
+
+export default async function UsersPage() &#123;
+  // Runs on server — auto-refreshes token, no useAuthQuery needed
+  const data = await gqlFetch&lt;&#123; users: User[] &#125;&gt;(USERS_QUERY);
+  return &lt;UserTable users=&#123;data.users&#125; /&gt;;
+&#125;
+*/
+
+// ── Example 3: Using user info in a component ─────────────────
+/*
+import &#123; useSession &#125; from '@/modules/auth/hooks/useSession';
+
+export function Topbar() &#123;
+  const &#123; user, isLoading &#125; = useSession();
+  if (isLoading) return &lt;Skeleton /&gt;;
+  return (
+    &lt;header&gt;
+      &lt;span&gt;Hello, &#123;user?.name&#125;&lt;/span&gt;
+      &lt;span&gt;&#123;user?.email&#125;&lt;/span&gt;
+    &lt;/header&gt;
+  );
+&#125;
+*/
+
+// ── Example 4: Include cookies in further API calls ───────────
+// Cookies are automatically included when:
+//   Server Components → gqlFetch() reads cookies directly
+//   Client Components → useAuthQuery fetches /api/auth/token
+//                       which reads the httpOnly cookie server-side
+//   You never need to manually attach cookies — the hooks handle it
+</code></pre>
+</div>
+</div>
+<footer>Complete Auth Guide &middot; graphql-request + TanStack Query &middot; 14 files</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
