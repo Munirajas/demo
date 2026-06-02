@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Locations Full Implementation</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--ac);margin-bottom:4px}
+.hero p{font-size:11.5px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.fhdr{background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:12px}
+.ftitle{padding:12px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--bd)}
+.fname{font-family:'SF Mono','Fira Code',monospace;font-size:12px;font-weight:600;color:var(--tx)}
+.fpath{font-family:'SF Mono','Fira Code',monospace;font-size:10px;color:var(--mt);margin-top:1px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em;flex-shrink:0;margin-left:auto}
+.ng{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+.ni{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(56,189,248,.07);border-left:3px solid var(--ac);color:var(--mt2)}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px;-webkit-overflow-scrolling:touch}
+.flow{background:var(--sf2);border-radius:8px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2;overflow-x:auto;margin-bottom:12px}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Locations — Full Implementation</h1>
+  <p>15 files &middot; Server + Client split &middot; Parallel fetching &middot; Zero loading flash &middot; Optimistic updates</p>
+</div>
+<div class="tabs">
+<div class="tab active" onclick="go('arch',this)">Architecture</div>
+<div class="tab" onclick="go('f0',this)">location.types.ts</div>
+<div class="tab" onclick="go('f1',this)">locations.graphql.ts</div>
+<div class="tab" onclick="go('f2',this)">mock-data.ts</div>
+<div class="tab" onclick="go('f3',this)">server-locations.ts</div>
+<div class="tab" onclick="go('f4',this)">useLocations.ts</div>
+<div class="tab" onclick="go('f5',this)">location-nav.config.ts</div>
+<div class="tab" onclick="go('f6',this)">LocationTree.tsx</div>
+<div class="tab" onclick="go('f7',this)">LocationSidebar.tsx</div>
+<div class="tab" onclick="go('f8',this)">CreateLocationModal.tsx</div>
+<div class="tab" onclick="go('f9',this)">(dashboard)/layout.tsx</div>
+<div class="tab" onclick="go('f10',this)">dashboard/page.tsx</div>
+<div class="tab" onclick="go('f11',this)">[locationId]/layout.tsx</div>
+<div class="tab" onclick="go('f12',this)">config/page.tsx</div>
+<div class="tab" onclick="go('f13',this)">TopBar.tsx</div>
+<div class="tab" onclick="go('f14',this)">Providers.tsx</div>
+</div>
+
+<div id="tab-arch" class="panel active">
+<div class="sec">Server vs Client — every component explained</div>
+<div class="flow">
+<span class="fw">SERVER COMPONENTS (run on Node, no JS sent to browser)</span>
+<span class="ft">(dashboard)/layout.tsx</span>
+<span class="fg">  Reads auth cookie → redirect if no token</span>
+<span class="fg">  Decodes user from idToken (no extra API call)</span>
+<span class="fg">  Mounts Providers + TopBar</span>
+
+<span class="ft">dashboard/page.tsx</span>
+<span class="fg">  Fetches location tree server-side</span>
+<span class="fg">  Redirects to first location — no loading flash</span>
+
+<span class="ft">[locationId]/layout.tsx</span>
+<span class="fg">  Promise.all([tree, config]) — PARALLEL, no waterfall</span>
+<span class="fg">  Passes as initialData to client sidebar</span>
+<span class="fg">  React cache() = one request even if called twice</span>
+
+<span class="fw">CLIENT COMPONENTS (interactive, useState, events)</span>
+<span class="ft">LocationSidebar — tree + nav + create button</span>
+<span class="ft">LocationTree — expand/collapse + navigation</span>
+<span class="ft">ConfigPage — toggle interactions</span>
+<span class="ft">CreateLocationModal — form submit</span>
+<span class="ft">TopBar — user dropdown, logout</span>
+</div>
+<div class="sec">Complete user flow</div>
+<div class="flow">
+<span class="ft">1. User logs in → loginAction stores 4 cookies</span>
+<span class="fa">   ↓ redirect('/dashboard')</span>
+<span class="ft">2. (dashboard)/layout.tsx</span>
+<span class="fg">   reads access_token cookie → ok</span>
+<span class="fg">   decodes idToken → SessionUser</span>
+<span class="fg">   renders TopBar with user name</span>
+<span class="fa">   ↓</span>
+<span class="ft">3. dashboard/page.tsx (SERVER)</span>
+<span class="fg">   getLocationsTree() → finds first location</span>
+<span class="fg">   redirect('/locations/loc-motb-dc/config')</span>
+<span class="fa">   ↓</span>
+<span class="ft">4. [locationId]/layout.tsx (SERVER)</span>
+<span class="fg">   Promise.all([tree, config]) in parallel</span>
+<span class="fg">   renders LocationSidebar with initialData</span>
+<span class="fa">   ↓</span>
+<span class="ft">5. config/page.tsx (CLIENT)</span>
+<span class="fg">   TanStack cache already has config from layout</span>
+<span class="fg">   renders instantly — NO loading state</span>
+<span class="fg">   user sees toggles immediately</span>
+<span class="fa">   ↓</span>
+<span class="ft">6. User toggles "Physical Address" ON</span>
+<span class="fg">   optimistic update — UI changes immediately</span>
+<span class="fg">   mutation fires in background</span>
+<span class="fg">   "Physical Address" appears in sidebar nav</span>
+<span class="fa">   ↓</span>
+<span class="ft">7. User clicks CREATE LOCATION</span>
+<span class="fg">   modal opens with parent = current location</span>
+<span class="fg">   fills form → confirm</span>
+<span class="fg">   tree invalidated → new location appears</span>
+<span class="fg">   redirect to new location config</span>
+</div>
+<div class="sec">Route structure</div>
+<div class="flow">
+<span class="ft">src/app/</span>
+<span class="ft">├── (auth)/login/page.tsx           ← public</span>
+<span class="ft">└── (dashboard)/                    ← protected (auth guard in layout)</span>
+<span class="ft">    ├── layout.tsx                  SERVER: auth + user + providers</span>
+<span class="ft">    ├── dashboard/page.tsx          SERVER: fetch + redirect to first location</span>
+<span class="ft">    └── locations/</span>
+<span class="ft">        └── [locationId]/</span>
+<span class="ft">            ├── layout.tsx          SERVER: parallel fetch tree+config</span>
+<span class="ft">            ├── page.tsx            SERVER: redirect → /config</span>
+<span class="ft">            ├── config/page.tsx     CLIENT: toggles</span>
+<span class="ft">            ├── address/page.tsx    CLIENT: add when needed</span>
+<span class="ft">            ├── memberships/page.tsx</span>
+<span class="ft">            └── ...                 same pattern for each</span>
+</div>
+<div class="sec">How to add a new location page</div>
+<pre><code>// 1. Add to location-nav.config.ts (ONE place only)
+&#123; label: 'My New Page', href: 'newpage', configKey: 'myNewFeature' &#125;
+
+// 2. Create the file
+// src/app/(dashboard)/locations/[locationId]/newpage/page.tsx
+'use client';
+import &#123; useParams &#125; from 'next/navigation';
+export default function MyNewPage() &#123;
+  const &#123; locationId &#125; = useParams&lt;&#123; locationId: string &#125;&gt;();
+  return &lt;div className="p-8"&gt;My New Page for &#123;locationId&#125;&lt;/div&gt;;
+&#125;
+
+// That's it. Nav item appears automatically when toggle is ON.</code></pre>
+<div class="sec">How to swap mock for real API</div>
+<pre><code>// In server-locations.ts — find MOCK comment and swap:
+
+// MOCK (current):
+return MOCK_LOCATIONS_TREE;
+
+// REAL (when BE ready):
+const data = await serverGqlFetch&lt;LocationsTreeResponse&gt;(GET_LOCATIONS_TREE);
+return data.locationsTree;
+
+// In useLocations.ts — same pattern for client hooks
+// Each hook has clearly marked // ── MOCK and // ── END MOCK sections</code></pre>
+</div>
+<div id="tab-f0" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">location.types.ts</div><div class="fpath">src/modules/locations/types/location.types.ts</div></div>
+<span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+</div>
+<div class="ng">type: 'client' at top, type: 'location' for all children — matches your confirmed structure.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// LOCATION TYPES
+// BE returns a tree where:
+//   type: 'client'   = top-level tenant node
+//   type: 'location' = all children (any depth)
+// ─────────────────────────────────────────────────────────────
+
+export interface LocationNode &#123;
+  id:        string;
+  label:     string;
+  type:      'client' | 'location';
+  icon?:     string;
+  parentId?: string | null;
+  children?: LocationNode[];
+&#125;
+
+export interface LocationConfig &#123;
+  locationId:       string;
+  physicalAddress:  boolean;
+  memberships:      boolean;
+  mappable:         boolean;
+  amenities:        boolean;
+  productionHost:   boolean;
+  contactInfo:      boolean;
+  openHours:        boolean;
+  waivers:          boolean;
+  giftCertificates: boolean;
+  discounts:        boolean;
+  tours:            boolean;
+&#125;
+
+export interface CreateLocationInput &#123;
+  label:    string;
+  parentId: string;
+&#125;
+
+// GQL response shapes
+export interface LocationsTreeResponse  &#123; locationsTree: LocationNode[];  &#125;
+export interface LocationConfigResponse &#123; locationConfig: LocationConfig; &#125;
+export interface CreateLocationResponse &#123; createLocation: LocationNode;   &#125;
+export interface DeleteLocationResponse &#123; deleteLocation: &#123; success: boolean &#125;; &#125;
+export interface UpdateLocationConfigResponse &#123;
+  updateLocationConfig: LocationConfig;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">locations.graphql.ts</div><div class="fpath">src/modules/locations/graphql/locations.graphql.ts</div></div>
+<span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+</div>
+<div class="ng">All GQL ready. Swap mock with these when BE provides schema.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// LOCATION GRAPHQL — plain strings, no gql tag
+// Update field names when BE provides final schema
+// ─────────────────────────────────────────────────────────────
+
+export const GET_LOCATIONS_TREE = &#96;
+  query GetLocationsTree &#123;
+    locationsTree &#123;
+      id
+      label
+      type
+      icon
+      parentId
+      children &#123;
+        id
+        label
+        type
+        icon
+        parentId
+        children &#123;
+          id
+          label
+          type
+          icon
+          parentId
+          children &#123;
+            id
+            label
+            type
+            icon
+            parentId
+          &#125;
+        &#125;
+      &#125;
+    &#125;
+  &#125;
+&#96;;
+
+export const GET_LOCATION_CONFIG = &#96;
+  query GetLocationConfig($locationId: String!) &#123;
+    locationConfig(locationId: $locationId) &#123;
+      locationId
+      physicalAddress
+      memberships
+      mappable
+      amenities
+      productionHost
+      contactInfo
+      openHours
+      waivers
+      giftCertificates
+      discounts
+      tours
+    &#125;
+  &#125;
+&#96;;
+
+export const CREATE_LOCATION = &#96;
+  mutation CreateLocation($label: String!, $parentId: String!) &#123;
+    createLocation(label: $label, parentId: $parentId) &#123;
+      id
+      label
+      type
+      icon
+      parentId
+    &#125;
+  &#125;
+&#96;;
+
+export const DELETE_LOCATION = &#96;
+  mutation DeleteLocation($locationId: String!) &#123;
+    deleteLocation(locationId: $locationId) &#123;
+      success
+    &#125;
+  &#125;
+&#96;;
+
+export const UPDATE_LOCATION_CONFIG = &#96;
+  mutation UpdateLocationConfig(
+    $locationId: String!
+    $config: LocationConfigInput!
+  ) &#123;
+    updateLocationConfig(locationId: $locationId, config: $config) &#123;
+      locationId
+      physicalAddress
+      memberships
+      mappable
+      amenities
+      productionHost
+      contactInfo
+      openHours
+      waivers
+      giftCertificates
+      discounts
+      tours
+    &#125;
+  &#125;
+&#96;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">mock-data.ts</div><div class="fpath">src/modules/locations/graphql/mock-data.ts</div></div>
+<span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+</div>
+<div class="ng">Matches wireframe exactly. findLocationById, getFirstLocation, getLocationBreadcrumb helpers.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// MOCK DATA
+// Matches your confirmed structure:
+//   type: 'client' at top level
+//   type: 'location' for all children
+// Replace queryFn in hooks when BE is ready
+// ─────────────────────────────────────────────────────────────
+
+import type &#123; LocationNode, LocationConfig &#125; from '../types/location.types';
+
+export const MOCK_LOCATIONS_TREE: LocationNode[] = [
+  &#123;
+    id:       'client-1',
+    label:    'Museum of the Bible',
+    type:     'client',
+    parentId: null,
+    children: [
+      &#123;
+        id:       'loc-motb-dc',
+        label:    'MOTB Washington DC',
+        type:     'location',
+        parentId: 'client-1',
+        children: [
+          &#123; id: 'loc-world-stage',    label: 'World Stage Theater',           type: 'location', parentId: 'loc-motb-dc' &#125;,
+          &#123; id: 'loc-grand-hall',     label: 'Grand Hall Ticketing',          type: 'location', parentId: 'loc-motb-dc' &#125;,
+          &#123; id: 'loc-wash-rev',       label: 'Washington Revelations',        type: 'location', parentId: 'loc-motb-dc' &#125;,
+          &#123; id: 'loc-creating-sings', label: 'All Creating Sings',            type: 'location', parentId: 'loc-motb-dc' &#125;,
+          &#123; id: 'loc-jesus',          label: 'The World of Jesus of Nazareth',type: 'location', parentId: 'loc-motb-dc' &#125;,
+        ],
+      &#125;,
+    ],
+  &#125;,
+];
+
+export const MOCK_LOCATION_CONFIGS: Record&lt;string, LocationConfig&gt; = &#123;
+  'loc-motb-dc': &#123;
+    locationId:       'loc-motb-dc',
+    physicalAddress:  true,
+    memberships:      true,
+    mappable:         true,
+    amenities:        false,
+    productionHost:   false,
+    contactInfo:      true,
+    openHours:        true,
+    waivers:          true,
+    giftCertificates: true,
+    discounts:        true,
+    tours:            true,
+  &#125;,
+&#125;;
+
+// ── Tree utilities ────────────────────────────────────────────
+
+// Find any node by id (any depth)
+export function findLocationById(
+  nodes: LocationNode[],
+  id: string
+): LocationNode | null &#123;
+  for (const node of nodes) &#123;
+    if (node.id === id) return node;
+    if (node.children?.length) &#123;
+      const found = findLocationById(node.children, id);
+      if (found) return found;
+    &#125;
+  &#125;
+  return null;
+&#125;
+
+// Get the first location node (skip client nodes)
+export function getFirstLocation(
+  nodes: LocationNode[]
+): LocationNode | null &#123;
+  for (const node of nodes) &#123;
+    if (node.type === 'location') return node;
+    if (node.children?.length) &#123;
+      const found = getFirstLocation(node.children);
+      if (found) return found;
+    &#125;
+  &#125;
+  return null;
+&#125;
+
+// Get breadcrumb path for a location
+export function getLocationBreadcrumb(
+  nodes: LocationNode[],
+  targetId: string,
+  path: LocationNode[] = []
+): LocationNode[] | null &#123;
+  for (const node of nodes) &#123;
+    const newPath = [...path, node];
+    if (node.id === targetId) return newPath;
+    if (node.children?.length) &#123;
+      const found = getLocationBreadcrumb(node.children, targetId, newPath);
+      if (found) return found;
+    &#125;
+  &#125;
+  return null;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">server-locations.ts</div><div class="fpath">src/modules/locations/graphql/server-locations.ts</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="ng">React cache() deduplicates — layout + page both calling getLocationsTree() = ONE request.</div>
+<pre><code>import 'server-only';
+import &#123; cache &#125; from 'react';
+
+// ─────────────────────────────────────────────────────────────
+// SERVER LOCATION FETCHERS
+//
+// Uses React cache() — if layout AND page both call
+// getLocationsTree(), only ONE network request fires.
+// Next.js deduplicates within the same render.
+//
+// These are used in Server Components only.
+// Client components use the hooks in useLocations.ts
+// ─────────────────────────────────────────────────────────────
+
+import &#123; serverGqlFetch &#125;  from '@/lib/graphql/server-gql-fetcher';
+import &#123; GET_LOCATIONS_TREE, GET_LOCATION_CONFIG &#125; from '../graphql/locations.graphql';
+import &#123; MOCK_LOCATIONS_TREE, MOCK_LOCATION_CONFIGS, getFirstLocation &#125; from '../graphql/mock-data';
+import type &#123; LocationNode, LocationConfig, LocationsTreeResponse, LocationConfigResponse &#125; from '../types/location.types';
+
+// cache() ensures this runs ONCE per request even if called
+// from both layout.tsx and page.tsx in the same render
+export const getLocationsTree = cache(async (): Promise&lt;LocationNode[]&gt; =&gt; &#123;
+  try &#123;
+    // ── MOCK — swap when BE ready ────────────────────────────
+    // Real: const data = await serverGqlFetch&lt;LocationsTreeResponse&gt;(GET_LOCATIONS_TREE);
+    // return data.locationsTree;
+    await new Promise(r =&gt; setTimeout(r, 0)); // remove in production
+    return MOCK_LOCATIONS_TREE;
+    // ── END MOCK ─────────────────────────────────────────────
+  &#125; catch (error) &#123;
+    const err = error as Error;
+    if (err.message === 'SESSION_EXPIRED') throw error;
+    console.error('[getLocationsTree]', error);
+    return [];
+  &#125;
+&#125;);
+
+export const getLocationConfig = cache(async (locationId: string): Promise&lt;LocationConfig | null&gt; =&gt; &#123;
+  try &#123;
+    // ── MOCK — swap when BE ready ────────────────────────────
+    // Real: const data = await serverGqlFetch&lt;LocationConfigResponse&gt;(GET_LOCATION_CONFIG, &#123; locationId &#125;);
+    // return data.locationConfig;
+    return MOCK_LOCATION_CONFIGS[locationId] ?? &#123;
+      locationId,
+      physicalAddress:  false, memberships:      false,
+      mappable:         false, amenities:        false,
+      productionHost:   false, contactInfo:      false,
+      openHours:        false, waivers:          false,
+      giftCertificates: false, discounts:        false,
+      tours:            false,
+    &#125;;
+    // ── END MOCK ─────────────────────────────────────────────
+  &#125; catch (error) &#123;
+    const err = error as Error;
+    if (err.message === 'SESSION_EXPIRED') throw error;
+    console.error('[getLocationConfig]', error);
+    return null;
+  &#125;
+&#125;);
+
+// Get first location for initial redirect
+export async function resolveFirstLocation(): Promise&lt;string | null&gt; &#123;
+  const tree = await getLocationsTree();
+  return getFirstLocation(tree)?.id ?? null;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f4" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">useLocations.ts</div><div class="fpath">src/modules/locations/hooks/useLocations.ts</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">initialData from server = zero loading flash. Optimistic updates on toggle.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// LOCATION HOOKS — CLIENT SIDE
+// Used in Client Components only.
+// Server Components use server-locations.ts instead.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useQuery, useMutation, useQueryClient &#125; from '@tanstack/react-query';
+import &#123; useRouter &#125; from 'next/navigation';
+import type &#123;
+  LocationNode,
+  LocationConfig,
+  CreateLocationInput,
+  LocationsTreeResponse,
+  LocationConfigResponse,
+&#125; from '../types/location.types';
+import &#123;
+  MOCK_LOCATIONS_TREE,
+  MOCK_LOCATION_CONFIGS,
+&#125; from '../graphql/mock-data';
+
+// ── Stable query keys ─────────────────────────────────────────
+export const locationKeys = &#123;
+  tree:   ()         =&gt; ['locations', 'tree']        as const,
+  config: (id: string) =&gt; ['locations', 'config', id] as const,
+&#125;;
+
+// ── useLocationsTree ──────────────────────────────────────────
+// Used by LocationSidebar (client) to keep tree reactive
+// Initial data often comes from server — hydrates instantly
+export function useLocationsTree(initialData?: LocationNode[]) &#123;
+  return useQuery&lt;LocationNode[]&gt;(&#123;
+    queryKey:    locationKeys.tree(),
+    queryFn:     async () =&gt; &#123;
+      // ── MOCK ─────────────────────────────────────────────
+      await new Promise(r =&gt; setTimeout(r, 300));
+      return MOCK_LOCATIONS_TREE;
+      // Real: const res = await fetch('/api/auth/token').then(r=&gt;r.json());
+      // then use graphql-request with token
+      // ── END MOCK ─────────────────────────────────────────
+    &#125;,
+    initialData,              // hydrate from server data
+    staleTime:   1000 * 60 * 5,
+  &#125;);
+&#125;
+
+// ── useLocationConfig ─────────────────────────────────────────
+export function useLocationConfig(
+  locationId: string,
+  initialData?: LocationConfig
+) &#123;
+  return useQuery&lt;LocationConfig&gt;(&#123;
+    queryKey:  locationKeys.config(locationId),
+    queryFn:   async () =&gt; &#123;
+      // ── MOCK ─────────────────────────────────────────────
+      await new Promise(r =&gt; setTimeout(r, 200));
+      return MOCK_LOCATION_CONFIGS[locationId] ?? &#123;
+        locationId,
+        physicalAddress:false,memberships:false,mappable:false,
+        amenities:false,productionHost:false,contactInfo:false,
+        openHours:false,waivers:false,giftCertificates:false,
+        discounts:false,tours:false,
+      &#125;;
+      // ── END MOCK ─────────────────────────────────────────
+    &#125;,
+    initialData,
+    enabled:   Boolean(locationId),
+    staleTime: 1000 * 60 * 2,
+  &#125;);
+&#125;
+
+// ── useCreateLocation ─────────────────────────────────────────
+export function useCreateLocation() &#123;
+  const queryClient = useQueryClient();
+  const router      = useRouter();
+
+  return useMutation&lt;LocationNode, Error, CreateLocationInput&gt;(&#123;
+    mutationFn: async (input) =&gt; &#123;
+      // ── MOCK ─────────────────────────────────────────────
+      await new Promise(r =&gt; setTimeout(r, 500));
+      return &#123;
+        id:       &#96;loc-$&#123;Date.now()&#125;&#96;,
+        label:    input.label,
+        type:     'location' as const,
+        parentId: input.parentId,
+      &#125;;
+      // ── END MOCK ─────────────────────────────────────────
+    &#125;,
+    onSuccess: (newLocation) =&gt; &#123;
+      queryClient.invalidateQueries(&#123; queryKey: locationKeys.tree() &#125;);
+      router.push(&#96;/locations/$&#123;newLocation.id&#125;/config&#96;);
+    &#125;,
+  &#125;);
+&#125;
+
+// ── useDeleteLocation ─────────────────────────────────────────
+export function useDeleteLocation() &#123;
+  const queryClient = useQueryClient();
+  const router      = useRouter();
+
+  return useMutation&lt;
+    &#123; success: boolean &#125;,
+    Error,
+    &#123; locationId: string; parentId?: string | null &#125;
+  &gt;(&#123;
+    mutationFn: async (&#123; locationId &#125;) =&gt; &#123;
+      // ── MOCK ─────────────────────────────────────────────
+      await new Promise(r =&gt; setTimeout(r, 400));
+      return &#123; success: true &#125;;
+      // ── END MOCK ─────────────────────────────────────────
+    &#125;,
+    onSuccess: (_, &#123; parentId &#125;) =&gt; &#123;
+      queryClient.invalidateQueries(&#123; queryKey: locationKeys.tree() &#125;);
+      router.push(parentId ? &#96;/locations/$&#123;parentId&#125;/config&#96; : '/dashboard');
+    &#125;,
+  &#125;);
+&#125;
+
+// ── useUpdateLocationConfig ───────────────────────────────────
+export function useUpdateLocationConfig(locationId: string) &#123;
+  const queryClient = useQueryClient();
+
+  return useMutation&lt;
+    LocationConfig,
+    Error,
+    Omit&lt;LocationConfig, 'locationId'&gt;
+  &gt;(&#123;
+    mutationFn: async (config) =&gt; &#123;
+      // ── MOCK ─────────────────────────────────────────────
+      await new Promise(r =&gt; setTimeout(r, 300));
+      return &#123; locationId, ...config &#125;;
+      // ── END MOCK ─────────────────────────────────────────
+    &#125;,
+    // Optimistic update — UI updates before server confirms
+    onMutate: async (newConfig) =&gt; &#123;
+      await queryClient.cancelQueries(&#123; queryKey: locationKeys.config(locationId) &#125;);
+      const previous = queryClient.getQueryData&lt;LocationConfig&gt;(locationKeys.config(locationId));
+      queryClient.setQueryData(locationKeys.config(locationId), &#123;
+        locationId,
+        ...newConfig,
+      &#125;);
+      return &#123; previous &#125;; // rollback context
+    &#125;,
+    onError: (_, __, context) =&gt; &#123;
+      // Rollback on error
+      if (context?.previous) &#123;
+        queryClient.setQueryData(locationKeys.config(locationId), context.previous);
+      &#125;
+    &#125;,
+    onSettled: () =&gt; &#123;
+      queryClient.invalidateQueries(&#123; queryKey: locationKeys.config(locationId) &#125;);
+    &#125;,
+  &#125;);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f5" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">location-nav.config.ts</div><div class="fpath">src/modules/locations/location-nav.config.ts</div></div>
+<span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+</div>
+<div class="ng">Add new location pages here ONLY — appears in nav automatically.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// LOCATION NAV CONFIG
+// Single source of truth for all location pages.
+// Add a new page here → it appears in nav, routing, sidebar.
+// ─────────────────────────────────────────────────────────────
+
+import type &#123; LocationConfig &#125; from './types/location.types';
+
+export interface NavItem &#123;
+  label:     string;
+  href:      string;      // path segment e.g. 'config', 'address'
+  configKey: keyof Omit&lt;LocationConfig, 'locationId'&gt; | null;
+  // null = always visible (like config page)
+&#125;
+
+// All location pages in display order
+export const LOCATION_NAV: NavItem[] = [
+  &#123; label: 'Configuration',    href: 'config',      configKey: null               &#125;,
+  &#123; label: 'Physical Address', href: 'address',     configKey: 'physicalAddress'  &#125;,
+  &#123; label: 'Memberships',      href: 'memberships', configKey: 'memberships'      &#125;,
+  &#123; label: 'Discounts',        href: 'discounts',   configKey: 'discounts'        &#125;,
+  &#123; label: 'Tours',            href: 'tours',       configKey: 'tours'            &#125;,
+  &#123; label: 'Mappable Location',href: 'map',         configKey: 'mappable'         &#125;,
+  &#123; label: 'Amenities',        href: 'amenities',   configKey: 'amenities'        &#125;,
+  &#123; label: 'Production Host',  href: 'production',  configKey: 'productionHost'   &#125;,
+  &#123; label: 'Contact Info',     href: 'contact',     configKey: 'contactInfo'      &#125;,
+  &#123; label: 'Open Hours',       href: 'hours',       configKey: 'openHours'        &#125;,
+  &#123; label: 'Waivers',          href: 'waivers',     configKey: 'waivers'          &#125;,
+  &#123; label: 'Gift Certificates',href: 'gifts',       configKey: 'giftCertificates' &#125;,
+];
+
+// Get nav items visible for a specific location's config
+export function getVisibleNavItems(
+  locationId: string,
+  config: LocationConfig | null | undefined
+): Array&lt;&#123; label: string; path: string &#125;&gt; &#123;
+  return LOCATION_NAV
+    .filter(item =&gt;
+      item.configKey === null ||        // always show
+      (config &amp;&amp; config[item.configKey]) // show if toggle is ON
+    )
+    .map(item =&gt; (&#123;
+      label: item.label,
+      path:  &#96;/locations/$&#123;locationId&#125;/$&#123;item.href&#125;&#96;,
+    &#125;));
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f6" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">LocationTree.tsx</div><div class="fpath">src/modules/locations/components/LocationTree.tsx</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">client nodes expand/collapse only. location nodes navigate.</div>
+<pre><code>'use client';
+
+import &#123; useState &#125;      from 'react';
+import &#123; useRouter &#125;     from 'next/navigation';
+import type &#123; LocationNode &#125; from '../types/location.types';
+
+interface TreeProps &#123;
+  nodes:             LocationNode[];
+  activeLocationId?: string;
+  depth?:            number;
+&#125;
+
+export function LocationTree(&#123; nodes, activeLocationId, depth = 0 &#125;: TreeProps) &#123;
+  if (!nodes.length) return null;
+  return (
+    &lt;ul className=&#123;depth &gt; 0 ? 'ml-3 mt-0.5' : ''&#125;&gt;
+      &#123;nodes.map(node =&gt; (
+        &lt;LocationTreeNode
+          key=&#123;node.id&#125;
+          node=&#123;node&#125;
+          activeLocationId=&#123;activeLocationId&#125;
+          depth=&#123;depth&#125;
+        /&gt;
+      ))&#125;
+    &lt;/ul&gt;
+  );
+&#125;
+
+function LocationTreeNode(&#123;
+  node,
+  activeLocationId,
+  depth,
+&#125;: &#123;
+  node:              LocationNode;
+  activeLocationId?: string;
+  depth:             number;
+&#125;) &#123;
+  const router      = useRouter();
+  const hasChildren = Boolean(node.children?.length);
+  const isClient    = node.type === 'client';
+  const isActive    = node.id === activeLocationId;
+
+  // Auto-expand if active location is within this subtree
+  const [expanded, setExpanded] = useState(() =&gt;
+    hasDescendantActive(node, activeLocationId)
+  );
+
+  function handleClick() &#123;
+    if (isClient) &#123;
+      // Client node — toggle expand only, not navigate
+      if (hasChildren) setExpanded(e =&gt; !e);
+      return;
+    &#125;
+    // Location node — navigate to config
+    router.push(&#96;/locations/$&#123;node.id&#125;/config&#96;);
+  &#125;
+
+  return (
+    &lt;li className="my-0.5"&gt;
+      &lt;button
+        onClick=&#123;handleClick&#125;
+        className=&#123;&#96;
+          w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg
+          text-sm text-left transition-colors
+          $&#123;isActive
+            ? 'bg-blue-600 text-white font-medium'
+            : isClient
+              ? 'text-gray-800 font-semibold hover:bg-gray-100 cursor-default'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+          &#125;
+        &#96;&#125;
+      &gt;
+        &#123;/* Expand indicator */&#125;
+        &#123;hasChildren ? (
+          &lt;svg
+            width="11" height="11" viewBox="0 0 24 24" fill="none"
+            className=&#123;&#96;shrink-0 transition-transform opacity-50
+              $&#123;expanded ? 'rotate-90' : ''&#125;&#96;&#125;
+            onClick=&#123;e =&gt; &#123; e.stopPropagation(); setExpanded(x =&gt; !x); &#125;&#125;
+          &gt;
+            &lt;path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round"/&gt;
+          &lt;/svg&gt;
+        ) : (
+          &lt;span className="w-[11px] shrink-0" /&gt;
+        )&#125;
+
+        &lt;span className="truncate"&gt;&#123;node.label&#125;&lt;/span&gt;
+      &lt;/button&gt;
+
+      &#123;hasChildren &amp;&amp; expanded &amp;&amp; (
+        &lt;LocationTree
+          nodes=&#123;node.children!&#125;
+          activeLocationId=&#123;activeLocationId&#125;
+          depth=&#123;depth + 1&#125;
+        /&gt;
+      )&#125;
+    &lt;/li&gt;
+  );
+&#125;
+
+function hasDescendantActive(node: LocationNode, activeId?: string): boolean &#123;
+  if (!activeId) return false;
+  if (node.id === activeId) return true;
+  return node.children?.some(c =&gt; hasDescendantActive(c, activeId)) ?? false;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f7" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">LocationSidebar.tsx</div><div class="fpath">src/modules/locations/components/LocationSidebar.tsx</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">Receives initialData from server. Search filters tree in memory.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// LOCATION SIDEBAR — CLIENT COMPONENT
+//
+// Receives initialTree + initialConfig from Server Component.
+// TanStack Query uses them as initialData — zero loading flash.
+//
+// After initial render, keeps data fresh in background.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useState &#125;    from 'react';
+import Link            from 'next/link';
+import &#123; usePathname &#125; from 'next/navigation';
+import &#123;
+  useLocationsTree,
+  useLocationConfig,
+&#125; from '../hooks/useLocations';
+import &#123; LocationTree &#125;        from './LocationTree';
+import &#123; CreateLocationModal &#125; from './CreateLocationModal';
+import &#123; getVisibleNavItems &#125;  from '../location-nav.config';
+import type &#123; LocationNode, LocationConfig &#125; from '../types/location.types';
+
+interface Props &#123;
+  activeLocationId: string;
+  initialTree:      LocationNode[];
+  initialConfig:    LocationConfig | null;
+&#125;
+
+export function LocationSidebar(&#123;
+  activeLocationId,
+  initialTree,
+  initialConfig,
+&#125;: Props) &#123;
+  const pathname             = usePathname();
+  const [showCreate, setShowCreate] = useState(false);
+  const [search, setSearch]  = useState('');
+
+  // initialData from server → no loading state on first render
+  const &#123; data: tree &#125;   = useLocationsTree(initialTree);
+  const &#123; data: config &#125; = useLocationConfig(activeLocationId, initialConfig ?? undefined);
+
+  const navItems = getVisibleNavItems(activeLocationId, config);
+
+  // Filter tree by search
+  const filteredTree = search.trim()
+    ? filterTree(tree ?? [], search.toLowerCase())
+    : (tree ?? []);
+
+  return (
+    &lt;&gt;
+      &lt;aside className="w-60 bg-white border-r border-gray-200 flex flex-col shrink-0 h-full"&gt;
+
+        &#123;/* Search */&#125;
+        &lt;div className="p-3 border-b border-gray-100"&gt;
+          &lt;div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"&gt;
+            &lt;svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="text-gray-400 shrink-0"&gt;
+              &lt;circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/&gt;
+              &lt;path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/&gt;
+            &lt;/svg&gt;
+            &lt;input
+              value=&#123;search&#125;
+              onChange=&#123;e =&gt; setSearch(e.target.value)&#125;
+              placeholder="Search"
+              className="bg-transparent text-sm outline-none flex-1 text-gray-700 placeholder-gray-400 min-w-0"
+            /&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+
+        &#123;/* Location tree — scrollable */&#125;
+        &lt;div className="flex-1 overflow-y-auto py-2 px-2"&gt;
+          &lt;LocationTree
+            nodes=&#123;filteredTree&#125;
+            activeLocationId=&#123;activeLocationId&#125;
+          /&gt;
+        &lt;/div&gt;
+
+        &#123;/* Location page nav — below tree */&#125;
+        &#123;navItems.length &gt; 0 &amp;&amp; (
+          &lt;div className="border-t border-gray-100 py-1"&gt;
+            &#123;navItems.map(item =&gt; &#123;
+              const active = pathname === item.path;
+              return (
+                &lt;Link
+                  key=&#123;item.path&#125;
+                  href=&#123;item.path&#125;
+                  className=&#123;&#96;
+                    block px-4 py-2 text-sm transition-colors
+                    $&#123;active
+                      ? 'text-blue-600 bg-blue-50 font-medium'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    &#125;
+                  &#96;&#125;
+                &gt;
+                  &#123;item.label&#125;
+                &lt;/Link&gt;
+              );
+            &#125;)&#125;
+          &lt;/div&gt;
+        )&#125;
+
+        &#123;/* Create Location button */&#125;
+        &lt;div className="p-3 border-t border-gray-100"&gt;
+          &lt;button
+            onClick=&#123;() =&gt; setShowCreate(true)&#125;
+            className="w-full flex items-center justify-center gap-2 h-10 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors tracking-wide"
+          &gt;
+            &lt;svg width="13" height="13" viewBox="0 0 24 24" fill="none"&gt;
+              &lt;path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/&gt;
+            &lt;/svg&gt;
+            CREATE LOCATION
+          &lt;/button&gt;
+          &lt;p className="text-xs text-gray-400 text-center mt-1"&gt;
+            Creates under current location
+          &lt;/p&gt;
+        &lt;/div&gt;
+
+      &lt;/aside&gt;
+
+      &#123;showCreate &amp;&amp; (
+        &lt;CreateLocationModal
+          parentId=&#123;activeLocationId&#125;
+          onClose=&#123;() =&gt; setShowCreate(false)&#125;
+        /&gt;
+      )&#125;
+    &lt;/&gt;
+  );
+&#125;
+
+// Filter tree nodes by search term
+function filterTree(nodes: LocationNode[], term: string): LocationNode[] &#123;
+  return nodes.reduce&lt;LocationNode[]&gt;((acc, node) =&gt; &#123;
+    const matches = node.label.toLowerCase().includes(term);
+    const filteredChildren = node.children
+      ? filterTree(node.children, term)
+      : [];
+
+    if (matches || filteredChildren.length &gt; 0) &#123;
+      acc.push(&#123; ...node, children: filteredChildren &#125;);
+    &#125;
+    return acc;
+  &#125;, []);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f8" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">CreateLocationModal.tsx</div><div class="fpath">src/modules/locations/components/CreateLocationModal.tsx</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">Matches wireframe. General Details + Pricing tabs. react-hook-form + zod.</div>
+<pre><code>'use client';
+
+import &#123; useState &#125;      from 'react';
+import &#123; useForm &#125;       from 'react-hook-form';
+import &#123; zodResolver &#125;   from '@hookform/resolvers/zod';
+import &#123; z &#125;             from 'zod';
+import &#123; useCreateLocation &#125; from '../hooks/useLocations';
+
+const schema = z.object(&#123;
+  label:    z.string().min(1, 'Facility name is required'),
+  capacity: z.string().optional(),
+  zipCode:  z.string().optional(),
+  address:  z.string().optional(),
+  address2: z.string().optional(),
+  city:     z.string().optional(),
+  state:    z.string().optional(),
+  country:  z.string().optional(),
+  mapLink:  z.string().optional(),
+&#125;);
+
+type FormValues = z.infer&lt;typeof schema&gt;;
+type Tab = 'general' | 'pricing';
+
+interface Props &#123;
+  parentId: string;
+  onClose:  () =&gt; void;
+&#125;
+
+export function CreateLocationModal(&#123; parentId, onClose &#125;: Props) &#123;
+  const [tab, setTab]   = useState&lt;Tab&gt;('general');
+  const createLocation  = useCreateLocation();
+
+  const &#123; register, handleSubmit, formState: &#123; errors &#125; &#125; =
+    useForm&lt;FormValues&gt;(&#123; resolver: zodResolver(schema) &#125;);
+
+  function onSubmit(values: FormValues) &#123;
+    createLocation.mutate(
+      &#123; label: values.label, parentId &#125;,
+      &#123; onSuccess: onClose &#125;
+    );
+  &#125;
+
+  return (
+    &lt;div
+      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+      onClick=&#123;e =&gt; e.target === e.currentTarget &amp;&amp; onClose()&#125;
+    &gt;
+      &lt;div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl"&gt;
+
+        &#123;/* Header */&#125;
+        &lt;div className="flex items-center justify-between px-6 pt-5 pb-0"&gt;
+          &lt;h2 className="text-base font-semibold text-gray-900"&gt;Create Location&lt;/h2&gt;
+          &lt;button onClick=&#123;onClose&#125; className="text-xs font-bold text-gray-400 hover:text-gray-600 tracking-wide"&gt;
+            CLOSE ✕
+          &lt;/button&gt;
+        &lt;/div&gt;
+
+        &#123;/* Tabs */&#125;
+        &lt;div className="flex border-b border-gray-100 px-6 mt-4"&gt;
+          &#123;(['general', 'pricing'] as Tab[]).map(t =&gt; (
+            &lt;button
+              key=&#123;t&#125;
+              onClick=&#123;() =&gt; setTab(t)&#125;
+              className=&#123;&#96;
+                mr-6 pb-3 text-xs font-bold tracking-widest uppercase border-b-2 transition-colors
+                $&#123;tab === t
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
+                &#125;
+              &#96;&#125;
+            &gt;
+              &#123;t === 'general' ? 'General Details' : (
+                &lt;span className="flex items-center gap-1"&gt;
+                  Pricing &lt;span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" /&gt;
+                &lt;/span&gt;
+              )&#125;
+            &lt;/button&gt;
+          ))&#125;
+        &lt;/div&gt;
+
+        &#123;/* Body */&#125;
+        &lt;div className="px-6 py-5 space-y-4"&gt;
+          &#123;tab === 'general' &amp;&amp; (
+            &lt;&gt;
+              &lt;Field label="Facility Name" error=&#123;errors.label?.message&#125;&gt;
+                &lt;input placeholder="Insert name here" className=&#123;input(!!errors.label)&#125; &#123;...register('label')&#125; /&gt;
+              &lt;/Field&gt;
+
+              &lt;Field label="Capacity"&gt;
+                &lt;input type="number" placeholder="Enter number" className=&#123;input()&#125; &#123;...register('capacity')&#125; /&gt;
+              &lt;/Field&gt;
+
+              &lt;div&gt;
+                &lt;p className="text-xs font-medium text-gray-600 mb-2"&gt;Address&lt;/p&gt;
+                &lt;div className="grid grid-cols-2 gap-2"&gt;
+                  &lt;input placeholder="Zip / Postal Code"        className=&#123;input()&#125; &#123;...register('zipCode')&#125;  /&gt;
+                  &lt;input placeholder="Address"                   className=&#123;input()&#125; &#123;...register('address')&#125;  /&gt;
+                  &lt;input placeholder="Address line 2 (optional)" className=&#123;input()&#125; &#123;...register('address2')&#125; /&gt;
+                  &lt;input placeholder="City"                      className=&#123;input()&#125; &#123;...register('city')&#125;     /&gt;
+                  &lt;input placeholder="State / Province"          className=&#123;input()&#125; &#123;...register('state')&#125;    /&gt;
+                  &lt;input placeholder="Country"                   className=&#123;input()&#125; &#123;...register('country')&#125;  /&gt;
+                &lt;/div&gt;
+              &lt;/div&gt;
+
+              &lt;Field label="Google Maps Location Link"&gt;
+                &lt;input placeholder="Insert the link here" className=&#123;input()&#125; &#123;...register('mapLink')&#125; /&gt;
+              &lt;/Field&gt;
+            &lt;/&gt;
+          )&#125;
+
+          &#123;tab === 'pricing' &amp;&amp; (
+            &lt;div className="py-8 text-center text-gray-400 text-sm"&gt;
+              Pricing configuration — coming soon.
+            &lt;/div&gt;
+          )&#125;
+        &lt;/div&gt;
+
+        &#123;/* Footer */&#125;
+        &lt;div className="flex gap-3 px-6 pb-6"&gt;
+          &lt;button
+            onClick=&#123;onClose&#125;
+            className="flex-1 h-10 rounded-lg border-2 border-blue-600 text-blue-600 text-xs font-bold tracking-wide hover:bg-blue-50 transition-colors"
+          &gt;
+            CANCEL
+          &lt;/button&gt;
+          &lt;button
+            onClick=&#123;handleSubmit(onSubmit)&#125;
+            disabled=&#123;createLocation.isPending&#125;
+            className="flex-1 h-10 rounded-lg bg-blue-600 text-white text-xs font-bold tracking-wide hover:bg-blue-700 transition-colors disabled:opacity-60"
+          &gt;
+            &#123;createLocation.isPending ? 'CREATING...' : 'CONFIRM'&#125;
+          &lt;/button&gt;
+        &lt;/div&gt;
+
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+&#125;
+
+function Field(&#123; label, error, children &#125;: &#123; label: string; error?: string; children: React.ReactNode &#125;) &#123;
+  return (
+    &lt;div&gt;
+      &lt;label className="block text-xs font-medium text-gray-600 mb-1"&gt;&#123;label&#125;&lt;/label&gt;
+      &#123;children&#125;
+      &#123;error &amp;&amp; &lt;p className="text-xs text-red-500 mt-1"&gt;&#123;error&#125;&lt;/p&gt;&#125;
+    &lt;/div&gt;
+  );
+&#125;
+
+function input(hasError = false) &#123;
+  return &#96;w-full h-9 px-3 rounded border text-sm outline-none transition-colors
+    focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30
+    $&#123;hasError ? 'border-red-300' : 'border-gray-200'&#125;&#96;;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f9" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">(dashboard)/layout.tsx</div><div class="fpath">src/app/(dashboard)/layout.tsx</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="ng">Auth guard. Gets session user. Mounts Providers + TopBar.</div>
+<pre><code>// src/app/(dashboard)/layout.tsx
+// SERVER COMPONENT — no 'use client'
+//
+// ─────────────────────────────────────────────────────────────
+// PROTECTED DASHBOARD LAYOUT
+//
+// Responsibilities:
+//   1. Auth guard — redirect to /login if no token
+//   2. Read session user from idToken (no extra BE call)
+//   3. Wrap client tree in TanStack Query Provider
+//   4. TokenRefreshProvider for proactive token refresh
+//
+// Why SERVER here:
+//   - Can read cookies directly
+//   - Redirects happen before any HTML sent to browser
+//   - User data fetched once, passed down as props
+// ─────────────────────────────────────────────────────────────
+
+import &#123; redirect &#125;       from 'next/navigation';
+import &#123; getAccessToken, getSessionUser &#125; from '@/modules/auth/lib/cookies';
+import &#123; Providers &#125;      from '@/providers/Providers';
+import &#123; TopBar &#125;         from '@/components/layout/TopBar';
+
+export default async function DashboardLayout(&#123;
+  children,
+&#125;: &#123;
+  children: React.ReactNode;
+&#125;) &#123;
+  // ── Auth guard ──────────────────────────────────────────────
+  const token = await getAccessToken();
+  if (!token) redirect('/login');
+
+  // ── Get user from idToken (no extra API call) ───────────────
+  const user = await getSessionUser();
+
+  return (
+    // Providers wraps TanStack QueryClient + TokenRefreshProvider
+    &lt;Providers&gt;
+      &lt;div className="flex flex-col min-h-screen bg-gray-50"&gt;
+        &#123;/* Top bar with user name/logout */&#125;
+        &lt;TopBar user=&#123;user&#125; /&gt;
+        &#123;/* Page content */&#125;
+        &lt;div className="flex-1 flex flex-col"&gt;
+          &#123;children&#125;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/Providers&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f10" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">dashboard/page.tsx</div><div class="fpath">src/app/(dashboard)/dashboard/page.tsx</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="ng">Fetches tree server-side, redirects to first location. No loading flash.</div>
+<pre><code>// src/app/(dashboard)/dashboard/page.tsx
+// SERVER COMPONENT
+//
+// ─────────────────────────────────────────────────────────────
+// DASHBOARD PAGE
+//
+// User lands here after login.
+// Fetches location tree server-side and redirects to the
+// first location's config page automatically.
+//
+// Why SERVER:
+//   - Redirect happens before any HTML renders
+//   - No loading flash — user goes straight to location
+//   - Tree data fetched with auth cookie directly
+// ─────────────────────────────────────────────────────────────
+
+import &#123; redirect &#125;            from 'next/navigation';
+import &#123; resolveFirstLocation &#125; from '@/modules/locations/graphql/server-locations';
+
+export default async function DashboardPage() &#123;
+  // Fetch tree and find first location
+  const firstLocationId = await resolveFirstLocation();
+
+  if (firstLocationId) &#123;
+    // Redirect directly to first location's config page
+    redirect(&#96;/locations/$&#123;firstLocationId&#125;/config&#96;);
+  &#125;
+
+  // No locations found — show empty state
+  return (
+    &lt;div className="flex-1 flex items-center justify-center"&gt;
+      &lt;div className="text-center"&gt;
+        &lt;div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4"&gt;
+          &lt;svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-400"&gt;
+            &lt;path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="2"/&gt;
+            &lt;polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" strokeWidth="2"/&gt;
+          &lt;/svg&gt;
+        &lt;/div&gt;
+        &lt;h2 className="text-lg font-semibold text-gray-900 mb-1"&gt;
+          No locations yet
+        &lt;/h2&gt;
+        &lt;p className="text-sm text-gray-500"&gt;
+          Create your first location to get started.
+        &lt;/p&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f11" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">[locationId]/layout.tsx</div><div class="fpath">src/app/(dashboard)/locations/[locationId]/layout.tsx</div></div>
+<span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+</div>
+<div class="ng">PARALLEL fetch tree + config. Passes as initialData. Zero waterfall.</div>
+<pre><code>// src/app/(dashboard)/locations/[locationId]/layout.tsx
+// SERVER COMPONENT
+//
+// ─────────────────────────────────────────────────────────────
+// LOCATION LAYOUT
+//
+// Wraps ALL /locations/[locationId]/* pages.
+// Structure: sidebar (left) + content (right)
+//
+// PERFORMANCE: Fetches tree AND config IN PARALLEL
+// Both resolve at the same time — no waterfall.
+//
+// Passes server-fetched data as initialData to client hooks
+// so TanStack Query shows data instantly (no loading state
+// on first render).
+//
+// Why SERVER:
+//   - Can do parallel data fetching
+//   - React cache() deduplicates if tree already fetched
+//   - Initial render has data already
+// ─────────────────────────────────────────────────────────────
+
+import &#123; Suspense &#125;            from 'react';
+import &#123; redirect &#125;            from 'next/navigation';
+import &#123;
+  getLocationsTree,
+  getLocationConfig,
+&#125; from '@/modules/locations/graphql/server-locations';
+import &#123; LocationSidebar &#125;     from '@/modules/locations/components/LocationSidebar';
+
+interface Props &#123;
+  children:  React.ReactNode;
+  params:    Promise&lt;&#123; locationId: string &#125;&gt;;
+&#125;
+
+export default async function LocationLayout(&#123; children, params &#125;: Props) &#123;
+  const &#123; locationId &#125; = await params;
+
+  // ── Parallel fetch — both run at the same time ──────────────
+  const [tree, config] = await Promise.all([
+    getLocationsTree(),
+    getLocationConfig(locationId),
+  ]);
+
+  return (
+    &lt;div className="flex flex-1 h-[calc(100vh-56px)]"&gt;
+
+      &#123;/* LEFT SIDEBAR — client component with server-fetched initial data */&#125;
+      &lt;LocationSidebar
+        activeLocationId=&#123;locationId&#125;
+        initialTree=&#123;tree&#125;
+        initialConfig=&#123;config&#125;
+      /&gt;
+
+      &#123;/* RIGHT CONTENT — the actual page renders here */&#125;
+      &lt;main className="flex-1 overflow-y-auto bg-gray-50"&gt;
+        &lt;Suspense fallback=&#123;&lt;PageSkeleton /&gt;&#125;&gt;
+          &#123;children&#125;
+        &lt;/Suspense&gt;
+      &lt;/main&gt;
+
+    &lt;/div&gt;
+  );
+&#125;
+
+function PageSkeleton() &#123;
+  return (
+    &lt;div className="p-8 space-y-4"&gt;
+      &lt;div className="h-6 w-48 bg-gray-200 rounded animate-pulse" /&gt;
+      &lt;div className="h-48 bg-white rounded-xl border border-gray-200 animate-pulse" /&gt;
+    &lt;/div&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f12" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">config/page.tsx</div><div class="fpath">src/app/(dashboard)/locations/[locationId]/config/page.tsx</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">Optimistic toggle updates. Delete confirmation. TanStack cache from layout.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// CONFIG PAGE — CLIENT COMPONENT
+//
+// Shows configuration toggles for a location.
+// Toggling ON adds that page to the sidebar nav instantly
+// (optimistic update — no wait for server response).
+//
+// Receives initialConfig from server via searchParams approach
+// OR reads from TanStack cache (already populated by layout).
+// ─────────────────────────────────────────────────────────────
+
+import &#123; use &#125;         from 'react';
+import &#123; useParams &#125;   from 'next/navigation';
+import &#123;
+  useLocationConfig,
+  useUpdateLocationConfig,
+  useDeleteLocation,
+&#125;  from '@/modules/locations/hooks/useLocations';
+import &#123; LOCATION_NAV &#125; from '@/modules/locations/location-nav.config';
+import type &#123; LocationConfig &#125; from '@/modules/locations/types/location.types';
+import &#123; useState &#125;    from 'react';
+
+export default function ConfigPage() &#123;
+  const &#123; locationId &#125; = useParams&lt;&#123; locationId: string &#125;&gt;();
+
+  // TanStack cache already has data from server (set in layout via initialData)
+  // So this renders immediately with no loading state
+  const &#123; data: config, isLoading &#125; = useLocationConfig(locationId);
+  const updateConfig   = useUpdateLocationConfig(locationId);
+  const deleteLocation = useDeleteLocation();
+  const [showDelete, setShowDelete] = useState(false);
+
+  if (isLoading) return &lt;Skeleton /&gt;;
+  if (!config)   return (
+    &lt;div className="p-8 text-sm text-gray-400"&gt;No configuration found.&lt;/div&gt;
+  );
+
+  function handleToggle(key: keyof Omit&lt;LocationConfig, 'locationId'&gt;) &#123;
+    if (!config) return;
+    const &#123; locationId: _, ...rest &#125; = config;
+    updateConfig.mutate(&#123; ...rest, [key]: !config[key] &#125;);
+  &#125;
+
+  // Get only the conditional nav items (exclude config itself)
+  const toggleItems = LOCATION_NAV.filter(item =&gt; item.configKey !== null);
+
+  return (
+    &lt;div className="p-8 max-w-3xl"&gt;
+
+      &#123;/* Page header */&#125;
+      &lt;div className="flex items-start justify-between mb-6"&gt;
+        &lt;p className="text-xs font-bold text-gray-400 tracking-widest uppercase"&gt;
+          THIS CONFIGURATION ENABLES THE LOCATION FEATURES.
+        &lt;/p&gt;
+        &lt;button
+          onClick=&#123;() =&gt; setShowDelete(true)&#125;
+          className="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0 ml-4"
+        &gt;
+          Delete Location
+        &lt;/button&gt;
+      &lt;/div&gt;
+
+      &#123;/* Config card */&#125;
+      &lt;div className="bg-white border border-gray-200 rounded-xl overflow-hidden"&gt;
+        &#123;/* Card header */&#125;
+        &lt;div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100"&gt;
+          &lt;span className="text-sm font-semibold text-gray-800"&gt;Configuration&lt;/span&gt;
+          &lt;svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-gray-400"&gt;
+            &lt;path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/&gt;
+          &lt;/svg&gt;
+        &lt;/div&gt;
+
+        &#123;/* Toggles — 2 columns */&#125;
+        &lt;div className="p-5 grid grid-cols-2 gap-x-10 gap-y-3"&gt;
+          &#123;toggleItems.map(item =&gt; &#123;
+            const configKey = item.configKey!;
+            const isOn      = config[configKey] as boolean;
+            return (
+              &lt;div key=&#123;item.href&#125; className="flex items-center justify-between"&gt;
+                &lt;span className="text-sm text-gray-700"&gt;&#123;item.label&#125;&lt;/span&gt;
+                &lt;Toggle
+                  checked=&#123;isOn&#125;
+                  onChange=&#123;() =&gt; handleToggle(configKey)&#125;
+                  disabled=&#123;updateConfig.isPending&#125;
+                /&gt;
+              &lt;/div&gt;
+            );
+          &#125;)&#125;
+        &lt;/div&gt;
+      &lt;/div&gt;
+
+      &#123;/* Delete confirmation dialog */&#125;
+      &#123;showDelete &amp;&amp; (
+        &lt;div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"&gt;
+          &lt;div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-2xl"&gt;
+            &lt;h3 className="font-semibold text-gray-900 mb-2"&gt;Delete this location?&lt;/h3&gt;
+            &lt;p className="text-sm text-gray-500 mb-5"&gt;
+              This cannot be undone. All child locations will also be deleted.
+            &lt;/p&gt;
+            &lt;div className="flex gap-3"&gt;
+              &lt;button
+                onClick=&#123;() =&gt; setShowDelete(false)&#125;
+                className="flex-1 h-9 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+              &gt;
+                Cancel
+              &lt;/button&gt;
+              &lt;button
+                onClick=&#123;() =&gt; deleteLocation.mutate(&#123; locationId &#125;)&#125;
+                disabled=&#123;deleteLocation.isPending&#125;
+                className="flex-1 h-9 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60"
+              &gt;
+                &#123;deleteLocation.isPending ? 'Deleting...' : 'Delete'&#125;
+              &lt;/button&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      )&#125;
+
+    &lt;/div&gt;
+  );
+&#125;
+
+// ── Toggle matching wireframe ─────────────────────────────────
+function Toggle(&#123;
+  checked,
+  onChange,
+  disabled,
+&#125;: &#123;
+  checked:   boolean;
+  onChange:  () =&gt; void;
+  disabled?: boolean;
+&#125;) &#123;
+  return (
+    &lt;button
+      role="switch"
+      aria-checked=&#123;checked&#125;
+      onClick=&#123;onChange&#125;
+      disabled=&#123;disabled&#125;
+      className=&#123;&#96;
+        relative inline-flex w-10 h-5 rounded-full transition-colors
+        focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none
+        disabled:opacity-50 disabled:cursor-not-allowed
+        $&#123;checked ? 'bg-blue-500' : 'bg-gray-200'&#125;
+      &#96;&#125;
+    &gt;
+      &lt;span className=&#123;&#96;
+        absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white
+        shadow-sm transition-transform duration-200
+        $&#123;checked ? 'translate-x-5' : 'translate-x-0'&#125;
+      &#96;&#125; /&gt;
+    &lt;/button&gt;
+  );
+&#125;
+
+function Skeleton() &#123;
+  return (
+    &lt;div className="p-8"&gt;
+      &lt;div className="h-4 w-72 bg-gray-200 rounded animate-pulse mb-6" /&gt;
+      &lt;div className="bg-white border border-gray-200 rounded-xl p-5"&gt;
+        &lt;div className="h-5 w-28 bg-gray-200 rounded animate-pulse mb-4" /&gt;
+        &lt;div className="grid grid-cols-2 gap-x-10 gap-y-3"&gt;
+          &#123;Array.from(&#123; length: 10 &#125;).map((_, i) =&gt; (
+            &lt;div key=&#123;i&#125; className="flex justify-between"&gt;
+              &lt;div className="h-4 w-28 bg-gray-100 rounded animate-pulse" /&gt;
+              &lt;div className="h-5 w-10 bg-gray-100 rounded-full animate-pulse" /&gt;
+            &lt;/div&gt;
+          ))&#125;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f13" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">TopBar.tsx</div><div class="fpath">src/components/layout/TopBar.tsx</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">Receives user as prop from server — no client fetch needed.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// TOP BAR — CLIENT COMPONENT
+// Shows: app logo + breadcrumb + user profile
+// Receives user from server as prop — no client fetch needed
+// ─────────────────────────────────────────────────────────────
+
+import Link               from 'next/link';
+import &#123; UserProfile &#125;    from '@/modules/auth/components/UserProfile';
+import type &#123; SessionUser &#125; from '@/types/auth.types';
+
+interface Props &#123;
+  user: SessionUser | null;
+&#125;
+
+export function TopBar(&#123; user &#125;: Props) &#123;
+  return (
+    &lt;header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 shrink-0 z-10"&gt;
+      &#123;/* Logo */&#125;
+      &lt;Link href="/dashboard" className="flex items-center gap-2 mr-6"&gt;
+        &lt;div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center"&gt;
+          &lt;svg width="14" height="14" viewBox="0 0 24 24" fill="none"&gt;
+            &lt;path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+              fill="white" stroke="white" strokeWidth="1"/&gt;
+          &lt;/svg&gt;
+        &lt;/div&gt;
+        &lt;span className="text-sm font-semibold text-gray-900 hidden sm:block"&gt;
+          Admin Portal
+        &lt;/span&gt;
+      &lt;/Link&gt;
+
+      &lt;div className="flex-1" /&gt;
+
+      &#123;/* User profile with logout dropdown */&#125;
+      &#123;user &amp;&amp; &lt;UserProfile /&gt;&#125;
+    &lt;/header&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f14" class="panel">
+<div class="fhdr">
+<div class="ftitle">
+<div><div class="fname">Providers.tsx</div><div class="fpath">src/providers/Providers.tsx</div></div>
+<span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+</div>
+<div class="ng">QueryClient singleton + TokenRefreshProvider.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// PROVIDERS — CLIENT COMPONENT
+//
+// Wraps the client tree with:
+//   1. TanStack QueryClient (data fetching + caching)
+//   2. TokenRefreshProvider (proactive token refresh)
+//
+// Mounted in (dashboard)/layout.tsx (Server Component)
+// Everything inside this is client-side
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useState &#125;          from 'react';
+import &#123; QueryClient, QueryClientProvider &#125; from '@tanstack/react-query';
+import &#123; TokenRefreshProvider &#125; from '@/modules/auth/components/TokenRefreshProvider';
+
+export function Providers(&#123; children &#125;: &#123; children: React.ReactNode &#125;) &#123;
+  // useState ensures QueryClient is created once per browser session
+  // NOT on every server render
+  const [queryClient] = useState(() =&gt; new QueryClient(&#123;
+    defaultOptions: &#123;
+      queries: &#123;
+        staleTime:          1000 * 60 * 5,  // 5 min
+        refetchOnWindowFocus: false,         // don't refetch on tab focus
+        retry:              1,              // retry once on failure
+      &#125;,
+    &#125;,
+  &#125;));
+
+  return (
+    &lt;QueryClientProvider client=&#123;queryClient&#125;&gt;
+      &lt;TokenRefreshProvider&gt;
+        &#123;children&#125;
+      &lt;/TokenRefreshProvider&gt;
+    &lt;/QueryClientProvider&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<footer>Locations Full &middot; 15 files &middot; Server+Client split &middot; Parallel fetch &middot; Optimistic updates</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
