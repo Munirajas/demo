@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Standard Auth Approach</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--rd:#F87171;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--ac);margin-bottom:4px}
+.hero p{font-size:11.5px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.ctitle{padding:12px 14px;font-size:13px;font-weight:600;color:var(--tx);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em}
+.te{background:rgba(251,191,36,.12);color:var(--yw);border:1px solid rgba(251,191,36,.2)}
+.ts{background:rgba(52,211,153,.12);color:var(--gn);border:1px solid rgba(52,211,153,.2)}
+.ng{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+.nr{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(248,113,113,.07);border-left:3px solid var(--rd);color:#FCA5A5}
+.nw{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(251,191,36,.07);border-left:3px solid var(--yw);color:#FDE68A}
+.ni{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(56,189,248,.07);border-left:3px solid var(--ac);color:var(--mt2)}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px;-webkit-overflow-scrolling:touch}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+.flow{background:var(--sf2);border-radius:12px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2.1;overflow-x:auto;margin-bottom:12px}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}.fr{color:var(--rd)}.fp{color:var(--pu)}
+.table{width:100%;border-collapse:collapse;font-size:12px}
+.table th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mt);border-bottom:1px solid var(--bd)}
+.table td{padding:7px 10px;border-bottom:1px solid rgba(30,45,69,.4);color:var(--mt2);font-size:11.5px}
+.table td:first-child{color:var(--tx);font-weight:500}
+.ok{color:var(--gn)}.no{color:var(--rd)}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Standard Auth Approach</h1>
+  <p>Middleware as session gate &middot; requireAuth() in Server Components<br>
+  No silent-refresh page &middot; Clean &middot; Industry standard pattern</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="go('why',this)">Why This Way</div>
+  <div class="tab" onclick="go('flow',this)">Full Flow</div>
+  <div class="tab" onclick="go('cleanup',this)">Cleanup</div>
+  <div class="tab" onclick="go('f0',this)">middleware.ts</div>
+  <div class="tab" onclick="go('f1',this)">requireAuth.ts</div>
+  <div class="tab" onclick="go('f2',this)">dashboard/layout</div>
+  <div class="tab" onclick="go('f3',this)">location/layout</div>
+</div>
+<div id="tab-why" class="panel active">
+<div class="sec">The insight — two different jobs</div>
+<div class="card">
+<div class="ni">
+Middleware and Server Components have different capabilities and should have different jobs.
+</div>
+<pre><code><span style="color:var(--yw)">MIDDLEWARE (Edge Runtime)</span>
+  Runs in V8 isolate — no Node.js APIs
+  Cannot do async database/API calls
+  Can only read request cookies synchronously
+  Purpose: lightweight routing gate
+
+<span style="color:var(--gn)">SERVER COMPONENT (Node.js Runtime)</span>
+  Full Node.js — can call any async function
+  Can read and WRITE cookies
+  Can call refreshAccessToken()
+  Purpose: actual auth logic + data fetching</code></pre>
+</div>
+
+<div class="sec">What middleware should check</div>
+<div class="card">
+<pre><code><span style="color:var(--rd)">// WRONG — what was causing the bug</span>
+const token = req.cookies.get('access_token')?.value;
+// access_token expires every hour → user logged out every hour
+
+<span style="color:var(--gn)">// CORRECT — standard approach</span>
+const hasSession = Boolean(
+  req.cookies.get('refresh_token')?.value
+);
+// refresh_token = "session exists" (valid for 30 days)
+// access_token freshness checked in Server Component</code></pre>
+</div>
+
+<div class="sec">How Auth0, Clerk, Vercel do it</div>
+<div class="card">
+<div class="ng">
+All major auth providers use this same two-layer pattern:<br><br>
+<strong>Layer 1 — Middleware:</strong> Does the session exist? (session cookie / refresh token)<br>
+<strong>Layer 2 — Server Component:</strong> Is the access token fresh? Refresh if not.<br><br>
+This is documented in Next.js official docs under "Authentication Patterns".
+</div>
+</div>
+
+<div class="sec">What you can delete</div>
+<div class="card">
+<div class="nr">
+Now that requireAuth() handles refresh inline, these are no longer needed:<br><br>
+&#10060; src/app/auth/silent-refresh/page.tsx — delete entire folder<br>
+&#10060; Complex middleware with request type detection — simplified<br>
+&#10060; isApiRequest(), isAssetRequest() checks — not needed<br><br>
+Your existing /api/auth/refresh/route.ts stays — still used by useAuthQuery and TokenRefreshProvider.
+</div>
+</div>
+</div>
+<div id="tab-flow" class="panel">
+<div class="sec">Complete auth flow — all scenarios</div>
+<div class="flow">
+<span class="fw">REQUEST ARRIVES</span>
+<span class="fa">  ↓</span>
+<span class="fw">MIDDLEWARE (edge — fast)</span>
+<span class="ft">  Has refresh_token? → let through</span>
+<span class="ft">  No refresh_token + protected route → /login</span>
+<span class="ft">  No refresh_token + public route → let through</span>
+<span class="ft">  Has refresh_token + /login → /dashboard</span>
+<span class="fa">  ↓</span>
+<span class="fw">SERVER COMPONENT layout.tsx</span>
+<span class="ft">  await requireAuth()</span>
+<span class="fa">  ↓</span>
+<span class="fw">requireAuth() checks access_token</span>
+
+<span class="fg">SCENARIO A: access_token valid</span>
+<span class="fg">  return &#123; user, accessToken &#125;</span>
+<span class="fg">  page renders normally ✓</span>
+
+<span class="fg">SCENARIO B: access_token expired, refresh_token valid</span>
+<span class="fg">  refreshAccessToken() called inline</span>
+<span class="fg">  new cookies written server-side</span>
+<span class="fg">  return &#123; user, accessToken &#125;</span>
+<span class="fg">  page renders normally — user never knows ✓</span>
+
+<span class="fr">SCENARIO C: both tokens expired</span>
+<span class="fr">  refreshAccessToken() returns null</span>
+<span class="fr">  redirect('/login?reason=expired')</span>
+<span class="fr">  user must log in again (correct) ✓</span>
+<span class="fa">  ↓</span>
+<span class="fw">DATA FETCHING (after requireAuth passes)</span>
+<span class="fg">  Promise.all([getLocationsTree(), getLocationConfig()])</span>
+<span class="fg">  Both use fresh access_token from cookies</span>
+<span class="fg">  Page renders with data ✓</span>
+</div>
+
+<div class="sec">Responsibility map</div>
+<table class="table">
+<tr><th>Job</th><th>Handler</th><th>How</th></tr>
+<tr><td>Session exists?</td><td class="ok">Middleware</td><td>refresh_token cookie check</td></tr>
+<tr><td>Access token fresh?</td><td class="ok">requireAuth()</td><td>getAccessToken() check</td></tr>
+<tr><td>Refresh expired token</td><td class="ok">requireAuth()</td><td>refreshAccessToken() inline</td></tr>
+<tr><td>Get user info</td><td class="ok">requireAuth()</td><td>getSessionUser() from idToken</td></tr>
+<tr><td>API call 401 recovery</td><td class="ok">useAuthQuery</td><td>catch 401 → /api/auth/refresh → retry</td></tr>
+<tr><td>Proactive refresh</td><td class="ok">TokenRefreshProvider</td><td>every 4 min + visibility change</td></tr>
+<tr><td>Logout</td><td class="ok">logoutAction</td><td>endSession + clearAuthCookies</td></tr>
+</table>
+</div>
+<div id="tab-cleanup" class="panel">
+<div class="sec">What to delete</div>
+<div class="card">
+<pre><code><span style="color:var(--rd)">DELETE these files (no longer needed):</span>
+  src/app/auth/              ← entire folder
+    silent-refresh/
+      page.tsx
+
+<span style="color:var(--yw)">SIMPLIFY (already in your repo):</span>
+  src/middleware.ts          ← replace with new version
+                               (checks refresh_token not access_token)
+
+<span style="color:var(--gn)">KEEP (still needed):</span>
+  src/app/api/auth/refresh/route.ts   ← used by useAuthQuery + TokenRefreshProvider
+  src/app/api/auth/token/route.ts     ← used by useAuthQuery memory cache
+  src/app/api/auth/logout/route.ts    ← used by LogoutButton
+  src/app/api/auth/session/route.ts   ← used by useSession hook
+  src/modules/auth/lib/refresh.ts     ← called by requireAuth()
+  src/modules/auth/components/
+    TokenRefreshProvider.tsx          ← proactive refresh still needed</code></pre>
+</div>
+
+<div class="sec">Add one new file</div>
+<div class="card">
+<pre><code><span style="color:var(--gn)">CREATE:</span>
+  src/lib/auth/requireAuth.ts    ← server helper, called in layouts
+
+Usage in every protected layout:
+  const &#123; user &#125; = await requireAuth();
+  That one line handles everything.</code></pre>
+</div>
+
+<div class="sec">Update every protected layout</div>
+<div class="card">
+<pre><code><span style="color:var(--rd)">// BEFORE — manual token check in each layout</span>
+const token = await getAccessToken();
+if (!token) redirect('/login');
+
+<span style="color:var(--gn)">// AFTER — one line, handles refresh too</span>
+const &#123; user &#125; = await requireAuth();
+// valid token    → continues
+// expired token  → refreshes → continues
+// no session     → redirects to /login</code></pre>
+</div>
+</div>
+<div id="tab-f0" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag te">EDGE</span> src/middleware.ts</div>
+<div class="ng">Checks refresh_token only — not access_token. Middleware is a session gate, not a token validator. Access token refresh handled in Server Components.</div>
+<pre><code>import &#123; NextRequest, NextResponse &#125; from 'next/server';
+import &#123; COOKIE_KEYS, PUBLIC_ROUTES, BYPASS_PREFIXES, ROUTES &#125; from '@/lib/constants';
+
+// ─────────────────────────────────────────────────────────────
+// MIDDLEWARE — Edge Runtime
+//
+// STANDARD APPROACH (how Auth0, Clerk, Vercel all work):
+//
+// Middleware is a LIGHTWEIGHT GATE only.
+// It answers ONE question: does this user have a session at all?
+//
+// It checks refresh_token (not access_token) because:
+//   - access_token expires frequently (1hr)
+//   - refresh_token is the actual session indicator (30 days)
+//   - Checking access_token here causes logout on expiry
+//   - Server Components handle access_token refresh properly
+//
+// WHO DOES WHAT:
+//   Middleware     → session exists? (refresh_token check)
+//   Server Layout  → access_token valid? refresh if not
+//   useAuthQuery   → API call 401? refresh and retry
+//   /api/auth/*    → token operations themselves
+//
+// This removes all the complexity of silent-refresh pages,
+// race conditions, and request type detection.
+// ─────────────────────────────────────────────────────────────
+
+export default function middleware(req: NextRequest) &#123;
+  const &#123; pathname &#125; = req.nextUrl;
+
+  // ── Always bypass — never intercept ────────────────────────
+  if (BYPASS_PREFIXES.some(p =&gt; pathname.startsWith(p))) &#123;
+    return NextResponse.next();
+  &#125;
+
+  const isPublicRoute = PUBLIC_ROUTES.some(
+    r =&gt; pathname === r || pathname.startsWith(r)
+  );
+
+  // ── Check session existence via refresh_token ───────────────
+  // refresh_token = "user has an active session"
+  // access_token  = "user's current token is fresh"
+  // We only care about session existence here.
+  // Access token freshness is handled in Server Components.
+  const hasSession = Boolean(
+    req.cookies.get(COOKIE_KEYS.REFRESH_TOKEN)?.value
+  );
+
+  // No session + protected route → login
+  if (!hasSession &amp;&amp; !isPublicRoute) &#123;
+    const url = new URL(ROUTES.LOGIN, req.url);
+    url.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(url);
+  &#125;
+
+  // Has session + hitting login/register → dashboard
+  if (hasSession &amp;&amp; isPublicRoute) &#123;
+    return NextResponse.redirect(new URL(ROUTES.DASHBOARD, req.url));
+  &#125;
+
+  // All other cases → let through
+  // Server Components will handle access_token refresh
+  return NextResponse.next();
+&#125;
+
+export const config = &#123;
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$).*)',
+  ],
+&#125;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag ts">SERVER</span> src/lib/auth/requireAuth.ts</div>
+<div class="ng">NEW — Single helper called in every protected layout. Handles valid token, expired token (inline refresh), and no session. Replaces all silent-refresh complexity.</div>
+<pre><code>import 'server-only';
+
+// ─────────────────────────────────────────────────────────────
+// requireAuth — Server-Side Auth Helper
+//
+// Called at the top of every protected Server Component layout.
+// Handles access_token refresh transparently.
+//
+// This is the standard pattern used by:
+//   - Next.js official docs
+//   - Vercel's own auth examples
+//   - Auth0 Next.js SDK internals
+//
+// FLOW:
+//   1. Has access_token? → return user, render page
+//   2. No access_token, has refresh_token?
+//      → refreshAccessToken() inline
+//      → new cookies written
+//      → return user, render page
+//   3. Neither?
+//      → redirect to /login
+//      (middleware should have caught this but belt + braces)
+// ─────────────────────────────────────────────────────────────
+
+import &#123; redirect &#125;           from 'next/navigation';
+import &#123; getAccessToken, getSessionUser &#125; from '@/modules/auth/lib/cookies';
+import &#123; refreshAccessToken &#125;  from '@/modules/auth/lib/refresh';
+import &#123; ROUTES &#125;             from '@/lib/constants';
+import type &#123; SessionUser &#125;   from '@/types/auth.types';
+
+interface AuthResult &#123;
+  user:        SessionUser | null;
+  accessToken: string;
+&#125;
+
+export async function requireAuth(): Promise&lt;AuthResult&gt; &#123;
+  let accessToken = await getAccessToken();
+
+  // access_token missing but middleware let us through
+  // means refresh_token exists → try refresh inline
+  if (!accessToken) &#123;
+    const newToken = await refreshAccessToken();
+
+    if (!newToken) &#123;
+      // Refresh also failed — belt and braces redirect
+      redirect(&#96;$&#123;ROUTES.LOGIN&#125;?reason=expired&#96;);
+    &#125;
+
+    accessToken = newToken;
+  &#125;
+
+  // Decode user from stored idToken — no extra API call
+  const user = await getSessionUser();
+
+  return &#123; user, accessToken &#125;;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag ts">SERVER</span> src/app/(dashboard)/layout.tsx</div>
+<div class="ng">One line: await requireAuth(). Handles all auth scenarios. No silent-refresh redirect needed.</div>
+<pre><code>// src/app/(dashboard)/layout.tsx
+// SERVER COMPONENT — no 'use client'
+//
+// ─────────────────────────────────────────────────────────────
+// PROTECTED DASHBOARD LAYOUT
+//
+// Uses requireAuth() which handles:
+//   - access_token valid     → continue
+//   - access_token expired   → refresh inline → continue
+//   - refresh_token expired  → redirect /login
+//
+// No silent-refresh page needed.
+// No middleware complexity.
+// This is the standard Next.js App Router auth pattern.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; requireAuth &#125;     from '@/lib/auth/requireAuth';
+import &#123; Providers &#125;       from '@/providers/Providers';
+import &#123; TopBar &#125;          from '@/components/layout/TopBar';
+import &#123; ToastContainer &#125;  from '@/store/ToastContainer';
+
+export default async function DashboardLayout(&#123;
+  children,
+&#125;: &#123;
+  children: React.ReactNode;
+&#125;) &#123;
+  // Single call handles ALL auth scenarios:
+  //   valid token     → returns user
+  //   expired token   → refreshes silently → returns user
+  //   no session      → redirects to /login
+  const &#123; user &#125; = await requireAuth();
+
+  return (
+    &lt;Providers&gt;
+      &lt;div className="flex flex-col min-h-screen bg-gray-50"&gt;
+        &lt;TopBar user=&#123;user&#125; /&gt;
+        &lt;div className="flex-1 flex flex-col"&gt;
+          &#123;children&#125;
+        &lt;/div&gt;
+        &lt;ToastContainer /&gt;
+      &lt;/div&gt;
+    &lt;/Providers&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag ts">SERVER</span> src/app/(dashboard)/locations/[locationId]/layout.tsx</div>
+<div class="ng">await requireAuth() at top. Token silently refreshed before data fetching if needed.</div>
+<pre><code>// src/app/(dashboard)/locations/[locationId]/layout.tsx
+// SERVER COMPONENT — no 'use client'
+
+import &#123; requireAuth &#125;          from '@/lib/auth/requireAuth';
+import &#123; getLocationsTree, getLocationConfig &#125; from '@/modules/locations/graphql/server-locations';
+import &#123; LocationSidebar &#125;      from '@/modules/locations/components/LocationSidebar';
+
+interface Props &#123;
+  children:  React.ReactNode;
+  params:    Promise&lt;&#123; locationId: string &#125;&gt;;
+&#125;
+
+export default async function LocationLayout(&#123; children, params &#125;: Props) &#123;
+  const &#123; locationId &#125; = await params;
+
+  // requireAuth handles expired token silently — no extra code
+  await requireAuth();
+
+  // Parallel data fetch — both fire at the same time
+  const [tree, config] = await Promise.all([
+    getLocationsTree(),
+    getLocationConfig(locationId),
+  ]);
+
+  return (
+    &lt;div className="flex flex-1 h-[calc(100vh-56px)]"&gt;
+      &lt;LocationSidebar
+        activeLocationId=&#123;locationId&#125;
+        initialTree=&#123;tree&#125;
+        initialConfig=&#123;config&#125;
+      /&gt;
+      &lt;main className="flex-1 overflow-y-auto bg-gray-50"&gt;
+        &#123;children&#125;
+      &lt;/main&gt;
+    &lt;/div&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<footer>Standard Auth Approach &middot; Middleware = session gate &middot; requireAuth() = access token logic</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
