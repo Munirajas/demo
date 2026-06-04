@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Middleware Complete Fix</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--rd:#F87171;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--ac);margin-bottom:4px}
+.hero p{font-size:11.5px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.ctitle{padding:12px 14px;font-size:13px;font-weight:600;color:var(--tx);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em}
+.te{background:rgba(251,191,36,.12);color:var(--yw);border:1px solid rgba(251,191,36,.2)}
+.ts{background:rgba(52,211,153,.12);color:var(--gn);border:1px solid rgba(52,211,153,.2)}
+.ng{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+.nr{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(248,113,113,.07);border-left:3px solid var(--rd);color:#FCA5A5}
+.nw{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(251,191,36,.07);border-left:3px solid var(--yw);color:#FDE68A}
+.ni{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(56,189,248,.07);border-left:3px solid var(--ac);color:var(--mt2)}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px;-webkit-overflow-scrolling:touch}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+.flow{background:var(--sf2);border-radius:12px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2.1;overflow-x:auto;margin-bottom:12px}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}.fr{color:var(--rd)}.fp{color:var(--pu)}
+.table{width:100%;border-collapse:collapse;font-size:12px}
+.table th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mt);border-bottom:1px solid var(--bd)}
+.table td{padding:7px 10px;border-bottom:1px solid rgba(30,45,69,.4);color:var(--mt2);font-size:11.5px}
+.table td:first-child{color:var(--tx);font-weight:500;font-family:'SF Mono',monospace}
+.ok{color:var(--gn)}.no{color:var(--rd)}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Middleware — Complete Fix</h1>
+  <p>Each request type handled correctly &middot; Race condition prevented &middot; Only refresh fires when needed</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="go('decision',this)">Decision Table</div>
+  <div class="tab" onclick="go('race',this)">Race Condition</div>
+  <div class="tab" onclick="go('f0',this)">middleware.ts</div>
+  <div class="tab" onclick="go('f1',this)">silent-refresh</div>
+</div>
+<div id="tab-decision" class="panel active">
+<div class="sec">How middleware handles every request type</div>
+<table class="table">
+<tr>
+  <th>Request Type</th>
+  <th>Has access_token</th>
+  <th>Has refresh_token</th>
+  <th>Action</th>
+  <th>Why</th>
+</tr>
+<tr>
+  <td>/_next/static/*</td>
+  <td>—</td><td>—</td>
+  <td class="ok">Bypass always</td>
+  <td>Static assets, no auth needed</td>
+</tr>
+<tr>
+  <td>/api/auth/*</td>
+  <td>—</td><td>—</td>
+  <td class="ok">Bypass always</td>
+  <td>These routes SET tokens</td>
+</tr>
+<tr>
+  <td>/auth/silent-refresh</td>
+  <td>—</td><td>—</td>
+  <td class="ok">Bypass always</td>
+  <td>Would cause infinite loop</td>
+</tr>
+<tr>
+  <td>/login, /register</td>
+  <td>—</td><td>—</td>
+  <td class="ok">Let through</td>
+  <td>Public routes</td>
+</tr>
+<tr>
+  <td>Any page</td>
+  <td class="ok">✓</td><td>—</td>
+  <td class="ok">Let through</td>
+  <td>Valid session</td>
+</tr>
+<tr>
+  <td>/login with token</td>
+  <td class="ok">✓</td><td>—</td>
+  <td class="ok">→ /dashboard</td>
+  <td>Already logged in</td>
+</tr>
+<tr>
+  <td>Page navigation</td>
+  <td class="no">✗</td><td class="ok">✓</td>
+  <td class="ok">→ /auth/silent-refresh</td>
+  <td>Can recover session</td>
+</tr>
+<tr>
+  <td>/api/graphql or /api/*</td>
+  <td class="no">✗</td><td>—</td>
+  <td class="no">401 JSON response</td>
+  <td>API call not redirect</td>
+</tr>
+<tr>
+  <td>Image / asset file</td>
+  <td class="no">✗</td><td>—</td>
+  <td class="no">401 response</td>
+  <td>Asset call not redirect</td>
+</tr>
+<tr>
+  <td>Any page</td>
+  <td class="no">✗</td><td class="no">✗</td>
+  <td class="no">→ /login</td>
+  <td>Truly logged out</td>
+</tr>
+</table>
+
+<div class="sec" style="margin-top:16px">Key insight — API vs page requests</div>
+<div class="card">
+<div class="ni">
+API calls (fetch to /api/*) must get a JSON 401 response — NOT a redirect.<br>
+Redirecting an API call would return HTML to your fetch() code, causing a parse error.<br><br>
+useAuthQuery already handles 401 responses — catches it, calls /api/auth/refresh, retries.<br>
+So API requests during token expiry are handled client-side, not by middleware redirect.
+</div>
+</div>
+</div>
+<div id="tab-race" class="panel">
+<div class="sec">How race condition is prevented</div>
+
+<div class="card">
+<div class="ctitle">The race condition problem</div>
+<div class="nr">
+If 5 useAuthQuery hooks fire simultaneously when access_token is missing:<br>
+Without protection → 5 parallel refresh calls → race condition → unpredictable results
+</div>
+</div>
+
+<div class="flow">
+<span class="fw">PAGE NAVIGATION (handled by middleware):</span>
+<span class="ft">User navigates to /locations/abc/config</span>
+<span class="fa">  ↓ browser makes ONE page navigation request</span>
+<span class="ft">Middleware: no access_token + has refresh_token</span>
+<span class="fg">  → redirect /auth/silent-refresh?callbackUrl=/locations/abc/config</span>
+<span class="fa">  ↓</span>
+<span class="ft">Browser loads silent-refresh page</span>
+<span class="ft">  Page replaces current navigation entirely</span>
+<span class="fg">  No React mounted. No hooks running. No API calls.</span>
+<span class="fg">  Only ONE server-side refresh fires.</span>
+<span class="fa">  ↓</span>
+<span class="fg">refreshAccessToken() succeeds</span>
+<span class="fg">New cookies written</span>
+<span class="fg">redirect /locations/abc/config</span>
+<span class="fa">  ↓</span>
+<span class="fg">Page loads fresh with valid token</span>
+<span class="fg">All 5 useAuthQuery hooks fire WITH valid token</span>
+<span class="fg">No 401s. No parallel refreshes. Clean.</span>
+
+<span class="fw">API CALLS (handled by useAuthQuery):</span>
+<span class="ft">User is on page, token expires between queries</span>
+<span class="fa">  ↓</span>
+<span class="ft">useAuthQuery sends request</span>
+<span class="ft">Middleware sees /api/* → returns 401 JSON</span>
+<span class="ft">useAuthQuery catches 401</span>
+<span class="ft">Calls /api/auth/refresh (token memory cache prevents duplicates)</span>
+<span class="fg">Gets new token, retries original request</span>
+
+<span class="fw">RACE CONDITION PREVENTION for API calls:</span>
+<span class="ft">The token memory cache in useAuthQuery.ts has a mutex:</span>
+<span class="fg">  First call: cache miss → fetches /api/auth/token → caches it</span>
+<span class="fg">  Simultaneous calls 2-5: cache hit → same token returned</span>
+<span class="fg">  Only ONE /api/auth/refresh fires even if 5 queries get 401</span>
+</div>
+
+<div class="sec">The two layers working together</div>
+<div class="card">
+<pre><code><span style="color:var(--gn)">Layer 1 — Page navigations (Middleware + silent-refresh)</span>
+  Handles: user navigating between pages
+  Mechanism: redirect entire page to silent-refresh
+  Race condition: impossible (one page navigation = one refresh)
+
+<span style="color:var(--pu)">Layer 2 — API calls (useAuthQuery token cache)</span>
+  Handles: data fetching within a page
+  Mechanism: memory cache ensures one refresh despite many callers
+  Race condition: prevented by single cache variable
+
+<span style="color:var(--ac)">Layer 3 — Proactive (TokenRefreshProvider)</span>
+  Handles: preventing expiry while user is active
+  Mechanism: checks every 4 min + on tab focus
+  Race condition: ref guard prevents concurrent checks</code></pre>
+</div>
+</div>
+<div id="tab-f0" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag te">EDGE</span> src/middleware.ts</div>
+<div class="ng">Updated: API requests get 401 JSON. Asset requests get 401. Only page navigations redirect to silent-refresh. /auth/silent-refresh bypassed to prevent infinite loop.</div>
+<pre><code>import &#123; NextRequest, NextResponse &#125; from 'next/server';
+import &#123;
+  COOKIE_KEYS,
+  PUBLIC_ROUTES,
+  BYPASS_PREFIXES,
+  ROUTES,
+&#125; from '@/lib/constants';
+
+// ─────────────────────────────────────────────────────────────
+// MIDDLEWARE — Edge Runtime
+//
+// Handles EVERY incoming request type correctly:
+//
+//   Static assets     → always bypass (no auth needed)
+//   Auth API routes   → always bypass (these SET the tokens)
+//   Public pages      → bypass if logged out, redirect if logged in
+//   Protected pages   → full auth flow below
+//   Data API routes   → return 401 JSON (not redirect)
+//   Image/file routes → return 401 JSON (not redirect)
+//
+// TOKEN STATES:
+//   access_token ✓               → authenticated, let through
+//   access_token ✗ + refresh ✓  → send to silent-refresh
+//   access_token ✗ + refresh ✗  → send to login
+//
+// RACE CONDITION PREVENTION:
+//   When access_token is missing, silent-refresh replaces
+//   the entire page navigation — only ONE refresh fires.
+//   API calls from client components don't reach middleware
+//   as page navigations, so they are handled separately
+//   by returning 401 JSON, which useAuthQuery catches
+//   and retries after getting a new token.
+// ─────────────────────────────────────────────────────────────
+
+// Prefixes that are NEVER intercepted regardless of auth state
+const ALWAYS_BYPASS = [
+  ...BYPASS_PREFIXES,
+  '/auth/silent-refresh',  // must bypass or infinite loop
+  '/api/auth',             // these routes manage tokens themselves
+  '/_next',
+  '/favicon.ico',
+  '/public',
+];
+
+// Prefixes that are API/data routes (return JSON 401, not redirect)
+const API_PREFIXES = [
+  '/api/',
+];
+
+// File extensions that should return 401, not redirect
+const ASSET_EXTENSIONS = [
+  '.json', '.xml', '.csv',
+  '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico',
+  '.woff', '.woff2', '.ttf', '.eot',
+  '.mp4', '.mp3', '.pdf',
+];
+
+function isApiRequest(pathname: string): boolean &#123;
+  return API_PREFIXES.some(p =&gt; pathname.startsWith(p));
+&#125;
+
+function isAssetRequest(pathname: string): boolean &#123;
+  return ASSET_EXTENSIONS.some(ext =&gt; pathname.endsWith(ext));
+&#125;
+
+export default function middleware(req: NextRequest) &#123;
+  const &#123; pathname &#125; = req.nextUrl;
+
+  // ── Step 1: Always bypass these ────────────────────────────
+  if (ALWAYS_BYPASS.some(p =&gt; pathname.startsWith(p))) &#123;
+    return NextResponse.next();
+  &#125;
+
+  const accessToken  = req.cookies.get(COOKIE_KEYS.ACCESS_TOKEN)?.value;
+  const refreshToken = req.cookies.get(COOKIE_KEYS.REFRESH_TOKEN)?.value;
+  const isPublicRoute = PUBLIC_ROUTES.some(
+    r =&gt; pathname === r || pathname.startsWith(r)
+  );
+
+  // ── Step 2: Has valid access token ─────────────────────────
+  if (accessToken) &#123;
+    // Logged in user hitting public route → dashboard
+    if (isPublicRoute) &#123;
+      return NextResponse.redirect(new URL(ROUTES.DASHBOARD, req.url));
+    &#125;
+    // All other routes → let through normally
+    return NextResponse.next();
+  &#125;
+
+  // ── Step 3: No access token — handle each request type ─────
+
+  // Public routes (login, register) — let through without token
+  if (isPublicRoute) &#123;
+    return NextResponse.next();
+  &#125;
+
+  // API requests — return 401 JSON, NOT a redirect
+  // useAuthQuery catches this, triggers refresh, retries
+  // Redirecting an API call would break the client
+  if (isApiRequest(pathname)) &#123;
+    return NextResponse.json(
+      &#123;
+        error: 'UNAUTHENTICATED',
+        message: 'Access token expired. Please retry after refresh.',
+      &#125;,
+      &#123; status: 401 &#125;
+    );
+  &#125;
+
+  // Asset requests — return 401, not redirect
+  // Images/files don't need to redirect to refresh flow
+  if (isAssetRequest(pathname)) &#123;
+    return new NextResponse(null, &#123; status: 401 &#125;);
+  &#125;
+
+  // ── Step 4: Page navigation without access token ───────────
+
+  // Has refresh token → can recover silently
+  // Redirect to silent-refresh which will:
+  //   1. Call refreshAccessToken() server-side
+  //   2. Write new cookies
+  //   3. Redirect back to this page (callbackUrl)
+  // This is the only place refresh is triggered from middleware
+  if (refreshToken) &#123;
+    const url = new URL('/auth/silent-refresh', req.url);
+    url.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(url);
+  &#125;
+
+  // No refresh token either → truly logged out
+  const loginUrl = new URL(ROUTES.LOGIN, req.url);
+  loginUrl.searchParams.set('callbackUrl', pathname);
+  return NextResponse.redirect(loginUrl);
+&#125;
+
+export const config = &#123;
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+&#125;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag ts">SERVER</span> src/app/auth/silent-refresh/page.tsx</div>
+<div class="ng">Race condition safe: page navigation replaces browser entirely. No React mounted while refresh runs. Only ONE refresh fires.</div>
+<pre><code>// src/app/auth/silent-refresh/page.tsx
+// SERVER COMPONENT — no 'use client'
+//
+// ─────────────────────────────────────────────────────────────
+// SILENT REFRESH PAGE
+//
+// RACE CONDITION PREVENTION:
+//   This page replaces the entire browser navigation.
+//   While it runs, no other page components are mounted.
+//   No useAuthQuery hooks are running.
+//   No parallel API calls are being made.
+//   Only ONE refresh request fires — this one.
+//
+// FLOW:
+//   1. User's page navigation hits middleware
+//   2. Middleware sees: no access_token + has refresh_token
+//   3. Middleware redirects here with callbackUrl
+//   4. This page runs server-side refreshAccessToken()
+//   5a. Success → redirect to callbackUrl (original destination)
+//   5b. Failure → redirect to /login?reason=expired
+// ─────────────────────────────────────────────────────────────
+
+import &#123; redirect &#125;           from 'next/navigation';
+import &#123; refreshAccessToken &#125; from '@/modules/auth/lib/refresh';
+
+interface Props &#123;
+  searchParams: Promise&lt;&#123; callbackUrl?: string &#125;&gt;;
+&#125;
+
+export default async function SilentRefreshPage(&#123; searchParams &#125;: Props) &#123;
+  const &#123; callbackUrl &#125; = await searchParams;
+
+  // Validate callbackUrl — must be a relative path
+  // Prevents open redirect attacks
+  const destination =
+    callbackUrl &amp;&amp;
+    callbackUrl.startsWith('/') &amp;&amp;
+    !callbackUrl.startsWith('//')
+      ? callbackUrl
+      : '/dashboard';
+
+  // Attempt token refresh — server-side, secure
+  const newToken = await refreshAccessToken();
+
+  if (newToken) &#123;
+    redirect(destination);
+  &#125;
+
+  // Refresh failed — both tokens expired
+  redirect('/login?reason=expired');
+&#125;
+</code></pre>
+</div>
+</div>
+<footer>Middleware Complete Fix &middot; Request type handling &middot; Race condition prevented</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
