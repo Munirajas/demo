@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Layout Skeleton</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--rd:#F87171;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--ac);margin-bottom:4px}
+.hero p{font-size:11.5px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.ctitle{padding:12px 14px;font-size:12.5px;font-weight:600;color:var(--tx);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em}
+.ng{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+.ni{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(56,189,248,.07);border-left:3px solid var(--ac);color:var(--mt2)}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px;-webkit-overflow-scrolling:touch}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+.flow{background:var(--sf2);border-radius:12px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2;overflow-x:auto;margin-bottom:12px}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Layout Skeleton</h1>
+  <p>3-panel layout &middot; Real GraphQL data &middot; Breadcrumbs &middot; 12 files<br>
+  Server + Client split &middot; Zero loading flash &middot; Scalable routing</p>
+</div>
+<div class="tabs">
+<div class="tab active" onclick="go('arch',this)">Architecture</div>
+<div class="tab" onclick="go('f0',this)">location.types.ts</div>
+<div class="tab" onclick="go('f1',this)">locations.graphql.ts</div>
+<div class="tab" onclick="go('f2',this)">mock-data.ts</div>
+<div class="tab" onclick="go('f3',this)">server-locations.ts</div>
+<div class="tab" onclick="go('f4',this)">LocationTree.tsx</div>
+<div class="tab" onclick="go('f5',this)">FunctionNav.tsx</div>
+<div class="tab" onclick="go('f6',this)">Breadcrumbs.tsx</div>
+<div class="tab" onclick="go('f7',this)">DashboardShell.tsx</div>
+<div class="tab" onclick="go('f8',this)">(dashboard)/layout.tsx</div>
+<div class="tab" onclick="go('f9',this)">(dashboard)/page.tsx</div>
+<div class="tab" onclick="go('f10',this)">[locationId]/[fn]/layout.tsx</div>
+<div class="tab" onclick="go('f11',this)">function-pages-guide.ts</div>
+</div>
+
+<div id="tab-arch" class="panel active">
+<div class="sec">Route structure</div>
+<div class="card">
+<pre><code>src/app/(dashboard)/
+  layout.tsx                              SERVER: auth + providers
+  page.tsx                                SERVER: redirect to first location
+  locations/
+    [locationId]/
+      [fn]/
+        layout.tsx                        SERVER: fetch tree+functions, build breadcrumbs
+        page.tsx                          SERVER: generic fallback (coming soon)
+      config/page.tsx                     SERVER: config toggles
+      physical-address/page.tsx           SERVER: address form
+      contract-management/page.tsx
+      amenities/page.tsx
+      team/page.tsx
+      ...one page.tsx per function
+
+URL: /locations/111/physical-address
+  locationId = 111 (any depth, just the leaf ID)
+  fn = physical-address (the function slug)</code></pre>
+</div>
+
+<div class="sec">Server vs Client decision</div>
+<div class="card">
+<pre><code>SERVER (no 'use client'):
+  (dashboard)/layout.tsx    auth check, providers
+  (dashboard)/page.tsx      auto-redirect to first location
+  [fn]/layout.tsx           PARALLEL fetch tree+functions
+  any/page.tsx              fetch function-specific data
+
+CLIENT ('use client'):
+  DashboardShell.tsx        three-panel layout, search state
+  LocationTree.tsx          expand/collapse state, router.push
+  FunctionNav.tsx           useParams for active highlight
+  Breadcrumbs.tsx           Link components
+
+Why this split:
+  Server fetches data = instant, no loading state
+  Client handles interaction = expand, navigate, highlight</code></pre>
+</div>
+
+<div class="sec">Data flow</div>
+<div class="flow">
+<span class="fw">User navigates to /locations/111/physical-address</span>
+<span class="fa">  ↓</span>
+<span class="fw">[fn]/layout.tsx (SERVER)</span>
+<span class="fg">  Promise.all([getLocationsTree(), getLocationFunctions('111')])</span>
+<span class="fg">  Builds breadcrumbs from tree path</span>
+<span class="fg">  &lt;DashboardShell tree=&#123;&#125; functions=&#123;&#125; breadcrumbs=&#123;&#125;&gt;</span>
+<span class="fa">  ↓</span>
+<span class="fw">DashboardShell (CLIENT)</span>
+<span class="fg">  Renders 3-panel layout with server data</span>
+<span class="fg">  LocationTree shows active node</span>
+<span class="fg">  FunctionNav highlights physical-address</span>
+<span class="fg">  Breadcrumbs shows full path</span>
+<span class="fa">  ↓</span>
+<span class="fw">physical-address/page.tsx (SERVER)</span>
+<span class="fg">  Fetches address-specific data</span>
+<span class="fg">  Renders in right panel as children</span>
+</div>
+
+<div class="sec">Adding a new function — 3 steps</div>
+<div class="card">
+<pre><code>// Step 1: location.types.ts
+export const FUNCTION_SLUGS = [
+  ...existing...,
+  'my-new-function',  // ← add here
+] as const;
+export const FUNCTION_LABELS = {
+  'my-new-function': 'My New Function',  // ← add here
+};
+
+// Step 2: create the page
+// src/app/(dashboard)/locations/[locationId]/my-new-function/page.tsx
+export default async function MyNewFunctionPage({ params }) {
+  const { locationId } = await params;
+  return &lt;div className="p-8"&gt;My New Function&lt;/div&gt;;
+}
+
+// Step 3: enable in location config
+// When user enables the toggle → your API returns it in locationFunctions
+// FunctionNav automatically shows it — zero extra code</code></pre>
+</div>
+</div>
+<div id="tab-f0" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+  location.types.ts
+</div>
+<div class="ng">Single source of truth for all types, slugs, and labels. Add new function here first.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// TYPES — Location tree + Functions
+// ─────────────────────────────────────────────────────────────
+
+export interface LocationNode &#123;
+  id:        string;
+  label:     string;
+  type:      'client' | 'location';
+  parentId:  string | null;
+  children?: LocationNode[];
+&#125;
+
+// Functions available per location (based on permissions)
+export interface LocationFunction &#123;
+  slug:    string;   // used in URL: 'physical-address', 'config' etc
+  label:   string;   // shown in nav: 'Physical Address'
+  enabled: boolean;  // based on location config toggles
+&#125;
+
+// What the functions API returns for a location
+export interface LocationFunctionsResponse &#123;
+  locationFunctions: LocationFunction[];
+&#125;
+
+// Tree API response
+export interface LocationsTreeResponse &#123;
+  locationsTree: LocationNode[];
+&#125;
+
+// Breadcrumb item
+export interface BreadcrumbItem &#123;
+  label: string;
+  href?: string;  // undefined = current page (not a link)
+&#125;
+
+// All available function slugs — single source of truth
+export const FUNCTION_SLUGS = [
+  'config',
+  'physical-address',
+  'contract-management',
+  'amenities',
+  'team',
+  'manual-metrics',
+  'customer-service',
+  'contact-info',
+  'mappable-location',
+  'pos',
+  'scan',
+] as const;
+
+export type FunctionSlug = typeof FUNCTION_SLUGS[number];
+
+// Function slug → display label
+export const FUNCTION_LABELS: Record&lt;FunctionSlug, string&gt; = &#123;
+  'config':               'Config',
+  'physical-address':     'Physical Address',
+  'contract-management':  'Contract Management',
+  'amenities':            'Amenities',
+  'team':                 'Team',
+  'manual-metrics':       'Manual Metrics',
+  'customer-service':     'Customer Service',
+  'contact-info':         'Contact Info',
+  'mappable-location':    'Mappable Location',
+  'pos':                  'POS',
+  'scan':                 'Scan',
+&#125;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+  locations.graphql.ts
+</div>
+<div class="ng">GQL queries. Update field names when BE ready.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// GRAPHQL QUERIES — update field names when BE ready
+// ─────────────────────────────────────────────────────────────
+
+export const GET_LOCATIONS_TREE = &#96;
+  query GetLocationsTree &#123;
+    locationsTree &#123;
+      id
+      label
+      type
+      parentId
+      children &#123;
+        id
+        label
+        type
+        parentId
+        children &#123;
+          id
+          label
+          type
+          parentId
+          children &#123;
+            id
+            label
+            type
+            parentId
+          &#125;
+        &#125;
+      &#125;
+    &#125;
+  &#125;
+&#96;;
+
+// Functions enabled for a specific location
+// BE returns which functions are enabled based on config toggles
+export const GET_LOCATION_FUNCTIONS = &#96;
+  query GetLocationFunctions($locationId: String!) &#123;
+    locationFunctions(locationId: $locationId) &#123;
+      slug
+      label
+      enabled
+    &#125;
+  &#125;
+&#96;;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+  mock-data.ts
+</div>
+<div class="ng">Matches your actual app screenshot. Swap getLocationsTree() in server-locations.ts when real API ready.</div>
+<pre><code>import type &#123; LocationNode, LocationFunction &#125; from '../types/location.types';
+
+// Matches your actual app screenshot exactly
+export const MOCK_LOCATIONS_TREE: LocationNode[] = [
+  &#123;
+    id: '1', label: 'Museum of the Bible', type: 'client', parentId: null,
+    children: [
+      &#123;
+        id: '11', label: 'MOTB - Washington DC', type: 'location', parentId: '1',
+        children: [
+          &#123; id: '111', label: 'Grand Hall Ticketing',            type: 'location', parentId: '11' &#125;,
+          &#123; id: '112', label: 'Museum of the Bible Highlights',  type: 'location', parentId: '11' &#125;,
+          &#123; id: '113', label: 'Washington Revelations',          type: 'location', parentId: '11' &#125;,
+          &#123; id: '114', label: 'All creating signs',              type: 'location', parentId: '11' &#125;,
+          &#123; id: '115', label: 'The world of jesus of Nazareth',  type: 'location', parentId: '11' &#125;,
+          &#123; id: '116', label: 'World stage theatre',             type: 'location', parentId: '11' &#125;,
+          &#123; id: '117', label: 'Explore VR',                      type: 'location', parentId: '11' &#125;,
+          &#123; id: '118', label: 'Creations Cafe',                  type: 'location', parentId: '11' &#125;,
+          &#123; id: '119', label: 'Mana Restaurant',                 type: 'location', parentId: '11' &#125;,
+          &#123; id: '120', label: 'Museum Shop',                     type: 'location', parentId: '11' &#125;,
+          &#123; id: '121', label: 'Mezzanine Cafe',                  type: 'location', parentId: '11' &#125;,
+        ],
+      &#125;,
+      &#123;
+        id: '12', label: 'MOTB - Washington DC 2', type: 'location', parentId: '1',
+        children: [],
+      &#125;,
+    ],
+  &#125;,
+];
+
+// Functions enabled for a location (from config toggles)
+export const MOCK_LOCATION_FUNCTIONS: Record&lt;string, LocationFunction[]&gt; = &#123;
+  '111': [
+    &#123; slug: 'config',              label: 'Config',              enabled: true &#125;,
+    &#123; slug: 'physical-address',    label: 'Physical Address',    enabled: true &#125;,
+    &#123; slug: 'contract-management', label: 'Contract Management', enabled: true &#125;,
+    &#123; slug: 'amenities',           label: 'Amenities',           enabled: true &#125;,
+    &#123; slug: 'team',                label: 'Team',                enabled: true &#125;,
+    &#123; slug: 'manual-metrics',      label: 'Manual Metrics',      enabled: true &#125;,
+    &#123; slug: 'customer-service',    label: 'Customer Service',    enabled: true &#125;,
+    &#123; slug: 'contact-info',        label: 'Contact Info',        enabled: true &#125;,
+    &#123; slug: 'mappable-location',   label: 'Mappable Location',   enabled: true &#125;,
+    &#123; slug: 'pos',                 label: 'POS',                 enabled: true &#125;,
+    &#123; slug: 'scan',                label: 'Scan',                enabled: true &#125;,
+  ],
+&#125;;
+
+// ── Helpers ───────────────────────────────────────────────────
+export function findLocationById(
+  nodes: LocationNode[],
+  id: string
+): LocationNode | null &#123;
+  for (const node of nodes) &#123;
+    if (node.id === id) return node;
+    if (node.children?.length) &#123;
+      const found = findLocationById(node.children, id);
+      if (found) return found;
+    &#125;
+  &#125;
+  return null;
+&#125;
+
+// Get first selectable location (skip client node)
+export function getFirstLocation(
+  nodes: LocationNode[]
+): LocationNode | null &#123;
+  for (const node of nodes) &#123;
+    if (node.type === 'location') return node;
+    if (node.children?.length) &#123;
+      const found = getFirstLocation(node.children);
+      if (found) return found;
+    &#125;
+  &#125;
+  return null;
+&#125;
+
+// Build breadcrumb path for a location
+export function getLocationPath(
+  nodes: LocationNode[],
+  targetId: string,
+  path: LocationNode[] = []
+): LocationNode[] | null &#123;
+  for (const node of nodes) &#123;
+    const current = [...path, node];
+    if (node.id === targetId) return current;
+    if (node.children?.length) &#123;
+      const found = getLocationPath(node.children, targetId, current);
+      if (found) return found;
+    &#125;
+  &#125;
+  return null;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+  server-locations.ts
+</div>
+<div class="ng">React cache() wraps both fetchers. Called from layout — deduplicates if called multiple times.</div>
+<pre><code>import 'server-only';
+import &#123; cache &#125; from 'react';
+import type &#123;
+  LocationNode,
+  LocationFunction,
+&#125; from '../types/location.types';
+import &#123;
+  MOCK_LOCATIONS_TREE,
+  MOCK_LOCATION_FUNCTIONS,
+&#125; from './mock-data';
+
+// ── React cache() deduplicates ────────────────────────────────
+// If layout AND page both call getLocationsTree()
+// only ONE request fires per render cycle
+
+export const getLocationsTree = cache(async (): Promise&lt;LocationNode[]&gt; =&gt; &#123;
+  // ── SWAP FOR REAL API ────────────────────────────────────────
+  // const data = await serverGqlFetch&lt;&#123; locationsTree: LocationNode[] &#125;&gt;(
+  //   GET_LOCATIONS_TREE
+  // );
+  // return data.locationsTree;
+  // ────────────────────────────────────────────────────────────
+  return MOCK_LOCATIONS_TREE;
+&#125;);
+
+export const getLocationFunctions = cache(
+  async (locationId: string): Promise&lt;LocationFunction[]&gt; =&gt; &#123;
+    // ── SWAP FOR REAL API ──────────────────────────────────────
+    // const data = await serverGqlFetch&lt;&#123; locationFunctions: LocationFunction[] &#125;&gt;(
+    //   GET_LOCATION_FUNCTIONS,
+    //   &#123; locationId &#125;
+    // );
+    // return data.locationFunctions;
+    // ──────────────────────────────────────────────────────────
+    return MOCK_LOCATION_FUNCTIONS[locationId] ?? [
+      &#123; slug: 'config', label: 'Config', enabled: true &#125;,
+    ];
+  &#125;
+);
+</code></pre>
+</div>
+</div>
+<div id="tab-f4" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+  LocationTree.tsx
+</div>
+<div class="ng">Expand/collapse state. Navigates keeping current fn slug. Client nodes toggle only.</div>
+<pre><code>'use client';
+
+import &#123; useState &#125;                from 'react';
+import &#123; useRouter, useParams &#125;    from 'next/navigation';
+import type &#123; LocationNode &#125;       from '../types/location.types';
+
+interface Props &#123;
+  nodes:      LocationNode[];
+  activeId?:  string;
+  depth?:     number;
+&#125;
+
+export function LocationTree(&#123; nodes, activeId, depth = 0 &#125;: Props) &#123;
+  if (!nodes.length) return null;
+  return (
+    &lt;ul className=&#123;depth &gt; 0 ? 'ml-4' : ''&#125;&gt;
+      &#123;nodes.map(node =&gt; (
+        &lt;LocationTreeNode
+          key=&#123;node.id&#125;
+          node=&#123;node&#125;
+          activeId=&#123;activeId&#125;
+          depth=&#123;depth&#125;
+        /&gt;
+      ))&#125;
+    &lt;/ul&gt;
+  );
+&#125;
+
+function LocationTreeNode(&#123;
+  node, activeId, depth,
+&#125;: &#123;
+  node: LocationNode; activeId?: string; depth: number;
+&#125;) &#123;
+  const router      = useRouter();
+  const params      = useParams&lt;&#123; locationId?: string; fn?: string &#125;&gt;();
+  const hasChildren = Boolean(node.children?.length);
+  const isClient    = node.type === 'client';
+  const isActive    = node.id === activeId;
+
+  // Auto-expand if active is a descendant
+  const [expanded, setExpanded] = useState(() =&gt;
+    isClient || hasDescendant(node, activeId)
+  );
+
+  function handleClick() &#123;
+    if (isClient) &#123;
+      setExpanded(x =&gt; !x);
+      return;
+    &#125;
+    // Navigate to location — keep current fn or default to config
+    const fn = params?.fn ?? 'config';
+    router.push(&#96;/locations/$&#123;node.id&#125;/$&#123;fn&#125;&#96;);
+  &#125;
+
+  return (
+    &lt;li className="my-0.5"&gt;
+      &lt;button
+        onClick=&#123;handleClick&#125;
+        className=&#123;&#96;
+          w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md
+          text-sm text-left transition-colors
+          $&#123;isActive
+            ? 'bg-blue-600 text-white font-medium'
+            : isClient
+              ? 'text-gray-700 font-semibold cursor-default'
+              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+          &#125;
+        &#96;&#125;
+      &gt;
+        &#123;/* Expand/collapse indicator */&#125;
+        &#123;hasChildren ? (
+          &lt;svg
+            onClick=&#123;e =&gt; &#123; e.stopPropagation(); setExpanded(x =&gt; !x); &#125;&#125;
+            width="10" height="10" viewBox="0 0 24 24" fill="none"
+            className=&#123;&#96;shrink-0 opacity-50 transition-transform
+              $&#123;expanded ? 'rotate-90' : ''&#125;&#96;&#125;
+          &gt;
+            &lt;path d="M9 18l6-6-6-6" stroke="currentColor"
+              strokeWidth="2.5" strokeLinecap="round"/&gt;
+          &lt;/svg&gt;
+        ) : (
+          &lt;span className="w-2.5 shrink-0" /&gt;
+        )&#125;
+        &lt;span className="truncate"&gt;&#123;node.label&#125;&lt;/span&gt;
+
+        &#123;/* Type badge for client node */&#125;
+        &#123;isClient &amp;&amp; (
+          &lt;span className="ml-auto text-[9px] font-bold tracking-wide
+            text-gray-400 uppercase shrink-0"&gt;
+            CLIENT
+          &lt;/span&gt;
+        )&#125;
+      &lt;/button&gt;
+
+      &#123;hasChildren &amp;&amp; expanded &amp;&amp; (
+        &lt;LocationTree
+          nodes=&#123;node.children!&#125;
+          activeId=&#123;activeId&#125;
+          depth=&#123;depth + 1&#125;
+        /&gt;
+      )&#125;
+    &lt;/li&gt;
+  );
+&#125;
+
+function hasDescendant(node: LocationNode, id?: string): boolean &#123;
+  if (!id) return false;
+  if (node.id === id) return true;
+  return node.children?.some(c =&gt; hasDescendant(c, id)) ?? false;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f5" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+  FunctionNav.tsx
+</div>
+<div class="ng">Uses useParams to highlight active function. Links navigate keeping locationId.</div>
+<pre><code>'use client';
+
+import Link            from 'next/link';
+import &#123; useParams &#125;   from 'next/navigation';
+import type &#123; LocationFunction &#125; from '../types/location.types';
+
+interface Props &#123;
+  locationId: string;
+  functions:  LocationFunction[];
+&#125;
+
+export function FunctionNav(&#123; locationId, functions &#125;: Props) &#123;
+  const params    = useParams&lt;&#123; fn?: string &#125;&gt;();
+  const activeFn  = params?.fn ?? 'config';
+  const enabled   = functions.filter(f =&gt; f.enabled);
+
+  if (!enabled.length) return (
+    &lt;div className="p-4 text-sm text-gray-400"&gt;
+      No functions available.
+    &lt;/div&gt;
+  );
+
+  return (
+    &lt;nav className="py-2"&gt;
+      &#123;enabled.map(fn =&gt; &#123;
+        const isActive = fn.slug === activeFn;
+        return (
+          &lt;Link
+            key=&#123;fn.slug&#125;
+            href=&#123;&#96;/locations/$&#123;locationId&#125;/$&#123;fn.slug&#125;&#96;&#125;
+            className=&#123;&#96;
+              block px-4 py-2.5 text-sm transition-colors
+              $&#123;isActive
+                ? 'text-blue-600 font-medium border-l-2 border-blue-600 bg-blue-50'
+                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 border-l-2 border-transparent'
+              &#125;
+            &#96;&#125;
+          &gt;
+            &#123;fn.label&#125;
+          &lt;/Link&gt;
+        );
+      &#125;)&#125;
+    &lt;/nav&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f6" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+  Breadcrumbs.tsx
+</div>
+<div class="ng">Derives from tree path + fn label. All clickable except last item (current page).</div>
+<pre><code>'use client';
+
+import Link from 'next/link';
+import type &#123; BreadcrumbItem &#125; from '@/modules/locations/types/location.types';
+
+interface Props &#123;
+  items: BreadcrumbItem[];
+&#125;
+
+export function Breadcrumbs(&#123; items &#125;: Props) &#123;
+  if (!items.length) return null;
+
+  return (
+    &lt;nav aria-label="breadcrumb" className="flex items-center gap-1 flex-wrap"&gt;
+      &#123;items.map((item, i) =&gt; &#123;
+        const isLast = i === items.length - 1;
+        return (
+          &lt;span key=&#123;i&#125; className="flex items-center gap-1"&gt;
+            &#123;i &gt; 0 &amp;&amp; (
+              &lt;svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                className="text-gray-300 shrink-0"&gt;
+                &lt;path d="M9 18l6-6-6-6" stroke="currentColor"
+                  strokeWidth="2" strokeLinecap="round"/&gt;
+              &lt;/svg&gt;
+            )&#125;
+            &#123;item.href &amp;&amp; !isLast ? (
+              &lt;Link
+                href=&#123;item.href&#125;
+                className="text-sm text-gray-500 hover:text-gray-700
+                  transition-colors"
+              &gt;
+                &#123;item.label&#125;
+              &lt;/Link&gt;
+            ) : (
+              &lt;span className=&#123;&#96;text-sm $&#123;isLast
+                ? 'text-gray-900 font-medium'
+                : 'text-gray-500'
+              &#125;&#96;&#125;&gt;
+                &#123;item.label&#125;
+              &lt;/span&gt;
+            )&#125;
+          &lt;/span&gt;
+        );
+      &#125;)&#125;
+    &lt;/nav&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f7" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span>
+  DashboardShell.tsx
+</div>
+<div class="ng">Three-panel layout. Receives all data from server as props. Zero data fetching.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// DASHBOARD SHELL — CLIENT COMPONENT
+//
+// Receives server-fetched data as props.
+// Handles the three-panel layout:
+//   Left:   Location tree
+//   Middle: Function navigation (when location selected)
+//   Right:  Page content
+//
+// Why CLIENT here:
+//   LocationTree needs useState (expand/collapse)
+//   FunctionNav needs useParams (active highlight)
+//   Both need router for navigation
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useState &#125;            from 'react';
+import &#123; LocationTree &#125;        from '@/modules/locations/components/LocationTree';
+import &#123; FunctionNav &#125;         from '@/modules/locations/components/FunctionNav';
+import &#123; Breadcrumbs &#125;         from '@/components/nav/Breadcrumbs';
+import type &#123;
+  LocationNode,
+  LocationFunction,
+  BreadcrumbItem,
+&#125; from '@/modules/locations/types/location.types';
+
+interface Props &#123;
+  // From server
+  tree:        LocationNode[];
+  locationId?: string;
+  functions:   LocationFunction[];
+  breadcrumbs: BreadcrumbItem[];
+  fnLabel?:    string;
+  // Page content
+  children:    React.ReactNode;
+&#125;
+
+export function DashboardShell(&#123;
+  tree,
+  locationId,
+  functions,
+  breadcrumbs,
+  fnLabel,
+  children,
+&#125;: Props) &#123;
+  const [search, setSearch] = useState('');
+
+  // Filter tree by search term
+  const filteredTree = search.trim()
+    ? filterTree(tree, search.toLowerCase())
+    : tree;
+
+  const hasLocation = Boolean(locationId);
+
+  return (
+    &lt;div className="flex h-[calc(100vh-56px)] overflow-hidden bg-white"&gt;
+
+      &#123;/* ── Panel 1: Location Tree ──────────────────────────── */&#125;
+      &lt;aside className="w-56 border-r border-gray-200 flex flex-col shrink-0"&gt;
+
+        &#123;/* Search */&#125;
+        &lt;div className="p-2 border-b border-gray-100"&gt;
+          &lt;div className="flex items-center gap-2 bg-gray-50 border
+            border-gray-200 rounded px-2.5 py-1.5"&gt;
+            &lt;svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+              className="text-gray-400 shrink-0"&gt;
+              &lt;circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/&gt;
+              &lt;path d="m21 21-4.35-4.35" stroke="currentColor"
+                strokeWidth="2" strokeLinecap="round"/&gt;
+            &lt;/svg&gt;
+            &lt;input
+              value=&#123;search&#125;
+              onChange=&#123;e =&gt; setSearch(e.target.value)&#125;
+              placeholder="Search"
+              className="bg-transparent text-xs outline-none flex-1
+                text-gray-700 placeholder-gray-400"
+            /&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+
+        &#123;/* Tree — scrollable */&#125;
+        &lt;div className="flex-1 overflow-y-auto p-2"&gt;
+          &lt;LocationTree
+            nodes=&#123;filteredTree&#125;
+            activeId=&#123;locationId&#125;
+          /&gt;
+        &lt;/div&gt;
+
+        &#123;/* Create Location */&#125;
+        &lt;div className="p-2 border-t border-gray-100"&gt;
+          &lt;button className="w-full flex items-center justify-center gap-1
+            py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs
+            font-semibold rounded transition-colors"&gt;
+            &lt;svg width="12" height="12" viewBox="0 0 24 24" fill="none"&gt;
+              &lt;path d="M12 5v14M5 12h14" stroke="currentColor"
+                strokeWidth="2.5" strokeLinecap="round"/&gt;
+            &lt;/svg&gt;
+            Create Location
+          &lt;/button&gt;
+        &lt;/div&gt;
+      &lt;/aside&gt;
+
+      &#123;/* ── Panel 2: Function Nav ───────────────────────────── */&#125;
+      &lt;aside className=&#123;&#96;w-44 border-r border-gray-200 flex flex-col shrink-0
+        transition-all duration-200
+        $&#123;hasLocation ? 'opacity-100' : 'opacity-40 pointer-events-none'&#125;
+      &#96;&#125;&gt;
+        &lt;div className="p-3 border-b border-gray-100"&gt;
+          &lt;p className="text-xs font-semibold text-gray-500 uppercase
+            tracking-wide truncate"&gt;
+            &#123;hasLocation ? 'Functions' : 'Select a location'&#125;
+          &lt;/p&gt;
+        &lt;/div&gt;
+        &lt;div className="flex-1 overflow-y-auto"&gt;
+          &#123;hasLocation &amp;&amp; (
+            &lt;FunctionNav
+              locationId=&#123;locationId!&#125;
+              functions=&#123;functions&#125;
+            /&gt;
+          )&#125;
+        &lt;/div&gt;
+      &lt;/aside&gt;
+
+      &#123;/* ── Panel 3: Page Content ───────────────────────────── */&#125;
+      &lt;main className="flex-1 flex flex-col overflow-hidden"&gt;
+
+        &#123;/* Breadcrumb + page header */&#125;
+        &#123;hasLocation &amp;&amp; breadcrumbs.length &gt; 0 &amp;&amp; (
+          &lt;div className="px-6 py-3 border-b border-gray-100 bg-white shrink-0"&gt;
+            &lt;Breadcrumbs items=&#123;breadcrumbs&#125; /&gt;
+          &lt;/div&gt;
+        )&#125;
+
+        &#123;/* Content area */&#125;
+        &lt;div className="flex-1 overflow-y-auto"&gt;
+          &#123;hasLocation ? (
+            children
+          ) : (
+            // No location selected — empty state
+            &lt;div className="h-full flex items-center justify-center"&gt;
+              &lt;div className="text-center"&gt;
+                &lt;div className="w-12 h-12 rounded-xl bg-gray-100
+                  flex items-center justify-center mx-auto mb-3"&gt;
+                  &lt;svg width="20" height="20" viewBox="0 0 24 24" fill="none"&gt;
+                    &lt;path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                      stroke="#9CA3AF" strokeWidth="2"/&gt;
+                  &lt;/svg&gt;
+                &lt;/div&gt;
+                &lt;p className="text-sm font-medium text-gray-500"&gt;
+                  Select a location to get started
+                &lt;/p&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          )&#125;
+        &lt;/div&gt;
+      &lt;/main&gt;
+    &lt;/div&gt;
+  );
+&#125;
+
+// ── Tree search filter ────────────────────────────────────────
+function filterTree(nodes: LocationNode[], term: string): LocationNode[] &#123;
+  return nodes.reduce&lt;LocationNode[]&gt;((acc, node) =&gt; &#123;
+    const matches          = node.label.toLowerCase().includes(term);
+    const filteredChildren = node.children
+      ? filterTree(node.children, term)
+      : [];
+    if (matches || filteredChildren.length) &#123;
+      acc.push(&#123; ...node, children: filteredChildren &#125;);
+    &#125;
+    return acc;
+  &#125;, []);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f8" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+  (dashboard)/layout.tsx
+</div>
+<div class="ng">Auth check + Providers mount. No data fetching here.</div>
+<pre><code>// src/app/(dashboard)/layout.tsx
+// SERVER COMPONENT
+//
+// Responsibilities:
+//   1. Auth check (middleware already does this, belt+braces here)
+//   2. Mount providers (TanStack Query, TokenRefresh)
+//   3. Top bar with user info
+//   4. No data fetching here — done in child layouts
+
+import &#123; redirect &#125;       from 'next/navigation';
+import &#123; getAccessToken, getSessionUser &#125; from '@/modules/auth/lib/cookies';
+import &#123; Providers &#125;      from '@/providers/Providers';
+import &#123; TopBar &#125;         from '@/components/layout/TopBar';
+
+export default async function DashboardLayout(&#123;
+  children,
+&#125;: &#123;
+  children: React.ReactNode;
+&#125;) &#123;
+  const token = await getAccessToken();
+  if (!token) redirect('/login');
+
+  const user = await getSessionUser();
+
+  return (
+    &lt;Providers&gt;
+      &lt;div className="flex flex-col h-screen overflow-hidden bg-gray-50"&gt;
+        &lt;TopBar user=&#123;user&#125; /&gt;
+        &lt;div className="flex-1 overflow-hidden"&gt;
+          &#123;children&#125;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/Providers&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f9" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+  (dashboard)/page.tsx
+</div>
+<div class="ng">Auto-redirects to first location/config. Empty state if no locations.</div>
+<pre><code>// src/app/(dashboard)/page.tsx
+// SERVER COMPONENT
+//
+// User lands here after login.
+// Fetches locations tree, redirects to first location + config.
+// If no locations → shows empty state with DashboardShell.
+
+import &#123; redirect &#125;             from 'next/navigation';
+import &#123; getLocationsTree &#125;     from '@/modules/locations/graphql/server-locations';
+import &#123; getFirstLocation &#125;     from '@/modules/locations/graphql/mock-data';
+import &#123; DashboardShell &#125;       from '@/components/layout/DashboardShell';
+
+export default async function DashboardPage() &#123;
+  const tree          = await getLocationsTree();
+  const firstLocation = getFirstLocation(tree);
+
+  if (firstLocation) &#123;
+    // Auto-navigate to first location, default function = config
+    redirect(&#96;/locations/$&#123;firstLocation.id&#125;/config&#96;);
+  &#125;
+
+  // No locations exist — show empty state
+  return (
+    &lt;DashboardShell
+      tree=&#123;tree&#125;
+      functions=&#123;[]&#125;
+      breadcrumbs=&#123;[]&#125;
+    &gt;
+      &lt;div /&gt;
+    &lt;/DashboardShell&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f10" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span>
+  [locationId]/[fn]/layout.tsx
+</div>
+<div class="ng">MAIN layout. Parallel fetches tree + functions. Builds breadcrumbs. Passes to DashboardShell.</div>
+<pre><code>// src/app/(dashboard)/locations/[locationId]/[fn]/layout.tsx
+// SERVER COMPONENT
+//
+// ─────────────────────────────────────────────────────────────
+// KEY LAYOUT — wraps every location + function page
+//
+// WHAT IT DOES:
+//   Fetches tree + functions in PARALLEL (no waterfall)
+//   Builds breadcrumbs from tree data + URL params
+//   Passes everything to DashboardShell (client)
+//   DashboardShell renders 3-panel layout
+//
+// PERFORMANCE:
+//   React cache() = tree only fetched once even if
+//   called from multiple server components
+//   Data arrives WITH html = zero loading flash
+// ─────────────────────────────────────────────────────────────
+
+import &#123; notFound &#125;               from 'next/navigation';
+import &#123; DashboardShell &#125;         from '@/components/layout/DashboardShell';
+import &#123;
+  getLocationsTree,
+  getLocationFunctions,
+&#125; from '@/modules/locations/graphql/server-locations';
+import &#123;
+  findLocationById,
+  getLocationPath,
+&#125; from '@/modules/locations/graphql/mock-data';
+import &#123; FUNCTION_LABELS &#125;        from '@/modules/locations/types/location.types';
+import type &#123; BreadcrumbItem &#125;    from '@/modules/locations/types/location.types';
+
+interface Props &#123;
+  children:    React.ReactNode;
+  params:      Promise&lt;&#123; locationId: string; fn: string &#125;&gt;;
+&#125;
+
+export default async function LocationFnLayout(&#123; children, params &#125;: Props) &#123;
+  const &#123; locationId, fn &#125; = await params;
+
+  // ── Parallel fetch — both fire simultaneously ─────────────
+  const [tree, functions] = await Promise.all([
+    getLocationsTree(),
+    getLocationFunctions(locationId),
+  ]);
+
+  // Validate location exists
+  const location = findLocationById(tree, locationId);
+  if (!location) notFound();
+
+  // ── Build breadcrumbs from tree path ──────────────────────
+  // Derive the full path: Client &gt; Venue &gt; Location &gt; Function
+  const locationPath = getLocationPath(tree, locationId) ?? [];
+  const fnLabel      = FUNCTION_LABELS[fn as keyof typeof FUNCTION_LABELS]
+    ?? fn;
+
+  const breadcrumbs: BreadcrumbItem[] = [
+    // Location path items (all clickable → go to that location/config)
+    ...locationPath.map((node, i) =&gt; (&#123;
+      label: node.label,
+      href:  node.type === 'client'
+        ? undefined  // client node not navigable
+        : &#96;/locations/$&#123;node.id&#125;/config&#96;,
+    &#125;)),
+    // Current function (not a link — current page)
+    &#123; label: fnLabel &#125;,
+  ];
+
+  return (
+    &lt;DashboardShell
+      tree=&#123;tree&#125;
+      locationId=&#123;locationId&#125;
+      functions=&#123;functions&#125;
+      breadcrumbs=&#123;breadcrumbs&#125;
+      fnLabel=&#123;fnLabel&#125;
+    &gt;
+      &#123;children&#125;
+    &lt;/DashboardShell&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f11" class="panel">
+<div class="card">
+<div class="ctitle">
+  <span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span>
+  function-pages-guide.ts
+</div>
+<div class="ng">Route structure guide + example for adding new function pages.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// FUNCTION PAGES
+// Each is a Server Component that renders the function content.
+// All receive locationId from params.
+// All can call serverGqlFetch for their specific data.
+// ─────────────────────────────────────────────────────────────
+
+// ── src/app/(dashboard)/locations/[locationId]/[fn]/page.tsx ──
+// Generic catch-all for function pages not yet implemented
+
+// interface Props &#123;
+//   params: Promise&lt;&#123; locationId: string; fn: string &#125;&gt;;
+// &#125;
+//
+// export default async function FunctionPage(&#123; params &#125;: Props) &#123;
+//   const &#123; locationId, fn &#125; = await params;
+//
+//   // Each function will have its own page component
+//   // For now — coming soon placeholder
+//   return (
+//     &lt;div className="p-8 text-center text-gray-400 text-sm"&gt;
+//       &#123;fn&#125; page is coming soon.
+//     &lt;/div&gt;
+//   );
+// &#125;
+
+// ─────────────────────────────────────────────────────────────
+// EXAMPLE: Physical Address page
+// src/app/(dashboard)/locations/[locationId]/physical-address/page.tsx
+// ─────────────────────────────────────────────────────────────
+
+// import &#123; serverGqlFetch &#125; from '@/lib/graphql/server-gql-fetcher';
+//
+// const GET_PHYSICAL_ADDRESS = &#96;
+//   query GetPhysicalAddress($locationId: String!) &#123;
+//     physicalAddress(locationId: $locationId) &#123;
+//       street
+//       city
+//       state
+//       zip
+//       country
+//       googleMapsUrl
+//     &#125;
+//   &#125;
+// &#96;;
+//
+// export default async function PhysicalAddressPage(&#123; params &#125;) &#123;
+//   const &#123; locationId &#125; = await params;
+//
+//   // Fetch this function's specific data
+//   const data = await serverGqlFetch(GET_PHYSICAL_ADDRESS, &#123; locationId &#125;);
+//
+//   return (
+//     &lt;div className="p-8"&gt;
+//       &lt;h1 className="text-lg font-semibold mb-4"&gt;Physical Address&lt;/h1&gt;
+//       &lt;AddressForm
+//         locationId=&#123;locationId&#125;
+//         initialData=&#123;data.physicalAddress&#125;
+//       /&gt;
+//     &lt;/div&gt;
+//   );
+// &#125;
+
+// ─────────────────────────────────────────────────────────────
+// ROUTE STRUCTURE — create these files:
+//
+// src/app/(dashboard)/
+//   page.tsx                                    ← redirect to first location
+//   locations/
+//     [locationId]/
+//       [fn]/
+//         layout.tsx                            ← 3-panel shell
+//         page.tsx                              ← generic fallback
+//       config/
+//         page.tsx                              ← config toggles
+//       physical-address/
+//         page.tsx                              ← address form
+//       contract-management/
+//         page.tsx
+//       amenities/
+//         page.tsx
+//       team/
+//         page.tsx
+//       manual-metrics/
+//         page.tsx
+//       customer-service/
+//         page.tsx
+//       contact-info/
+//         page.tsx
+//       mappable-location/
+//         page.tsx
+//       pos/
+//         page.tsx
+//       scan/
+//         page.tsx
+//
+// ADDING A NEW FUNCTION:
+//   1. Add slug to FUNCTION_SLUGS in location.types.ts
+//   2. Add label to FUNCTION_LABELS in location.types.ts
+//   3. Create src/app/(dashboard)/locations/[locationId]/[new-slug]/page.tsx
+//   4. It automatically appears in FunctionNav when enabled
+// ─────────────────────────────────────────────────────────────
+
+export &#123;&#125;;
+</code></pre>
+</div>
+</div>
+<footer>Layout Skeleton &middot; 12 files &middot; 3-panel layout &middot; Scalable routing</footer>
+<script>
+function go(n,el){{
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}}
+</script>
+</body></html>
