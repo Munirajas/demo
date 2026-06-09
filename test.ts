@@ -1,33 +1,33 @@
-// UPDATE your imports to match your actual paths
-import { buildTreeFromFlat, getFirstLocation } 
-  from '@/modules/locations/lib/utils';
-import type { 
-  LocationNode, 
-  GetLocationDescendentsResponse 
-} from '@/types/locations';
+export async function serverGqlFetch
+  TData,
+  TVars extends Record<string, unknown> = Record<string, unknown>,
+>(query: string, variables?: TVars): Promise<TData> {
+  
+  const token = await getAccessToken();
+  
+  // ── ADD: Debug logging ──────────────────────────
+  console.log('[serverGqlFetch] token exists:', Boolean(token));
+  console.log('[serverGqlFetch] token prefix:', token?.slice(0, 20));
+  console.log('[serverGqlFetch] endpoint:', process.env.NEXT_PUBLIC_GRAPHQL_URL);
+  console.log('[serverGqlFetch] tenant:', process.env.TENANT_ID);
+  console.log('[serverGqlFetch] variables:', JSON.stringify(variables));
+  // ────────────────────────────────────────────────
 
-// Also update the function signature to take clientId from URL
-// instead of env var:
-
-export const getLocationsTree = cache(
-  async (clientId: number): Promise<LocationNode[]> => {
-    try {
-      const response = await serverGqlFetch<GetLocationDescendentsResponse>(
-        GET_LOCATION_DESCENDENTS,
-        { type: 'client', locationId: clientId }
-      );
-      if (!response.getLocationDescendents.success) return [];
-      return buildTreeFromFlat(response.getLocationDescendents.data);
-    } catch (error) {
-      console.error('[getLocationsTree]', error);
-      return [];
-    }
+  let alreadyRefreshed = false;
+  
+  if (!token) {
+    // ... rest of function
   }
-);
-
-export async function resolveFirstLocation(
-  clientId: number
-): Promise<string | null> {
-  const tree = await getLocationsTree(clientId);
-  return getFirstLocation(tree)?.id ?? null;
+  
+  try {
+    const result = await buildClient(token!).request<TData>(query, variables);
+    
+    // ── ADD: Log what actually came back ────────────
+    console.log('[serverGqlFetch] raw result:', JSON.stringify(result));
+    // ────────────────────────────────────────────────
+    
+    return result;
+  } catch (error) {
+    // ... existing catch
+  }
 }
