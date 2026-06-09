@@ -31,3 +31,29 @@ export async function serverGqlFetch
     // ... existing catch
   }
 }
+
+
+// ── TEMPORARY DEBUG — replace serverGqlFetch call ──
+      const debugResponse = await fetch(
+        process.env.NEXT_PUBLIC_GRAPHQL_URL!,
+        {
+          method:  'POST',
+          headers: {
+            'Authorization':  `Bearer ${token}`,
+            'Content-Type':   'application/json',
+            'x-tenant-id':    process.env.TENANT_ID ?? 'client1',
+          },
+          body: JSON.stringify({
+            query: GET_LOCATION_DESCENDENTS,
+            variables: {
+              type:       'client',
+              locationId: clientLocationId,
+            },
+          }),
+        }
+      );
+
+      console.log('[DEBUG] HTTP Status:', debugResponse.status);
+      const rawText = await debugResponse.text();
+      console.log('[DEBUG] Raw response:', rawText);
+      // ── END DEBUG ──────────────────────────────────────
