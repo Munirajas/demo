@@ -1,45 +1,33 @@
-'use client';
+// UPDATE your imports to match your actual paths
+import { buildTreeFromFlat, getFirstLocation } 
+  from '@/modules/locations/lib/utils';
+import type { 
+  LocationNode, 
+  GetLocationDescendentsResponse 
+} from '@/types/locations';
 
-// Apollo Client 4 — from() is now ApolloLink.from()
-import {
-  ApolloClient,
-  InMemoryCache,
-  ApolloLink,
-  HttpLink,
-} from '@apollo/client';
-import { createAuthLink, createErrorLink }
-  from './apollo-links';
-import { GQL_ENDPOINT }
-  from '@/lib/constants';
+// Also update the function signature to take clientId from URL
+// instead of env var:
 
-let instance: ApolloClient<object> | null = null;
+export const getLocationsTree = cache(
+  async (clientId: number): Promise<LocationNode[]> => {
+    try {
+      const response = await serverGqlFetch<GetLocationDescendentsResponse>(
+        GET_LOCATION_DESCENDENTS,
+        { type: 'client', locationId: clientId }
+      );
+      if (!response.getLocationDescendents.success) return [];
+      return buildTreeFromFlat(response.getLocationDescendents.data);
+    } catch (error) {
+      console.error('[getLocationsTree]', error);
+      return [];
+    }
+  }
+);
 
-function createApolloClient(): ApolloClient<object> {
-  return new ApolloClient({
-    // ApolloLink.from() is the v4 replacement for from()
-    link: ApolloLink.from([
-      createErrorLink(), // 1. catch UNAUTHENTICATED
-      createAuthLink(),  // 2. attach Bearer token
-      new HttpLink({ uri: GQL_ENDPOINT }), // 3. HTTP
-    ]),
-    cache: new InMemoryCache(),
-    defaultOptions: {
-      watchQuery: {
-        fetchPolicy: 'cache-and-network',
-        errorPolicy: 'all',
-      },
-      query: { errorPolicy: 'all' },
-    },
-  });
-}
-
-export function getApolloClient(): ApolloClient<object> {
-  if (!instance) instance = createApolloClient();
-  return instance;
-}
-
-// MUST call on logout to prevent data leak
-export function resetApolloClient(): void {
-  instance?.clearStore();
-  instance = null;
+export async function resolveFirstLocation(
+  clientId: number
+): Promise<string | null> {
+  const tree = await getLocationsTree(clientId);
+  return getFirstLocation(tree)?.id ?? null;
 }
