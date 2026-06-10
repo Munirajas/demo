@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Create Location</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--rd:#F87171;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--ac);margin-bottom:4px}
+.hero p{font-size:11.5px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.ctitle{padding:12px 14px;font-size:12.5px;font-weight:600;color:var(--tx);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em}
+.ng{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+.nw{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(251,191,36,.07);border-left:3px solid var(--yw);color:#FDE68A}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px;-webkit-overflow-scrolling:touch}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+.flow{background:var(--sf2);border-radius:12px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2;overflow-x:auto;margin-bottom:12px}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}.fr{color:var(--rd)}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Create Location Feature</h1>
+  <p>5 files · Parent dropdown · Zod validation · Loading indicator · Cache invalidation</p>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="go('flow',this)">Flow</div>
+  <div class="tab" onclick="go('f0',this)">create-location.mutation</div>
+  <div class="tab" onclick="go('f1',this)">useCreateLocation</div>
+  <div class="tab" onclick="go('f2',this)">CreateLocationModalx</div>
+  <div class="tab" onclick="go('f3',this)">CreateLocationButtonx</div>
+  <div class="tab" onclick="go('f4',this)">flattenTreeForDropdown</div>
+</div>
+<div id="tab-flow" class="panel active">
+<div class="sec">Complete user flow</div>
+<div class="flow">
+<span class="fw">User clicks "Create Location" button (footer)</span>
+<span class="fa">  ↓</span>
+<span class="ft">CreateLocationModal opens</span>
+<span class="ft">  Parent dropdown populated from existing TanStack cache</span>
+<span class="ft">  (useLocationsTree — no extra API call)</span>
+<span class="fa">  ↓</span>
+<span class="ft">User selects parent location</span>
+<span class="ft">User types location name</span>
+<span class="fa">  ↓</span>
+<span class="ft">User clicks "Create Location"</span>
+<span class="ft">  Zod validates: parentLocationId required + locationName required</span>
+<span class="ft">  If invalid → show field errors, stop</span>
+<span class="fa">  ↓ valid</span>
+<span class="ft">Button shows loading spinner, disabled</span>
+<span class="ft">useCreateLocation.mutate({ locationName, parentLocationId })</span>
+<span class="fa">  ↓</span>
+<span class="ft">API call: createLocation mutation</span>
+<span class="fa">  ↓ success</span>
+<span class="fg">queryClient.invalidateQueries(locationKeys.tree())</span>
+<span class="fg">addToast({ type: 'success', message: 'Location created' })</span>
+<span class="fg">modal closes</span>
+<span class="fg">sidebar tree refreshes with new location ✓</span>
+<span class="fa">  ↓ error</span>
+<span class="fr">addToast({ type: 'error', message: error })</span>
+<span class="fr">modal stays open (user can retry)</span>
+</div>
+
+<div class="sec">Where to place the button in your layout</div>
+<div class="card">
+<pre><code>// (dashboard)/layout.tsx — add to footer or sidebar bottom
+import &#123; CreateLocationButton &#125; from '@/components/layout/CreateLocationButton';
+
+export default async function Layout(&#123; children &#125;) &#123;
+  const tree = await getLocationsTree();
+  return (
+    &lt;div className="min-h-screen"&gt;
+      &lt;Header /&gt;
+      &lt;TwoColumnShell
+        left=&#123;&lt;Locations initialTree=&#123;tree&#125; /&gt;&#125;
+        right=&#123;children&#125;
+      /&gt;
+      &#123;/* Footer with global action */&#125;
+      &lt;footer className="border-t border-gray-100 p-3 flex justify-end"&gt;
+        &lt;CreateLocationButton /&gt;
+      &lt;/footer&gt;
+    &lt;/div&gt;
+  );
+&#125;</code></pre>
+</div>
+
+<div class="sec">One thing to update when BE confirms schema</div>
+<div class="card">
+<div class="nw">
+Only one file needs updating when BE confirms the create mutation schema:<br>
+<strong>create-location.mutation.ts</strong><br>
+Update the mutation field names to match your BE schema.
+Everything else (validation, UI, cache, toasts) stays the same.
+</div>
+</div>
+</div>
+<div id="tab-f0" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span> src/modules/locations/graphql/create-location.mutation.ts</div>
+<div class="ng">Mutation + types. Update field names when BE confirms schema.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// CREATE LOCATION MUTATION
+// Update field names when BE confirms the schema.
+// Based on your existing pattern with SessionResponse.
+// ─────────────────────────────────────────────────────────────
+
+export const CREATE_LOCATION_MUTATION = &#96;
+  mutation CreateLocation(
+    $locationName:     String!
+    $parentLocationId: Int!
+  ) &#123;
+    createLocation(request: &#123;
+      locationName:     $locationName
+      parentLocationId: $parentLocationId
+    &#125;) &#123;
+      success
+      message
+      data
+    &#125;
+  &#125;
+&#96;;
+
+// Types matching the mutation response
+export interface CreateLocationInput &#123;
+  locationName:     string;
+  parentLocationId: number;
+&#125;
+
+export interface CreateLocationResponse &#123;
+  createLocation: &#123;
+    success: boolean;
+    message: string;
+    data:    unknown; // update when BE confirms response shape
+  &#125;;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/modules/locations/hooks/useCreateLocation.ts</div>
+<div class="ng">Mutation hook. Handles success/error toasts + invalidates tree cache.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// useCreateLocation
+// Handles the full create flow:
+//   mutation → loading → success toast → invalidate tree cache
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useQueryClient &#125;  from '@tanstack/react-query';
+import &#123; useAuthMutation &#125; from '@/modules/auth/hooks/useAuthQuery';
+import &#123; locationKeys &#125;    from '@/modules/locations/hooks/useLocations';
+import &#123; useToasts &#125;       from '@/store/ui.store';
+import &#123;
+  CREATE_LOCATION_MUTATION,
+  type CreateLocationInput,
+  type CreateLocationResponse,
+&#125; from '../graphql/create-location.mutation';
+
+export function useCreateLocation(onSuccess?: () =&gt; void) &#123;
+  const queryClient       = useQueryClient();
+  const &#123; add: addToast &#125; = useToasts();
+
+  return useAuthMutation&lt;CreateLocationResponse, CreateLocationInput&gt;(
+    CREATE_LOCATION_MUTATION,
+    &#123;
+      onSuccess: (data) =&gt; &#123;
+        if (!data.createLocation.success) &#123;
+          addToast(&#123;
+            type:    'error',
+            message: data.createLocation.message ?? 'Failed to create location.',
+          &#125;);
+          return;
+        &#125;
+
+        // Refresh the sidebar tree
+        queryClient.invalidateQueries(&#123;
+          queryKey: locationKeys.tree(),
+        &#125;);
+
+        addToast(&#123;
+          type:    'success',
+          message: 'Location created successfully.',
+        &#125;);
+
+        onSuccess?.();
+      &#125;,
+      onError: (error) =&gt; &#123;
+        addToast(&#123;
+          type:    'error',
+          message: error.message ?? 'Something went wrong.',
+        &#125;);
+      &#125;,
+    &#125;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/modules/locations/components/createLocation/CreateLocationModal.tsx</div>
+<div class="ng">Form with parent dropdown + name field. Zod validation. Loading spinner.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// CREATE LOCATION MODAL
+// - Parent location dropdown (from existing tree cache)
+// - Location name text field
+// - Zod validation
+// - Loading indicator during submission
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useForm &#125;          from 'react-hook-form';
+import &#123; zodResolver &#125;      from '@hookform/resolvers/zod';
+import &#123; z &#125;                from 'zod';
+import &#123; useLocationsTree &#125; from '@/modules/locations/hooks/useLocations';
+import &#123; useCreateLocation &#125; from '../hooks/useCreateLocation';
+import &#123; flattenTreeForDropdown &#125; from '@/modules/locations/lib/utils';
+
+// ── Validation schema ─────────────────────────────────────────
+const schema = z.object(&#123;
+  parentLocationId: z
+    .string()
+    .min(1, 'Please select a parent location'),
+  locationName: z
+    .string()
+    .min(1, 'Location name is required')
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name must be under 100 characters'),
+&#125;);
+
+type FormValues = z.infer&lt;typeof schema&gt;;
+
+interface Props &#123;
+  onClose: () =&gt; void;
+&#125;
+
+export function CreateLocationModal(&#123; onClose &#125;: Props) &#123;
+  // Get locations for dropdown from existing cache — no extra API call
+  const &#123; data: tree = [], isLoading: treeLoading &#125; = useLocationsTree();
+
+  // Flatten tree into flat list for dropdown (skip root client node)
+  const locationOptions = flattenTreeForDropdown(tree);
+
+  const createLocation = useCreateLocation(onClose);
+
+  const &#123;
+    register,
+    handleSubmit,
+    formState: &#123; errors &#125;,
+  &#125; = useForm&lt;FormValues&gt;(&#123;
+    resolver: zodResolver(schema),
+  &#125;);
+
+  function onSubmit(values: FormValues) &#123;
+    createLocation.mutate(&#123;
+      locationName:     values.locationName.trim(),
+      parentLocationId: Number(values.parentLocationId),
+    &#125;);
+  &#125;
+
+  const isSubmitting = createLocation.isPending;
+
+  return (
+    // Backdrop
+    &lt;div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick=&#123;(e) =&gt; e.target === e.currentTarget &amp;&amp; onClose()&#125;
+    &gt;
+      &lt;div className="w-full max-w-md rounded-2xl bg-white shadow-2xl"&gt;
+
+        &#123;/* Header */&#125;
+        &lt;div className="flex items-center justify-between border-b border-gray-100 px-6 py-4"&gt;
+          &lt;h2 className="text-base font-semibold text-gray-900"&gt;
+            Create Location
+          &lt;/h2&gt;
+          &lt;button
+            onClick=&#123;onClose&#125;
+            disabled=&#123;isSubmitting&#125;
+            className="text-gray-400 hover:text-gray-600 transition-colors
+              disabled:opacity-50"
+          &gt;
+            &lt;svg width="16" height="16" viewBox="0 0 24 24" fill="none"&gt;
+              &lt;path d="M18 6L6 18M6 6l12 12"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round"/&gt;
+            &lt;/svg&gt;
+          &lt;/button&gt;
+        &lt;/div&gt;
+
+        &#123;/* Form */&#125;
+        &lt;div className="px-6 py-5 space-y-4"&gt;
+
+          &#123;/* Parent Location Dropdown */&#125;
+          &lt;div&gt;
+            &lt;label className="block text-xs font-medium text-gray-700 mb-1"&gt;
+              Parent Location &lt;span className="text-red-500"&gt;*&lt;/span&gt;
+            &lt;/label&gt;
+            &lt;select
+              disabled=&#123;treeLoading || isSubmitting&#125;
+              className=&#123;&#96;w-full h-10 rounded-lg border px-3 text-sm outline-none
+                transition-colors bg-white
+                focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30
+                disabled:bg-gray-50 disabled:cursor-not-allowed
+                $&#123;errors.parentLocationId
+                  ? 'border-red-300'
+                  : 'border-gray-200'
+                &#125;&#96;&#125;
+              &#123;...register('parentLocationId')&#125;
+            &gt;
+              &lt;option value=""&gt;
+                &#123;treeLoading ? 'Loading locations...' : 'Select parent location'&#125;
+              &lt;/option&gt;
+              &#123;locationOptions.map((loc) =&gt; (
+                &lt;option key=&#123;loc.id&#125; value=&#123;loc.id&#125;&gt;
+                  &#123;loc.indent&#125;&#123;loc.label&#125;
+                &lt;/option&gt;
+              ))&#125;
+            &lt;/select&gt;
+            &#123;errors.parentLocationId &amp;&amp; (
+              &lt;p className="mt-1 text-xs text-red-500"&gt;
+                &#123;errors.parentLocationId.message&#125;
+              &lt;/p&gt;
+            )&#125;
+          &lt;/div&gt;
+
+          &#123;/* Location Name */&#125;
+          &lt;div&gt;
+            &lt;label className="block text-xs font-medium text-gray-700 mb-1"&gt;
+              Location Name &lt;span className="text-red-500"&gt;*&lt;/span&gt;
+            &lt;/label&gt;
+            &lt;input
+              type="text"
+              placeholder="Enter location name"
+              disabled=&#123;isSubmitting&#125;
+              className=&#123;&#96;w-full h-10 rounded-lg border px-3 text-sm outline-none
+                transition-colors
+                focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30
+                disabled:bg-gray-50 disabled:cursor-not-allowed
+                $&#123;errors.locationName
+                  ? 'border-red-300'
+                  : 'border-gray-200'
+                &#125;&#96;&#125;
+              &#123;...register('locationName')&#125;
+            /&gt;
+            &#123;errors.locationName &amp;&amp; (
+              &lt;p className="mt-1 text-xs text-red-500"&gt;
+                &#123;errors.locationName.message&#125;
+              &lt;/p&gt;
+            )&#125;
+          &lt;/div&gt;
+
+        &lt;/div&gt;
+
+        &#123;/* Footer */&#125;
+        &lt;div className="flex gap-3 border-t border-gray-100 px-6 py-4"&gt;
+          &lt;button
+            onClick=&#123;onClose&#125;
+            disabled=&#123;isSubmitting&#125;
+            className="flex-1 h-10 rounded-lg border border-gray-200
+              text-sm text-gray-600 hover:bg-gray-50
+              transition-colors disabled:opacity-50"
+          &gt;
+            Cancel
+          &lt;/button&gt;
+          &lt;button
+            onClick=&#123;handleSubmit(onSubmit)&#125;
+            disabled=&#123;isSubmitting || treeLoading&#125;
+            className="flex-1 h-10 rounded-lg bg-blue-600 text-white
+              text-sm font-medium hover:bg-blue-700
+              transition-colors disabled:opacity-60
+              flex items-center justify-center gap-2"
+          &gt;
+            &#123;isSubmitting ? (
+              &lt;&gt;
+                &#123;/* Loading spinner */&#125;
+                &lt;svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"&gt;
+                  &lt;circle className="opacity-25" cx="12" cy="12" r="10"
+                    stroke="currentColor" strokeWidth="4"/&gt;
+                  &lt;path className="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/&gt;
+                &lt;/svg&gt;
+                Creating...
+              &lt;/&gt;
+            ) : (
+              'Create Location'
+            )&#125;
+          &lt;/button&gt;
+        &lt;/div&gt;
+
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/components/layout/CreateLocationButton.tsx</div>
+<div class="ng">Footer button. Place in layout. Opens modal via local state.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// CREATE LOCATION BUTTON
+// Global footer button — available on all pages.
+// Opens CreateLocationModal via local state.
+// Place this in your layout footer.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useState &#125;              from 'react';
+import &#123; CreateLocationModal &#125;   from '@/modules/locations/components/createLocation/CreateLocationModal';
+
+export function CreateLocationButton() &#123;
+  const [open, setOpen] = useState(false);
+
+  return (
+    &lt;&gt;
+      &lt;button
+        onClick=&#123;() =&gt; setOpen(true)&#125;
+        className="flex items-center gap-2 px-4 py-2 rounded-lg
+          bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
+          transition-colors"
+      &gt;
+        &lt;svg width="14" height="14" viewBox="0 0 24 24" fill="none"&gt;
+          &lt;path d="M12 5v14M5 12h14"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/&gt;
+        &lt;/svg&gt;
+        Create Location
+      &lt;/button&gt;
+
+      &#123;open &amp;&amp; (
+        &lt;CreateLocationModal onClose=&#123;() =&gt; setOpen(false)&#125; /&gt;
+      )&#125;
+    &lt;/&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f4" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span> src/modules/locations/lib/flattenTreeForDropdown.ts</div>
+<div class="ng">Add to utils.ts. Flattens tree for dropdown with visual indentation.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// ADD TO: src/modules/locations/lib/utils.ts
+//
+// Flattens TreeNode[] into a flat list for dropdown use.
+// Adds visual indentation to show hierarchy.
+// Skips root client nodes (parentId: null).
+// ─────────────────────────────────────────────────────────────
+
+import type &#123; TreeNode &#125; from '@/types/locations';
+
+export interface DropdownOption &#123;
+  id:     string;
+  label:  string;
+  indent: string;  // e.g. "  " "    " for visual depth
+&#125;
+
+export function flattenTreeForDropdown(
+  nodes:  TreeNode[],
+  depth:  number = 0,
+  result: DropdownOption[] = []
+): DropdownOption[] &#123;
+  for (const node of nodes) &#123;
+    // Skip root client node (depth 0, parentId null)
+    // Include all location nodes as valid parent options
+    if (node.parentId !== null) &#123;
+      result.push(&#123;
+        id:     node.id,
+        label:  node.label,
+        indent: '  '.repeat(depth - 1), // visual indent for hierarchy
+      &#125;);
+    &#125;
+
+    // Always recurse into children
+    if (node.children.length) &#123;
+      flattenTreeForDropdown(node.children, depth + 1, result);
+    &#125;
+  &#125;
+
+  return result;
+&#125;
+</code></pre>
+</div>
+</div>
+<footer>Create Location · 5 files · Zod + react-hook-form · Cache invalidation · Toast</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
