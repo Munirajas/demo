@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Auth Refresh Fix</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--rd:#F87171;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--ac);margin-bottom:4px}
+.hero p{font-size:11.5px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.ctitle{padding:12px 14px;font-size:12.5px;font-weight:600;color:var(--tx);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em}
+.ng{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+.nr{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(248,113,113,.07);border-left:3px solid var(--rd);color:#FCA5A5}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+.flow{background:var(--sf2);border-radius:12px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2.1;overflow-x:auto;margin-bottom:12px}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}.fr{color:var(--rd)}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Auth + Refresh Fix</h1>
+  <p>refresh.ts fixed · proxy route · session expiry → login redirect · 5 files</p>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="go('flows',this)">Flows</div>
+  <div class="tab" onclick="go('f0',this)">refresh</div>
+  <div class="tab" onclick="go('f1',this)">route</div>
+  <div class="tab" onclick="go('f2',this)">route</div>
+  <div class="tab" onclick="go('f3',this)">route</div>
+  <div class="tab" onclick="go('f4',this)">useAuthQuery</div>
+</div>
+<div id="tab-flows" class="panel active">
+
+<div class="sec">Root cause of broken refresh (Image 3)</div>
+<div class="card">
+<div class="nr">Your refresh.ts was calling the refresh mutation WITHOUT an authorization header.
+The BE requires the refresh token to be sent as the authorization header.
+Without it, BE rejects the refresh → returns null → user stays stuck on expired page.</div>
+<pre><code>// YOUR CURRENT CODE — missing header:
+const client = new GraphQLClient(GQL_ENDPOINT, &#123;
+  headers: &#123; 'Content-Type': 'application/json' &#125;,  // ← no auth header!
+&#125;);
+
+// FIXED:
+const client = new GraphQLClient(GQL_ENDPOINT, &#123;
+  headers: &#123;
+    'Content-Type':  'application/json',
+    'authorization': refreshToken,  // ← send refresh token here
+    'x-tenant-id':   process.env.TENANT_ID ?? '',
+  &#125;,
+&#125;);</code></pre>
+</div>
+
+<div class="sec">Page reload — token expired</div>
+<div class="flow">
+<span class="fw">User reloads page, access token expired (10 min)</span>
+<span class="fa">  ↓</span>
+<span class="ft">serverGqlFetch() — getAccessToken() → null/expired</span>
+<span class="ft">  redirect('/api/auth/refresh-and-redirect?callbackUrl=...')</span>
+<span class="fa">  ↓</span>
+<span class="ft">refresh-and-redirect/route.ts runs (SERVER)</span>
+<span class="ft">  refreshAccessToken() → sends refreshToken + userId to BE</span>
+<span class="fa">  ↓ success</span>
+<span class="fg">  setAuthCookies() → new access token in cookie</span>
+<span class="fg">  redirect back to original page ✓</span>
+<span class="fa">  ↓ fail (refresh token also expired)</span>
+<span class="fr">  redirect('/login?reason=expired') ✓</span>
+</div>
+
+<div class="sec">Client action — token expired mid-session</div>
+<div class="flow">
+<span class="fw">User clicks Create Location / Delete / any mutation</span>
+<span class="fa">  ↓</span>
+<span class="ft">gqlFetch → POST /api/graphql (proxy)</span>
+<span class="fa">  ↓</span>
+<span class="ft">proxy: getAccessToken() → expired/null</span>
+<span class="ft">  refreshAccessToken() → new token</span>
+<span class="fa">  ↓ success</span>
+<span class="fg">  forwardToGql(newToken, body) → response ✓</span>
+<span class="fa">  ↓ fail</span>
+<span class="fr">  return &#123; errors: [&#123; message: 'SESSION_EXPIRED' &#125;] &#125; status:401</span>
+<span class="fr">    ↓</span>
+<span class="fr">  gqlFetch detects SESSION_EXPIRED</span>
+<span class="fr">  onExpired?.() → router.push('/login?reason=expired') ✓</span>
+</div>
+
+<div class="sec">Summary of changes</div>
+<div class="card">
+<pre><code>refresh.ts          FIXED: added 'authorization': refreshToken header
+                    FIXED: setAuthCookies (all 4 cookies, not just access)
+
+/api/graphql        NEW:   proxy for all client mutations
+                    handles: auth headers + token refresh + network access
+
+/api/auth/refresh   EXISTS: triggered by client SESSION_EXPIRED
+
+/api/auth/refresh-and-redirect
+                    EXISTS: triggered by server on page reload
+
+useAuthQuery.ts     SIMPLIFIED: removed getToken/tryRefresh/GraphQLClient
+                    gqlFetch now calls /api/graphql proxy
+                    SAME signatures: all hooks work unchanged</code></pre>
+</div>
+</div>
+<div id="tab-f0" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span> src/modules/auth/lib/refresh.ts</div>
+<div class="ng">FIXED: Added authorization header on refresh call. Your current code was missing it — causing BE to reject the refresh mutation.</div>
+<pre><code>import 'server-only';
+
+// ─────────────────────────────────────────────────────────────
+// WHAT CHANGED vs your current code (Image 3):
+//
+//   1. Added 'authorization' header on refresh call
+//      Your current code sends no auth header → BE rejects it
+//
+//   2. Using getRefreshToken() as the token value for the mutation
+//      (confirmed from your Postman screenshots earlier)
+//
+//   3. setAuthCookies instead of setAccessTokenCookies
+//      (updates ALL 4 cookies, not just access token)
+// ─────────────────────────────────────────────────────────────
+
+import &#123; GraphQLClient, ClientError &#125; from 'graphql-request';
+import &#123; GQL_ENDPOINT &#125;               from '@/lib/constants';
+import &#123;
+  getRefreshToken,
+  getUserId,
+  setAuthCookies,
+  clearAuthCookies,
+&#125; from '@/modules/auth/lib/cookies';
+import &#123; REFRESH_AUTH_MUTATION &#125;        from '../graphql/auth.mutations';
+import type &#123; RefreshAuthMutationResponse &#125; from '@/types/auth';
+
+export async function refreshAccessToken(): Promise&lt;string | null&gt; &#123;
+  const [refreshToken, userId] = await Promise.all([
+    getRefreshToken(),
+    getUserId(),
+  ]);
+
+  if (!refreshToken || !userId) &#123;
+    console.warn('[refresh] Missing refreshToken or userId — cannot refresh');
+    return null;
+  &#125;
+
+  try &#123;
+    const client = new GraphQLClient(GQL_ENDPOINT, &#123;
+      headers: &#123;
+        // ✅ FIXED: must send the refreshToken as authorization header
+        // Your current code was missing this — causing BE to reject refresh
+        'authorization': refreshToken,
+        'Content-Type':  'application/json',
+        'x-tenant-id':   process.env.TENANT_ID ?? '',
+      &#125;,
+    &#125;);
+
+    const data = await client.request&lt;RefreshAuthMutationResponse&gt;(
+      REFRESH_AUTH_MUTATION,
+      &#123; userId, token: refreshToken &#125;
+    );
+
+    if (!data?.refreshAuth?.token) &#123;
+      console.warn('[refresh] BE returned no token');
+      return null;
+    &#125;
+
+    // ✅ FIXED: update ALL 4 cookies (access, id, refresh, userId)
+    await setAuthCookies(data.refreshAuth);
+    return data.refreshAuth.token;
+
+  &#125; catch (error) &#123;
+    if (error instanceof ClientError) &#123;
+      const msg = (error.response?.errors?.[0]?.message ?? '').toLowerCase();
+      console.error('[refresh] BE error:', msg);
+      if (
+        msg.includes('expired')       ||
+        msg.includes('invalid')       ||
+        msg.includes('unauthenticated')
+      ) &#123;
+        await clearAuthCookies(); // force re-login
+      &#125;
+    &#125; else &#123;
+      console.error('[refresh] Unexpected error:', error);
+    &#125;
+    return null;
+  &#125;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span> src/app/api/graphql/route.ts</div>
+<div class="ng">NEW PROXY: All client GQL calls go through here. Fixes timeout. Handles token refresh automatically. Returns SESSION_EXPIRED if refresh fails.</div>
+<pre><code>// src/app/api/graphql/route.ts
+// ─────────────────────────────────────────────────────────────
+// WHY THIS EXISTS:
+//   Browser cannot reach the GQL endpoint directly (network restriction)
+//   → ERR_CONNECTION_TIMED_OUT
+//
+//   This proxy receives requests from the browser, adds auth headers
+//   server-side (from httpOnly cookies), and forwards to GQL endpoint.
+//
+// REFRESH FLOW:
+//   No token     → refresh → retry
+//   Request 401  → refresh → retry once
+//   Refresh fail → 401 SESSION_EXPIRED → client redirects to login
+// ─────────────────────────────────────────────────────────────
+
+import &#123; NextRequest, NextResponse &#125; from 'next/server';
+import &#123; getAccessToken &#125;            from '@/modules/auth/lib/cookies';
+import &#123; refreshAccessToken &#125;        from '@/modules/auth/lib/refresh';
+
+const GQL_ENDPOINT = process.env.NEXT_PUBLIC_GRAPHQL_URL!;
+
+async function forwardToGql(token: string, body: string) &#123;
+  return fetch(GQL_ENDPOINT, &#123;
+    method:  'POST',
+    headers: &#123;
+      'Content-Type':  'application/json',
+      'authorization': token,
+      'x-tenant-id':   process.env.TENANT_ID ?? '',
+    &#125;,
+    body,
+  &#125;);
+&#125;
+
+export async function POST(req: NextRequest) &#123;
+  const body = await req.text();
+
+  let token          = await getAccessToken();
+  let alreadyRefreshed = false;
+
+  // No access token — try refresh before first request
+  if (!token) &#123;
+    token = await refreshAccessToken();
+    alreadyRefreshed = true;
+
+    if (!token) &#123;
+      return NextResponse.json(
+        &#123; errors: [&#123; message: 'SESSION_EXPIRED' &#125;] &#125;,
+        &#123; status: 401 &#125;
+      );
+    &#125;
+  &#125;
+
+  // Forward request to GQL endpoint
+  let res = await forwardToGql(token, body);
+
+  // Token rejected by BE — try refresh once and retry
+  if (res.status === 401 &amp;&amp; !alreadyRefreshed) &#123;
+    const newToken = await refreshAccessToken();
+
+    if (!newToken) &#123;
+      return NextResponse.json(
+        &#123; errors: [&#123; message: 'SESSION_EXPIRED' &#125;] &#125;,
+        &#123; status: 401 &#125;
+      );
+    &#125;
+
+    res = await forwardToGql(newToken, body);
+  &#125;
+
+  // Return whatever GQL sent back (success or error)
+  const data = await res.json();
+  return NextResponse.json(data, &#123; status: res.ok ? 200 : res.status &#125;);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span> src/app/api/auth/refresh/route.ts</div>
+<div class="ng">Refresh endpoint for client. Called when SESSION_EXPIRED detected.</div>
+<pre><code>// src/app/api/auth/refresh/route.ts
+// Called by client when it detects SESSION_EXPIRED
+// Returns new token or 401
+
+import &#123; NextResponse &#125;       from 'next/server';
+import &#123; refreshAccessToken &#125; from '@/modules/auth/lib/refresh';
+
+export async function POST() &#123;
+  const newToken = await refreshAccessToken();
+
+  if (!newToken) &#123;
+    return NextResponse.json(
+      &#123; error: 'SESSION_EXPIRED' &#125;,
+      &#123; status: 401 &#125;
+    );
+  &#125;
+
+  return NextResponse.json(&#123; success: true &#125;);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span> src/app/api/auth/refresh-and-redirect/route.ts</div>
+<div class="ng">Server-side refresh. Called when serverGqlFetch detects expired access token on page reload.</div>
+<pre><code>// src/app/api/auth/refresh-and-redirect/route.ts
+// Used by serverGqlFetch when access token is missing/expired.
+// Route handlers CAN write cookies — Server Components cannot.
+
+import &#123; NextRequest, NextResponse &#125; from 'next/server';
+import &#123; refreshAccessToken &#125;        from '@/modules/auth/lib/refresh';
+
+export async function GET(req: NextRequest) &#123;
+  const callbackUrl = req.nextUrl.searchParams.get('callbackUrl') ?? '/dashboard';
+
+  // Safety: prevent redirect loops
+  if (callbackUrl.includes('refresh-and-redirect')) &#123;
+    return NextResponse.redirect(new URL('/login?reason=expired', req.url));
+  &#125;
+
+  const newToken = await refreshAccessToken();
+
+  if (!newToken) &#123;
+    // Refresh failed → force re-login
+    return NextResponse.redirect(
+      new URL('/login?reason=expired', req.url)
+    );
+  &#125;
+
+  // Cookies already updated by refreshAccessToken()
+  // Redirect back to original page
+  return NextResponse.redirect(new URL(callbackUrl, req.url));
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f4" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/modules/auth/hooks/useAuthQuery.ts</div>
+<div class="ng">UPDATED: Removed getToken/tryRefresh/GraphQLClient. gqlFetch now calls /api/graphql proxy. Same signatures — all existing hooks still work.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// CHANGES vs YOUR CURRENT CODE (Images 1 &amp; 2):
+//
+// REMOVED:
+//   - getToken()    → not needed, proxy handles auth
+//   - tryRefresh()  → not needed, proxy handles refresh
+//   - GraphQLClient → not needed, proxy handles GQL
+//   - GQL_ENDPOINT  → not needed client-side anymore
+//
+// ADDED:
+//   - gqlFetch calls /api/graphql proxy instead of GQL directly
+//   - Proxy handles: auth header + refresh + network access
+//   - SESSION_EXPIRED → redirect to /login (same as before)
+//
+// WHY PROXY:
+//   The GQL endpoint is not reachable from browser (network firewall)
+//   Proxy runs server-side where endpoint IS reachable
+//
+// SAME SIGNATURES:
+//   useAuthQuery&lt;TData, TSelected&gt;()   ← unchanged
+//   useAuthMutation&lt;TData, TVars&gt;()    ← unchanged
+//   All your existing hooks still work
+// ─────────────────────────────────────────────────────────────
+
+import &#123;
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type UseQueryOptions,
+&#125; from '@tanstack/react-query';
+import &#123; useRouter &#125; from 'next/navigation';
+
+// ── Core fetcher via proxy ────────────────────────────────────
+// Calls /api/graphql which runs server-side and:
+//   1. Reads auth token from httpOnly cookie
+//   2. Adds headers (authorization, x-tenant-id)
+//   3. Forwards to actual GQL endpoint
+//   4. Handles token refresh if 401
+async function gqlFetch&lt;TData&gt;(
+  query:      string,
+  variables?: object,
+  onExpired?: () =&gt; void,
+): Promise&lt;TData&gt; &#123;
+
+  const res = await fetch('/api/graphql', &#123;
+    method:      'POST',
+    headers:     &#123; 'Content-Type': 'application/json' &#125;,
+    credentials: 'include',  // send cookies so proxy can read them
+    body:        JSON.stringify(&#123; query, variables &#125;),
+    cache:       'no-store',
+  &#125;);
+
+  const json = await res.json() as &#123;
+    data?:   TData;
+    errors?: &#123; message: string &#125;[];
+  &#125;;
+
+  // Session expired — proxy tried refresh but it also failed
+  if (
+    res.status === 401 ||
+    json.errors?.[0]?.message === 'SESSION_EXPIRED'
+  ) &#123;
+    onExpired?.();
+    throw new Error('SESSION_EXPIRED');
+  &#125;
+
+  // GraphQL-level errors (not auth)
+  if (json.errors?.length) &#123;
+    throw new Error(json.errors[0].message);
+  &#125;
+
+  if (json.data === undefined || json.data === null) &#123;
+    throw new Error('No data returned from server');
+  &#125;
+
+  return json.data;
+&#125;
+
+// ── useAuthQuery ──────────────────────────────────────────────
+// Unchanged signature — all existing usage works as-is
+export function useAuthQuery&lt;
+  TData,
+  TSelected = TData,
+&gt;(
+  queryKey:   readonly unknown[],
+  query:      string,
+  variables?: object,
+  options?:   Omit&lt;
+    UseQueryOptions&lt;TData, Error, TSelected&gt;,
+    'queryKey' | 'queryFn'
+  &gt;,
+) &#123;
+  const router = useRouter();
+
+  return useQuery&lt;TData, Error, TSelected&gt;(&#123;
+    queryKey,
+    queryFn: () =&gt;
+      gqlFetch&lt;TData&gt;(
+        query,
+        variables,
+        () =&gt; router.push('/login?reason=expired') // ← redirect on session expire
+      ),
+    staleTime: 1000 * 60 * 5,
+    retry:     1,
+    ...options,
+  &#125;);
+&#125;
+
+// ── useAuthMutation ───────────────────────────────────────────
+// Unchanged signature — same options shape as your current code
+export function useAuthMutation&lt;
+  TData,
+  TVars extends object = object,
+&gt;(
+  mutation: string,
+  options?: &#123;
+    onSuccess?:      (data: TData) =&gt; void;
+    onError?:        (error: Error) =&gt; void;
+    invalidateKeys?: unknown[][];
+  &#125;,
+) &#123;
+  const router      = useRouter();
+  const queryClient = useQueryClient();
+
+  return useMutation&lt;TData, Error, TVars&gt;(&#123;
+    mutationFn: (variables: TVars) =&gt;
+      gqlFetch&lt;TData&gt;(
+        mutation,
+        variables,
+        () =&gt; router.push('/login?reason=expired') // ← redirect on session expire
+      ),
+
+    onSuccess: (data) =&gt; &#123;
+      // Invalidate provided query keys
+      options?.invalidateKeys?.forEach(key =&gt;
+        queryClient.invalidateQueries(&#123; queryKey: key &#125;)
+      );
+      options?.onSuccess?.(data);
+    &#125;,
+
+    onError: options?.onError,
+  &#125;);
+&#125;
+</code></pre>
+</div>
+</div>
+<footer>Auth Refresh Fix · 5 files · refresh.ts fixed · proxy route · login redirect</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
