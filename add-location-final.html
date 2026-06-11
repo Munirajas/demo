@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Add Location Final</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--rd:#F87171;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--ac);margin-bottom:4px}
+.hero p{font-size:11.5px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.ctitle{padding:12px 14px;font-size:12.5px;font-weight:600;color:var(--tx);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em}
+.ng{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+.nw{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(251,191,36,.07);border-left:3px solid var(--yw);color:#FDE68A}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px;-webkit-overflow-scrolling:touch}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+.flow{background:var(--sf2);border-radius:12px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2.1;overflow-x:auto;margin-bottom:12px}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}.fr{color:var(--rd)}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Add Location — Final Implementation</h1>
+  <p>Confirmed API schema · sonner toast setup · 4 files</p>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="go('steps',this)">Setup Steps</div>
+  <div class="tab" onclick="go('f0',this)">add-location.mutation</div>
+  <div class="tab" onclick="go('f1',this)">useAddLocation</div>
+  <div class="tab" onclick="go('f2',this)">CreateLocationModalx</div>
+  <div class="tab" onclick="go('f3',this)">TOAST_SETUP</div>
+</div>
+<div id="tab-steps" class="panel active">
+<div class="sec">1. Install sonner (one command)</div>
+<div class="card">
+<pre><code>npm install sonner</code></pre>
+</div>
+
+<div class="sec">2. Add Toaster to your layout.tsx (one line)</div>
+<div class="card">
+<pre><code>import &#123; Toaster &#125; from 'sonner';
+
+export default async function Layout(&#123; children &#125;) &#123;
+  const tree = await getLocationsTree();
+  return (
+    &lt;div className="min-h-screen"&gt;
+      &lt;Header /&gt;
+      &lt;TwoColumnShell
+        left=&#123;&lt;Locations initialTree=&#123;tree&#125; /&gt;&#125;
+        right=&#123;children&#125;
+      /&gt;
+      &lt;footer className="border-t border-gray-100 p-3 flex justify-end"&gt;
+        &lt;CreateLocationButton /&gt;
+      &lt;/footer&gt;
+
+      &lt;Toaster position="bottom-right" richColors /&gt;  &#x2190; ADD THIS
+    &lt;/div&gt;
+  );
+&#125;</code></pre>
+</div>
+
+<div class="sec">3. API schema confirmed from your screenshot</div>
+<div class="card">
+<pre><code>// Input
+&#123; type: "client", parentLocationId: 1, locationName: "Dallas 2" &#125;
+
+// Response
+&#123; addLocation: &#123; success: true, message: "Added", data: 61 &#125; &#125;
+//                                                       ↑ new Location_Id</code></pre>
+</div>
+
+<div class="sec">Complete user flow</div>
+<div class="flow">
+<span class="fw">User clicks "Create Location" (footer button)</span>
+<span class="fa">  ↓</span>
+<span class="ft">Modal opens — parent dropdown from TanStack cache (no extra fetch)</span>
+<span class="ft">User selects parent + types name</span>
+<span class="fa">  ↓ clicks Create Location</span>
+<span class="ft">Zod validates → errors shown inline if invalid</span>
+<span class="fa">  ↓ valid</span>
+<span class="ft">Button → spinner + "Creating..."</span>
+<span class="ft">addLocation(&#123; type:"client", parentLocationId, locationName &#125;)</span>
+<span class="fa">  ↓ success</span>
+<span class="fg">invalidateQueries(locationKeys.tree()) → sidebar refreshes</span>
+<span class="fg">toast.success("Location created successfully!")</span>
+<span class="fg">Modal closes</span>
+<span class="fa">  ↓ error</span>
+<span class="fr">toast.error(error.message)</span>
+<span class="fr">Modal stays open — user can retry</span>
+</div>
+</div>
+<div id="tab-f0" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span> src/modules/locations/graphql/add-location.mutation.ts</div>
+<div class="ng">Confirmed from screenshot: addLocation mutation, type + parentLocationId + locationName. data returns new Location_Id as number.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// ADD LOCATION MUTATION
+// Confirmed from your GraphQL playground screenshot:
+//   mutation: addLocation
+//   input:    type, parentLocationId, locationName
+//   response: success, message, data (new location ID as number)
+// ─────────────────────────────────────────────────────────────
+
+export const ADD_LOCATION_MUTATION = &#96;
+  mutation AddLocation(
+    $type:             String!
+    $parentLocationId: Int!
+    $locationName:     String!
+  ) &#123;
+    addLocation(request: &#123;
+      type:             $type
+      parentLocationId: $parentLocationId
+      locationName:     $locationName
+    &#125;) &#123;
+      success
+      message
+      data
+    &#125;
+  &#125;
+&#96;;
+
+// Input matches your request schema exactly
+export interface AddLocationInput &#123;
+  type:             string;   // always "client"
+  parentLocationId: number;   // Int! — parent location id
+  locationName:     string;   // new location name
+&#125;
+
+// data is the new location ID returned by BE
+export interface AddLocationResponse &#123;
+  addLocation: &#123;
+    success: boolean;
+    message: string;
+    data:    number;   // new Location_Id
+  &#125;;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/modules/locations/hooks/useAddLocation.ts</div>
+<div class="ng">Mutation hook with sonner toasts. Invalidates tree cache on success. Passes new location ID to onSuccess callback.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// useAddLocation hook
+// Uses sonner for toast — simple drop-in toast library.
+// Invalidates locations tree cache on success.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useQueryClient &#125;  from '@tanstack/react-query';
+import &#123; toast &#125;           from 'sonner';
+import &#123; useAuthMutation &#125; from '@/modules/auth/hooks/useAuthQuery';
+import &#123; locationKeys &#125;    from '@/modules/locations/hooks/useLocations';
+import &#123;
+  ADD_LOCATION_MUTATION,
+  type AddLocationInput,
+  type AddLocationResponse,
+&#125; from '../graphql/add-location.mutation';
+
+export function useAddLocation(onSuccess?: (newLocationId: number) =&gt; void) &#123;
+  const queryClient = useQueryClient();
+
+  return useAuthMutation&lt;AddLocationResponse, AddLocationInput&gt;(
+    ADD_LOCATION_MUTATION,
+    &#123;
+      onSuccess: (data) =&gt; &#123;
+        const result = data.addLocation;
+
+        if (!result.success) &#123;
+          toast.error(result.message || 'Failed to create location.');
+          return;
+        &#125;
+
+        // Invalidate tree so sidebar refreshes with new location
+        queryClient.invalidateQueries(&#123;
+          queryKey: locationKeys.tree(),
+        &#125;);
+
+        toast.success('Location created successfully!');
+
+        // Pass the new location ID to parent (e.g. navigate to it)
+        onSuccess?.(result.data);
+      &#125;,
+
+      onError: (error) =&gt; &#123;
+        toast.error(error.message || 'Something went wrong. Please try again.');
+      &#125;,
+    &#125;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/modules/locations/components/createLocation/CreateLocationModal.tsx</div>
+<div class="ng">Full form: parent dropdown from cache + location name field. Zod validation. Loading spinner. Closes on success.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// CREATE LOCATION MODAL
+// Uses confirmed API schema from screenshot.
+// Parent dropdown + location name field.
+// Zod validation + loading spinner.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useForm &#125;              from 'react-hook-form';
+import &#123; zodResolver &#125;          from '@hookform/resolvers/zod';
+import &#123; z &#125;                    from 'zod';
+import &#123; useLocationsTree &#125;     from '@/modules/locations/hooks/useLocations';
+import &#123; useAddLocation &#125;       from '@/modules/locations/hooks/useAddLocation';
+import &#123; flattenTreeForDropdown &#125; from '@/modules/locations/lib/utils';
+
+// ── Zod schema ────────────────────────────────────────────────
+const schema = z.object(&#123;
+  parentLocationId: z
+    .string()
+    .min(1, 'Please select a parent location'),
+  locationName: z
+    .string()
+    .min(1, 'Location name is required')
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name must be under 100 characters')
+    .trim(),
+&#125;);
+
+type FormValues = z.infer&lt;typeof schema&gt;;
+
+interface Props &#123;
+  onClose: () =&gt; void;
+&#125;
+
+export function CreateLocationModal(&#123; onClose &#125;: Props) &#123;
+  // Uses existing TanStack cache — no extra API call for dropdown
+  const &#123; data: tree = [], isLoading: treeLoading &#125; = useLocationsTree();
+  const locationOptions = flattenTreeForDropdown(tree);
+
+  const addLocation = useAddLocation(() =&gt; &#123;
+    // Close modal on success
+    onClose();
+  &#125;);
+
+  const &#123;
+    register,
+    handleSubmit,
+    formState: &#123; errors, isSubmitting &#125;,
+  &#125; = useForm&lt;FormValues&gt;(&#123;
+    resolver: zodResolver(schema),
+    defaultValues: &#123;
+      parentLocationId: '',
+      locationName:     '',
+    &#125;,
+  &#125;);
+
+  function onSubmit(values: FormValues) &#123;
+    addLocation.mutate(&#123;
+      type:             'client',                     // always "client" per API
+      parentLocationId: Number(values.parentLocationId),
+      locationName:     values.locationName.trim(),
+    &#125;);
+  &#125;
+
+  const isLoading = addLocation.isPending;
+
+  return (
+    &lt;div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick=&#123;(e) =&gt; e.target === e.currentTarget &amp;&amp; !isLoading &amp;&amp; onClose()&#125;
+    &gt;
+      &lt;div className="w-full max-w-md rounded-2xl bg-white shadow-2xl"&gt;
+
+        &#123;/* Header */&#125;
+        &lt;div className="flex items-center justify-between border-b border-gray-100 px-6 py-4"&gt;
+          &lt;h2 className="text-base font-semibold text-gray-900"&gt;
+            Create Location
+          &lt;/h2&gt;
+          &lt;button
+            onClick=&#123;onClose&#125;
+            disabled=&#123;isLoading&#125;
+            className="text-gray-400 hover:text-gray-600 transition-colors
+              disabled:opacity-40"
+          &gt;
+            &lt;svg width="16" height="16" viewBox="0 0 24 24" fill="none"&gt;
+              &lt;path d="M18 6L6 18M6 6l12 12"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round"/&gt;
+            &lt;/svg&gt;
+          &lt;/button&gt;
+        &lt;/div&gt;
+
+        &#123;/* Form fields */&#125;
+        &lt;div className="px-6 py-5 space-y-4"&gt;
+
+          &#123;/* Parent Location */&#125;
+          &lt;div&gt;
+            &lt;label className="block text-xs font-medium text-gray-700 mb-1.5"&gt;
+              Parent Location &lt;span className="text-red-500"&gt;*&lt;/span&gt;
+            &lt;/label&gt;
+            &lt;select
+              disabled=&#123;treeLoading || isLoading&#125;
+              className=&#123;&#96;w-full h-10 rounded-lg border px-3 text-sm
+                bg-white outline-none transition-colors
+                focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30
+                disabled:bg-gray-50 disabled:cursor-not-allowed
+                $&#123;errors.parentLocationId ? 'border-red-300' : 'border-gray-200'&#125;&#96;&#125;
+              &#123;...register('parentLocationId')&#125;
+            &gt;
+              &lt;option value=""&gt;
+                &#123;treeLoading ? 'Loading...' : 'Select parent location'&#125;
+              &lt;/option&gt;
+              &#123;locationOptions.map((option) =&gt; (
+                &lt;option key=&#123;option.id&#125; value=&#123;option.id&#125;&gt;
+                  &#123;option.indent&#125;&#123;option.label&#125;
+                &lt;/option&gt;
+              ))&#125;
+            &lt;/select&gt;
+            &#123;errors.parentLocationId &amp;&amp; (
+              &lt;p className="mt-1 text-xs text-red-500"&gt;
+                &#123;errors.parentLocationId.message&#125;
+              &lt;/p&gt;
+            )&#125;
+          &lt;/div&gt;
+
+          &#123;/* Location Name */&#125;
+          &lt;div&gt;
+            &lt;label className="block text-xs font-medium text-gray-700 mb-1.5"&gt;
+              Location Name &lt;span className="text-red-500"&gt;*&lt;/span&gt;
+            &lt;/label&gt;
+            &lt;input
+              type="text"
+              placeholder="e.g. Dallas 2"
+              disabled=&#123;isLoading&#125;
+              className=&#123;&#96;w-full h-10 rounded-lg border px-3 text-sm
+                outline-none transition-colors
+                focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30
+                disabled:bg-gray-50 disabled:cursor-not-allowed
+                $&#123;errors.locationName ? 'border-red-300' : 'border-gray-200'&#125;&#96;&#125;
+              &#123;...register('locationName')&#125;
+            /&gt;
+            &#123;errors.locationName &amp;&amp; (
+              &lt;p className="mt-1 text-xs text-red-500"&gt;
+                &#123;errors.locationName.message&#125;
+              &lt;/p&gt;
+            )&#125;
+          &lt;/div&gt;
+
+        &lt;/div&gt;
+
+        &#123;/* Footer buttons */&#125;
+        &lt;div className="flex gap-3 border-t border-gray-100 px-6 py-4"&gt;
+          &lt;button
+            type="button"
+            onClick=&#123;onClose&#125;
+            disabled=&#123;isLoading&#125;
+            className="flex-1 h-10 rounded-lg border border-gray-200
+              text-sm text-gray-600 hover:bg-gray-50
+              transition-colors disabled:opacity-40"
+          &gt;
+            Cancel
+          &lt;/button&gt;
+          &lt;button
+            type="button"
+            onClick=&#123;handleSubmit(onSubmit)&#125;
+            disabled=&#123;isLoading || treeLoading&#125;
+            className="flex-1 h-10 rounded-lg bg-blue-600 hover:bg-blue-700
+              text-white text-sm font-medium transition-colors
+              disabled:opacity-60 flex items-center justify-center gap-2"
+          &gt;
+            &#123;isLoading ? (
+              &lt;&gt;
+                &lt;svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"&gt;
+                  &lt;circle className="opacity-25" cx="12" cy="12" r="10"
+                    stroke="currentColor" strokeWidth="4"/&gt;
+                  &lt;path className="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/&gt;
+                &lt;/svg&gt;
+                Creating...
+              &lt;/&gt;
+            ) : (
+              'Create Location'
+            )&#125;
+          &lt;/button&gt;
+        &lt;/div&gt;
+
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span> src/TOAST_SETUP.ts</div>
+<div class="ng">Install sonner + add Toaster to layout. Two lines total. Use toast() anywhere after that.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// TOAST SETUP WITH SONNER
+//
+// Step 1: Install
+//   npm install sonner
+//
+// Step 2: Add &lt;Toaster /&gt; to your root layout once
+// Step 3: Use toast() anywhere in your app — no context needed
+// ─────────────────────────────────────────────────────────────
+
+
+// ── STEP 2: Add to (dashboard)/layout.tsx ────────────────────
+// Only change needed — add Toaster once at the top level
+
+/*
+import &#123; Toaster &#125; from 'sonner';
+
+export default async function Layout(&#123; children &#125;) &#123;
+  const tree = await getLocationsTree();
+  return (
+    &lt;div className="min-h-screen"&gt;
+      &lt;Header /&gt;
+      &lt;TwoColumnShell
+        left=&#123;&lt;Locations initialTree=&#123;tree&#125; /&gt;&#125;
+        right=&#123;children&#125;
+      /&gt;
+      &lt;footer&gt;
+        &lt;CreateLocationButton /&gt;
+      &lt;/footer&gt;
+
+      // ← ADD THIS — renders all toasts globally
+      &lt;Toaster position="bottom-right" richColors /&gt;
+    &lt;/div&gt;
+  );
+&#125;
+*/
+
+
+// ── STEP 3: Use anywhere — no imports needed except toast ─────
+
+/*
+import &#123; toast &#125; from 'sonner';
+
+// Success
+toast.success('Location created successfully!');
+
+// Error
+toast.error('Failed to create location.');
+
+// Loading (auto-resolves)
+const id = toast.loading('Creating location...');
+toast.success('Done!', &#123; id &#125;);  // replaces loading toast
+*/
+
+
+// ── SONNER DEFAULTS (already configured) ─────────────────────
+// Duration:  4 seconds
+// Position:  bottom-right (set above)
+// richColors: true (green for success, red for error)
+// Close on click: yes
+// No extra configuration needed
+
+export &#123;&#125;;
+</code></pre>
+</div>
+</div>
+<footer>Add Location Final · 4 files · sonner toast · confirmed API schema</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
