@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Tree Nav + Move Location</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--rd:#F87171;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--ac);margin-bottom:4px}
+.hero p{font-size:11.5px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.ctitle{padding:12px 14px;font-size:12.5px;font-weight:600;color:var(--tx);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em}
+.ng{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+.nw{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(251,191,36,.07);border-left:3px solid var(--yw);color:#FDE68A}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+.flow{background:var(--sf2);border-radius:12px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2.1;overflow-x:auto;margin-bottom:12px}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}.fr{color:var(--rd)}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Tree Navigation + Move Location</h1>
+  <p>Slug-based navigation · active node from URL · move location modal · 4 files</p>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="go('flow',this)">Flow</div>
+  <div class="tab" onclick="go('f0',this)">LocationTreeViewx</div>
+  <div class="tab" onclick="go('f1',this)">move-location.mutation</div>
+  <div class="tab" onclick="go('f2',this)">useMoveLocation</div>
+  <div class="tab" onclick="go('f3',this)">MoveLocationModalx</div>
+</div>
+<div id="tab-flow" class="panel active">
+
+<div class="sec">1. Click navigation — what changed</div>
+<div class="flow">
+<span class="fr">BEFORE:</span>
+<span class="ft">  ancestors = getAncestorIds(node.id, index.parentById)</span>
+<span class="ft">  path = '/' + ancestors.join('/')        // id-based path</span>
+<span class="ft">  if (node.type === 'client') router.push(path); return;</span>
+<span class="ft">  router.push(`/locations/$&#123;node.id&#125;`)</span>
+<span class="fa">  </span>
+<span class="fg">AFTER:</span>
+<span class="ft">  if (node.type !== 'location') return;   // skip root client node</span>
+<span class="fg">  router.push(`/location/$&#123;slugify(node.label)&#125;/config`)</span>
+</div>
+
+<div class="sec">2. Active node detection — from URL, not click state</div>
+<div class="flow">
+<span class="ft">pathname = "/location/aviation-gallery/physical-address"</span>
+<span class="fa">  ↓</span>
+<span class="ft">match[1] = "aviation-gallery"</span>
+<span class="fa">  ↓</span>
+<span class="ft">getNodeAndPathBySlug(data, "aviation-gallery")</span>
+<span class="fg">  → &#123; node: &#123;id:"16", ...&#125;, path: [Museum, MOTB DC, Aviation Gallery] &#125;</span>
+<span class="fa">  ↓</span>
+<span class="fg">activeId = "16"           → TreeView highlights this node</span>
+<span class="fg">defaultExpandedIds = ["1","2","16"]  → ancestor branches auto-expand</span>
+</div>
+
+<div class="sec">3. Move location flow</div>
+<div class="flow">
+<span class="fw">User opens "..." menu on a node → clicks "Move"</span>
+<span class="fa">  ↓</span>
+<span class="ft">MoveLocationModal opens:</span>
+<span class="ft">  Current Location: "Aviation Gallery" (read-only)</span>
+<span class="ft">  Move To: dropdown — all locations EXCEPT</span>
+<span class="ft">           Aviation Gallery itself + its descendants</span>
+<span class="ft">           (prevents moving a node into its own subtree)</span>
+<span class="fa">  ↓ user selects new parent, clicks "Move Location"</span>
+<span class="ft">moveLocation(&#123; locationId: 16, parentLocationId: 60 &#125;)</span>
+<span class="fa">  ↓ success: true</span>
+<span class="fg">invalidateQueries(locationKeys.tree())</span>
+<span class="fg">toast.success("Location moved successfully.")</span>
+<span class="fg">modal closes — tree re-renders with new hierarchy</span>
+<span class="fa">  ↓ success: false / error</span>
+<span class="fr">toast.error(message) — modal stays open, user can pick again</span>
+</div>
+
+<div class="sec">Integration — add to LocationNodeActions menu</div>
+<div class="card">
+<pre><code>// In LocationNodeActions.tsx dropdown — add alongside Delete:
+&lt;button onClick=&#123;() => &#123; setMenuOpen(false); onMove(node); &#125;&#125;
+  className="w-full flex items-center gap-2 px-3 py-2 text-sm
+    text-gray-700 hover:bg-gray-50"&gt;
+  &lt;MoveIcon /&gt; Move
+&lt;/button&gt;</code></pre>
+</div>
+
+<div class="sec">Note: TreeView import path</div>
+<div class="card">
+<div class="nw">
+Adjust <code>import &#123; TreeView &#125; from '@hlt-web-components/tree-view'</code>
+to your actual storybook package path. The onMove prop assumes the
+TreeView component forwards an onMove(node) callback the same way
+it forwards onEdit/onDelete — wire it the same way those are wired
+in your existing component.
+</div>
+</div>
+
+</div>
+<div id="tab-f0" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/modules/locations/components/locationTree/LocationTreeView.tsx</div>
+<div class="ng">UPDATED: removed TOP_LEVEL_ROUTES/getActiveContext/id-path nav. handleSelect → /location/{slug}/config. activeNodeId derived from URL via getNodeAndPathBySlug. Added onMove wiring.</div>
+<pre><code>// ─────────────────────────────────────────────────────────────
+// LocationTreeView — KEY CHANGES vs your current code (Image 1)
+//
+// REMOVED:
+//   - TOP_LEVEL_ROUTES Set            (unused with slug-based routing)
+//   - getActiveContext(pathname)      (clientId/activeNodeId-from-id
+//                                       logic doesn't apply — URLs
+//                                       are now location-name slugs)
+//   - getAncestorIds + index.parentById usage in handleSelect
+//     (no longer building an id-path URL)
+//   - client-type special case in handleSelect
+//     (root client node isn't a navigable page in the new routing —
+//      let TreeView's own expand/collapse handle clicks on it;
+//      only 'location' nodes navigate)
+//
+// ADDED:
+//   - slugify + getNodeAndPathBySlug from '@/modules/locations/lib/slug'
+//   - getActiveNodeId(data, pathname) — parses /location/&#123;slug&#125;/...
+//     and finds the matching node.id for &#96;activeId&#96; prop
+//   - handleSelect navigates to &#96;/location/&#123;slugify(label)&#125;/config&#96;
+//     (always lands on Config — same as direct URL entry)
+//   - onMove prop + MoveLocationModal wiring (parallel to onDelete)
+//
+// KEPT:
+//   - DeleteLocationModal wiring (unchanged)
+//   - TreeView props: data, defaultExpandedIds, onActiveChange,
+//     renderLabel, onEdit, onDelete, showSearchbar
+// ─────────────────────────────────────────────────────────────
+
+'use client';
+
+import &#123; useState, useMemo, useCallback &#125; from 'react';
+import &#123; useRouter, usePathname &#125;          from 'next/navigation';
+import &#123; TreeView &#125;                        from '@hlt-web-components/tree-view'; // adjust to your actual import
+import &#123; DeleteLocationModal &#125;             from './DeleteLocationModal';
+import &#123; MoveLocationModal &#125;               from '../moveLocation/MoveLocationModal';
+import &#123;
+  slugify,
+  getNodeAndPathBySlug,
+&#125; from '@/modules/locations/lib/slug';
+import type &#123; TreeNode &#125; from '@/types/locations';
+
+// ── Active node detection from URL ────────────────────────────
+// URL shape: /location/&#123;location-name-slug&#125;/&#123;fn&#125;
+// Returns the matching node's id, or null if no location in path
+// (e.g. on &#96;/&#96; or any non-location route)
+function getActiveNodeId(data: TreeNode[], pathname: string | null): string | null &#123;
+  if (!pathname) return null;
+
+  const match = pathname.match(/^\/location\/([^/]+)/);
+  if (!match) return null;
+
+  const slug  = match[1];
+  const found = getNodeAndPathBySlug(data, slug);
+  return found?.node.id ?? null;
+&#125;
+
+type Props = &#123;
+  data: TreeNode[];
+&#125;;
+
+export function LocationTreeView(&#123; data &#125;: Props) &#123;
+  const router   = useRouter();
+  const pathname = usePathname();
+
+  const [deleteTarget, setDeleteTarget] = useState&lt;TreeNode | null&gt;(null);
+  const [moveTarget,   setMoveTarget]   = useState&lt;TreeNode | null&gt;(null);
+
+  // Resolve which node (if any) corresponds to the current URL
+  const activeNodeId = useMemo(
+    () =&gt; getActiveNodeId(data, pathname),
+    [data, pathname]
+  );
+
+  // Default-expand the branch containing the active node
+  const defaultExpandedIds = useMemo(() =&gt; &#123;
+    if (!activeNodeId) return ['1'];
+    const found = getNodeAndPathBySlug(
+      data,
+      // re-derive slug for active node so we get its ancestor path
+      data.length ? slugAtId(data, activeNodeId) ?? '' : ''
+    );
+    return found
+      ? found.path.map(n =&gt; n.id)
+      : ['1'];
+  &#125;, [activeNodeId, data]);
+
+  // Navigate to /location/&#123;slugified-name&#125;/config
+  // Only 'location' type nodes are navigable —
+  // client/root node click is handled by TreeView's own
+  // expand/collapse (no page for the root).
+  const handleSelect = useCallback((node: TreeNode) =&gt; &#123;
+    if (node.type !== 'location') return;
+    router.push(&#96;/location/$&#123;slugify(node.label)&#125;/config&#96;);
+  &#125;, [router]);
+
+  return (
+    &lt;nav aria-label="Clients and locations" className="min-h-0 flex-1"&gt;
+      &lt;TreeView
+        key=&#123;pathname&#125;
+        className="max-h-[calc(100vh-140px)] overflow-auto"
+        data=&#123;data&#125;
+        activeId=&#123;activeNodeId ?? undefined&#125;
+        defaultExpandedIds=&#123;defaultExpandedIds&#125;
+        onActiveChange=&#123;handleSelect&#125;
+        showMoreButton
+        showSearchbar
+        onEdit=&#123;(node) =&gt; &#123;
+          // existing edit wiring — unchanged
+        &#125;&#125;
+        onDelete=&#123;(node) =&gt; setDeleteTarget(node)&#125;
+        onMove=&#123;(node) =&gt; setMoveTarget(node)&#125;   // ← NEW
+      /&gt;
+
+      &#123;deleteTarget &amp;&amp; (
+        &lt;DeleteLocationModal
+          locationId=&#123;deleteTarget.id&#125;
+          locationName=&#123;deleteTarget.label&#125;
+          onClose=&#123;() =&gt; setDeleteTarget(null)&#125;
+        /&gt;
+      )&#125;
+
+      &#123;moveTarget &amp;&amp; (
+        &lt;MoveLocationModal
+          node=&#123;moveTarget&#125;
+          onClose=&#123;() =&gt; setMoveTarget(null)&#125;
+        /&gt;
+      )&#125;
+    &lt;/nav&gt;
+  );
+&#125;
+
+// Helper: find the slug for a given node id (for default-expand path)
+function slugAtId(nodes: TreeNode[], id: string): string | null &#123;
+  for (const n of nodes) &#123;
+    if (n.id === id) return slugify(n.label);
+    if (n.children?.length) &#123;
+      const found = slugAtId(n.children, id);
+      if (found) return found;
+    &#125;
+  &#125;
+  return null;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(100,116,139,.12);color:#94A3B8;border:1px solid rgba(100,116,139,.2)">SHARED</span> src/modules/locations/graphql/move-location.mutation.ts</div>
+<div class="ng">moveLocation mutation confirmed from screenshot: type, locationId, parentLocationId.</div>
+<pre><code>// Confirmed from your GraphQL playground screenshot:
+//   mutation: moveLocation
+//   input:    type: "client", locationId: Int!, parentLocationId: Int!
+//   response: success, message, data
+
+export const MOVE_LOCATION_MUTATION = &#96;
+  mutation MoveLocation(
+    $locationId:       Int!
+    $parentLocationId: Int!
+  ) &#123;
+    moveLocation(request: &#123;
+      type:             "client"
+      locationId:       $locationId
+      parentLocationId: $parentLocationId
+    &#125;) &#123;
+      success
+      message
+      data
+    &#125;
+  &#125;
+&#96;;
+
+export interface MoveLocationInput &#123;
+  locationId:       number;
+  parentLocationId: number;
+&#125;
+
+export interface MoveLocationResponse &#123;
+  moveLocation: &#123;
+    success: boolean;
+    message: string;
+    data:    unknown;
+  &#125;;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/modules/locations/hooks/useMoveLocation.ts</div>
+<div class="ng">Mutation hook. success → toast + invalidate tree + close modal. error → toast + keep modal open.</div>
+<pre><code>'use client';
+
+import &#123; useQueryClient &#125;  from '@tanstack/react-query';
+import &#123; toast &#125;           from 'sonner';
+import &#123; useAuthMutation &#125; from '@/modules/auth/hooks/useAuthQuery';
+import &#123; locationKeys &#125;    from '@/modules/locations/hooks/useLocations';
+import &#123;
+  MOVE_LOCATION_MUTATION,
+  type MoveLocationInput,
+  type MoveLocationResponse,
+&#125; from '../graphql/move-location.mutation';
+
+export function useMoveLocation(onSuccess?: () =&gt; void) &#123;
+  const queryClient = useQueryClient();
+
+  return useAuthMutation&lt;MoveLocationResponse, MoveLocationInput&gt;(
+    MOVE_LOCATION_MUTATION,
+    &#123;
+      onSuccess: (data) =&gt; &#123;
+        const result = data.moveLocation;
+
+        if (!result.success) &#123;
+          toast.error(result.message || 'Failed to move location.');
+          return; // keep modal open so user can retry
+        &#125;
+
+        // Refresh sidebar tree — node now appears under new parent
+        queryClient.invalidateQueries(&#123;
+          queryKey: locationKeys.tree(),
+        &#125;);
+
+        toast.success('Location moved successfully.');
+        onSuccess?.(); // close modal
+      &#125;,
+
+      onError: (error) =&gt; &#123;
+        toast.error(error.message || 'Something went wrong.');
+      &#125;,
+    &#125;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/modules/locations/components/moveLocation/MoveLocationModal.tsx</div>
+<div class="ng">Current location (read-only) + new parent dropdown. Excludes node + its descendants from dropdown (no cycles).</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// MOVE LOCATION MODAL
+// - Current location: read-only field
+// - Parent location: dropdown (same source as CreateLocationModal —
+//   flattenTreeForDropdown over existing tree cache)
+// - Excludes the node itself + its own descendants from the
+//   dropdown (can't move a location into itself/its children)
+// - Move button → moveLocation mutation
+// - success: toast + close modal | error: toast + keep modal open
+// ─────────────────────────────────────────────────────────────
+
+import &#123; useForm &#125;              from 'react-hook-form';
+import &#123; zodResolver &#125;          from '@hookform/resolvers/zod';
+import &#123; z &#125;                    from 'zod';
+import &#123; useLocationsTree &#125;     from '@/modules/locations/hooks/useLocations';
+import &#123; useMoveLocation &#125;      from '@/modules/locations/hooks/useMoveLocation';
+import &#123; flattenTreeForDropdown &#125; from '@/modules/locations/lib/utils';
+import type &#123; TreeNode &#125;        from '@/types/locations';
+
+const schema = z.object(&#123;
+  parentLocationId: z.string().min(1, 'Please select a parent location'),
+&#125;);
+type FormValues = z.infer&lt;typeof schema&gt;;
+
+interface Props &#123;
+  node:    TreeNode;   // location being moved
+  onClose: () =&gt; void;
+&#125;
+
+// Collect ids of node + all its descendants — these can't be
+// the new parent (would create a cycle)
+function collectDescendantIds(node: TreeNode, ids = new Set&lt;string&gt;()): Set&lt;string&gt; &#123;
+  ids.add(node.id);
+  for (const child of node.children ?? []) &#123;
+    collectDescendantIds(child, ids);
+  &#125;
+  return ids;
+&#125;
+
+export function MoveLocationModal(&#123; node, onClose &#125;: Props) &#123;
+  const &#123; data: tree = [], isLoading: treeLoading &#125; = useLocationsTree();
+
+  const excludeIds = collectDescendantIds(node);
+  const parentOptions = flattenTreeForDropdown(tree)
+    .filter(opt =&gt; !excludeIds.has(opt.id));
+
+  const moveLocation = useMoveLocation(onClose);
+  const isLoading    = moveLocation.isPending;
+
+  const &#123;
+    register,
+    handleSubmit,
+    formState: &#123; errors &#125;,
+  &#125; = useForm&lt;FormValues&gt;(&#123;
+    resolver: zodResolver(schema),
+    defaultValues: &#123; parentLocationId: '' &#125;,
+  &#125;);
+
+  function onSubmit(values: FormValues) &#123;
+    moveLocation.mutate(&#123;
+      locationId:       Number(node.id),
+      parentLocationId: Number(values.parentLocationId),
+    &#125;);
+  &#125;
+
+  return (
+    &lt;div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick=&#123;(e) =&gt; e.target === e.currentTarget &amp;&amp; !isLoading &amp;&amp; onClose()&#125;
+    &gt;
+      &lt;div className="w-full max-w-md rounded-2xl bg-white shadow-2xl"&gt;
+
+        &#123;/* Header */&#125;
+        &lt;div className="flex items-center justify-between border-b border-gray-100 px-6 py-4"&gt;
+          &lt;h2 className="text-base font-semibold text-gray-900"&gt;
+            Move Location
+          &lt;/h2&gt;
+          &lt;button
+            onClick=&#123;onClose&#125;
+            disabled=&#123;isLoading&#125;
+            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40"
+          &gt;
+            &lt;svg width="16" height="16" viewBox="0 0 24 24" fill="none"&gt;
+              &lt;path d="M18 6L6 18M6 6l12 12"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round"/&gt;
+            &lt;/svg&gt;
+          &lt;/button&gt;
+        &lt;/div&gt;
+
+        &#123;/* Fields */&#125;
+        &lt;div className="px-6 py-5 space-y-4"&gt;
+
+          &#123;/* Current location — read only */&#125;
+          &lt;div&gt;
+            &lt;label className="block text-xs font-medium text-gray-700 mb-1.5"&gt;
+              Current Location
+            &lt;/label&gt;
+            &lt;input
+              type="text"
+              value=&#123;node.label&#125;
+              readOnly
+              disabled
+              className="w-full h-10 rounded-lg border border-gray-200
+                bg-gray-50 px-3 text-sm text-gray-500 cursor-not-allowed"
+            /&gt;
+          &lt;/div&gt;
+
+          &#123;/* New parent dropdown */&#125;
+          &lt;div&gt;
+            &lt;label className="block text-xs font-medium text-gray-700 mb-1.5"&gt;
+              Move To (New Parent) &lt;span className="text-red-500"&gt;*&lt;/span&gt;
+            &lt;/label&gt;
+            &lt;select
+              disabled=&#123;treeLoading || isLoading&#125;
+              className=&#123;&#96;w-full h-10 rounded-lg border px-3 text-sm bg-white
+                outline-none transition-colors
+                focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30
+                disabled:bg-gray-50 disabled:cursor-not-allowed
+                $&#123;errors.parentLocationId ? 'border-red-300' : 'border-gray-200'&#125;&#96;&#125;
+              &#123;...register('parentLocationId')&#125;
+            &gt;
+              &lt;option value=""&gt;
+                &#123;treeLoading ? 'Loading...' : 'Select new parent location'&#125;
+              &lt;/option&gt;
+              &#123;parentOptions.map((option) =&gt; (
+                &lt;option key=&#123;option.id&#125; value=&#123;option.id&#125;&gt;
+                  &#123;option.indent&#125;&#123;option.label&#125;
+                &lt;/option&gt;
+              ))&#125;
+            &lt;/select&gt;
+            &#123;errors.parentLocationId &amp;&amp; (
+              &lt;p className="mt-1 text-xs text-red-500"&gt;
+                &#123;errors.parentLocationId.message&#125;
+              &lt;/p&gt;
+            )&#125;
+          &lt;/div&gt;
+
+        &lt;/div&gt;
+
+        &#123;/* Footer */&#125;
+        &lt;div className="flex gap-3 border-t border-gray-100 px-6 py-4"&gt;
+          &lt;button
+            type="button"
+            onClick=&#123;onClose&#125;
+            disabled=&#123;isLoading&#125;
+            className="flex-1 h-10 rounded-lg border border-gray-200
+              text-sm text-gray-600 hover:bg-gray-50
+              transition-colors disabled:opacity-40"
+          &gt;
+            Cancel
+          &lt;/button&gt;
+          &lt;button
+            type="button"
+            onClick=&#123;handleSubmit(onSubmit)&#125;
+            disabled=&#123;isLoading || treeLoading&#125;
+            className="flex-1 h-10 rounded-lg bg-blue-600 hover:bg-blue-700
+              text-white text-sm font-medium transition-colors
+              disabled:opacity-60 flex items-center justify-center gap-2"
+          &gt;
+            &#123;isLoading ? (
+              &lt;&gt;
+                &lt;svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"&gt;
+                  &lt;circle className="opacity-25" cx="12" cy="12" r="10"
+                    stroke="currentColor" strokeWidth="4"/&gt;
+                  &lt;path className="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/&gt;
+                &lt;/svg&gt;
+                Moving...
+              &lt;/&gt;
+            ) : (
+              'Move Location'
+            )&#125;
+          &lt;/button&gt;
+        &lt;/div&gt;
+
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<footer>Tree Nav + Move Location · 4 files</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
