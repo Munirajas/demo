@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Session Refresh Fix</title>
+<style>
+:root{--bg:#0B1120;--sf:#131C2E;--sf2:#0F1827;--bd:#1E2D45;--ac:#38BDF8;--gn:#34D399;--yw:#FBBF24;--rd:#F87171;--pu:#A78BFA;--tx:#E2E8F0;--mt:#64748B;--mt2:#94A3B8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;padding:12px;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#0a1628,#0f1f35);border:1px solid rgba(56,189,248,.3);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center}
+.hero h1{font-size:17px;font-weight:700;color:var(--ac);margin-bottom:4px}
+.hero p{font-size:11.5px;color:var(--mt2);line-height:1.8}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--mt2);font-family:'SF Mono','Fira Code',monospace}
+.tab.active{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--ac)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.ctitle{padding:12px 14px;font-size:12.5px;font-weight:600;color:var(--tx);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.05em}
+.ng{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(52,211,153,.07);border-left:3px solid var(--gn);color:#A7F3D0}
+.nw{padding:10px 14px;font-size:12px;line-height:1.7;background:rgba(251,191,36,.07);border-left:3px solid var(--yw);color:#FDE68A}
+pre{overflow-x:auto;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:11.5px;line-height:1.75;background:var(--sf2);padding:14px}
+.sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin:14px 0 8px}
+.flow{background:var(--sf2);border-radius:12px;padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:11.5px;line-height:2.1;overflow-x:auto;margin-bottom:12px}
+.fa{color:var(--ac)}.fg{color:var(--gn)}.fw{color:var(--yw)}.ft{color:var(--tx)}.fr{color:var(--rd)}
+footer{text-align:center;padding:16px 0 4px;color:var(--mt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Seamless Session Refresh</h1>
+  <p>"BE returned no token" diagnosed · loading overlay · session-expired modal · 5 files</p>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="go('flow',this)">Diagnosis &amp; Flow</div>
+  <div class="tab" onclick="go('f0',this)">refresh</div>
+  <div class="tab" onclick="go('f1',this)">route</div>
+  <div class="tab" onclick="go('f2',this)">SessionProviderx</div>
+  <div class="tab" onclick="go('f3',this)">useAuthQuery</div>
+  <div class="tab" onclick="go('f4',this)">PROVIDERS_WIRING</div>
+</div>
+<div id="tab-flow" class="panel active">
+
+<div class="sec">Step 1 — Find the real field name (run this first)</div>
+<div class="card">
+<div class="nw">
+The updated refresh.ts logs the RAW BE response before extraction.
+Reload your app while access token is expired, check your Next.js
+terminal for:
+</div>
+<pre><code>[refresh] RAW response: &#123;
+  "refreshAuth": &#123;
+    "AccessToken": "eyJ...",     ← real field name will show here
+    "IdToken": "eyJ...",
+    "RefreshToken": "..."
+  &#125;
+&#125;</code></pre>
+<div class="nw">
+The defensive extraction already checks token/accessToken/AccessToken/
+access_token — so it should work NOW regardless of which BE uses.
+Once confirmed, you can trim refresh.ts to only the real field name
+(optional cleanup).
+</div>
+</div>
+
+<div class="sec">Image 2 — page reload, access token expired</div>
+<div class="flow">
+<span class="fw">User reloads page</span>
+<span class="fa">  ↓</span>
+<span class="ft">SessionProvider mounts → status="checking"</span>
+<span class="ft">  → SessionCheckingOverlay shown (spinner + "Restoring your session...")</span>
+<span class="fa">  ↓</span>
+<span class="ft">fetch('/api/auth/session')</span>
+<span class="ft">  → access token expired → refreshAccessToken()</span>
+<span class="fa">  ↓ refresh token valid</span>
+<span class="fg">  → new access token set in cookies, 200 OK</span>
+<span class="fg">status="valid" → overlay disappears</span>
+<span class="fg">getLocationsTree() (separate server call) now succeeds</span>
+<span class="fa">  ↓ refresh token ALSO expired</span>
+<span class="fr">  → 401 &#123;reason: SESSION_EXPIRED&#125;</span>
+<span class="fr">status="expired" → SessionExpiredModal shown</span>
+</div>
+
+<div class="sec">Image 1 — mid-action, move location</div>
+<div class="flow">
+<span class="fw">User clicks "Move Location"</span>
+<span class="fa">  ↓</span>
+<span class="ft">gqlFetch → POST /api/graphql (proxy)</span>
+<span class="ft">  proxy: access token expired → refreshAccessToken()</span>
+<span class="fa">  ↓ refresh succeeds</span>
+<span class="fg">  → retried with new token → mutation succeeds ✓</span>
+<span class="fa">  ↓ refresh ALSO fails (refresh token expired)</span>
+<span class="fr">  → proxy returns &#123;errors:[&#123;message:'SESSION_EXPIRED'&#125;]&#125;, 401</span>
+<span class="fr">gqlFetch detects → notifySessionExpired()</span>
+<span class="fr">SessionExpiredModal appears — "Sign In Again" button</span>
+<span class="ft">  (modal stays open form data preserved — no abrupt redirect)</span>
+</div>
+
+<div class="sec">Wiring — one addition to Providers.tsx</div>
+<div class="card">
+<pre><code>import &#123; SessionProvider &#125; from '@/components/providers/SessionProvider';
+
+export function Providers(&#123; children &#125;) &#123;
+  return (
+    &lt;QueryClientProvider client=&#123;queryClient&#125;&gt;
+      &lt;SessionProvider&gt;
+        &#123;children&#125;
+        &lt;Toaster position="bottom-right" richColors /&gt;
+      &lt;/SessionProvider&gt;
+    &lt;/QueryClientProvider&gt;
+  );
+&#125;</code></pre>
+</div>
+
+</div>
+<div id="tab-f0" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span> src/modules/auth/lib/refresh.ts</div>
+<div class="ng">KEY FIX: "BE returned no token" diagnosed — logs RAW response shape, extracts token across possible field names (token/accessToken/AccessToken/...). Run once, check terminal, then trim fallbacks to the real field name.</div>
+<pre><code>import 'server-only';
+
+// ─────────────────────────────────────────────────────────────
+// "[refresh] BE returned no token" — DIAGNOSIS
+//
+// This message means:
+//   ✓ refreshToken + userId cookies WERE present (passed the early check)
+//   ✓ The GQL request to refreshAuth WENT THROUGH without throwing
+//   ✗ data.refreshAuth.token was falsy
+//
+// Two likely causes:
+//   A) Response field is named differently
+//      (e.g. accessToken/AccessToken instead of token)
+//   B) refreshAuth itself returned success:false / an error object
+//      that we're not checking
+//
+// FIX: log the RAW response once, then extract token defensively
+// across multiple possible field names. Once you see the real
+// shape in your terminal, delete the defensive fallbacks and
+// keep only the correct field name.
+// ─────────────────────────────────────────────────────────────
+
+import &#123; GraphQLClient, ClientError &#125; from 'graphql-request';
+import &#123; GQL_ENDPOINT &#125;               from '@/lib/constants';
+import &#123;
+  getRefreshToken,
+  getUserId,
+  setAuthCookies,
+  clearAuthCookies,
+&#125; from '@/modules/auth/lib/cookies';
+import &#123; REFRESH_AUTH_MUTATION &#125; from '../graphql/auth.mutations';
+
+export async function refreshAccessToken(): Promise&lt;string | null&gt; &#123;
+  const [refreshToken, userId] = await Promise.all([
+    getRefreshToken(),
+    getUserId(),
+  ]);
+
+  if (!refreshToken || !userId) &#123;
+    console.warn('[refresh] Missing refreshToken or userId — cannot refresh', &#123;
+      hasRefreshToken: Boolean(refreshToken),
+      hasUserId:       Boolean(userId),
+    &#125;);
+    return null;
+  &#125;
+
+  try &#123;
+    const client = new GraphQLClient(GQL_ENDPOINT, &#123;
+      headers: &#123;
+        'authorization': refreshToken,
+        'Content-Type':  'application/json',
+        'x-tenant-id':   process.env.TENANT_ID ?? '',
+      &#125;,
+    &#125;);
+
+    // ── DIAGNOSTIC: log raw response shape ───────────────────
+    // Run this once, check terminal, then read the field name
+    // BE actually returns and update the extraction below.
+    const raw = await client.rawRequest&lt;any&gt;(REFRESH_AUTH_MUTATION, &#123;
+      userId,
+      token: refreshToken,
+    &#125;);
+
+    console.log('[refresh] RAW response:', JSON.stringify(raw.data, null, 2));
+    if (raw.errors?.length) &#123;
+      console.log('[refresh] GQL errors:', JSON.stringify(raw.errors, null, 2));
+    &#125;
+    // ── END DIAGNOSTIC ────────────────────────────────────────
+
+    const result = raw.data?.refreshAuth;
+
+    if (!result) &#123;
+      console.warn('[refresh] BE returned no refreshAuth field at all');
+      return null;
+    &#125;
+
+    // ── Defensive extraction across possible field names ─────
+    // Remove fallbacks once you confirm the real shape from the
+    // [refresh] RAW response log above.
+    const token =
+      result.token ??
+      result.accessToken ??
+      result.AccessToken ??
+      result.access_token ??
+      null;
+
+    const idToken =
+      result.idToken ??
+      result.IdToken ??
+      result.id_token ??
+      null;
+
+    const newRefreshToken =
+      result.refreshToken ??
+      result.RefreshToken ??
+      result.refresh_token ??
+      refreshToken; // BE may not rotate refresh token — reuse existing
+    // ───────────────────────────────────────────────────────────
+
+    if (!token) &#123;
+      console.warn(
+        '[refresh] BE returned no token — fields present:',
+        Object.keys(result)
+      );
+      return null;
+    &#125;
+
+    await setAuthCookies(&#123;
+      token,
+      idToken:      idToken ?? '',
+      refreshToken: newRefreshToken,
+      userId,
+    &#125; as any);
+
+    console.log('[refresh] SUCCESS — new access token set');
+    return token;
+
+  &#125; catch (error) &#123;
+    if (error instanceof ClientError) &#123;
+      const msg = (error.response?.errors?.[0]?.message ?? '').toLowerCase();
+      console.error('[refresh] BE ClientError:', msg, &#123;
+        status: error.response?.status,
+        errors: error.response?.errors,
+      &#125;);
+
+      // Refresh token itself is invalid/expired → force re-login
+      if (
+        msg.includes('expired') ||
+        msg.includes('invalid')  ||
+        msg.includes('unauthenticated') ||
+        error.response?.status === 401
+      ) &#123;
+        await clearAuthCookies();
+      &#125;
+    &#125; else &#123;
+      console.error('[refresh] Unexpected error:', error);
+    &#125;
+    return null;
+  &#125;
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f1" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.2)">SERVER</span> src/app/api/auth/session/route.ts</div>
+<div class="ng">FIX for Image 1: was returning raw 401 without trying refresh. Now attempts refreshAccessToken() first — only 401s if refresh token itself is invalid.</div>
+<pre><code>// src/app/api/auth/session/route.ts
+//
+// ─────────────────────────────────────────────────────────────
+// FIX for Image 1: GET /api/auth/session → 401 immediately
+//
+// BEFORE: checked access token cookie only — expired → 401
+//         (useSession hook saw 401, never tried refresh)
+//
+// AFTER:  no/expired access token → attempt refresh first
+//         success → 200 (session still valid)
+//         fail    → 401 with reason: "SESSION_EXPIRED"
+//                   (refresh token also expired/invalid)
+// ─────────────────────────────────────────────────────────────
+
+import &#123; NextResponse &#125; from 'next/server';
+import &#123;
+  getAccessToken,
+  getSessionUser,
+&#125; from '@/modules/auth/lib/cookies';
+import &#123; refreshAccessToken &#125; from '@/modules/auth/lib/refresh';
+
+export async function GET() &#123;
+  let token = await getAccessToken();
+
+  if (!token) &#123;
+    token = await refreshAccessToken();
+
+    if (!token) &#123;
+      // Refresh token also expired/invalid — real session end
+      return NextResponse.json(
+        &#123; authenticated: false, reason: 'SESSION_EXPIRED' &#125;,
+        &#123; status: 401 &#125;
+      );
+    &#125;
+  &#125;
+
+  const user = await getSessionUser();
+  return NextResponse.json(&#123; authenticated: true, user &#125;);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f2" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/components/providers/SessionProvider.tsx</div>
+<div class="ng">NEW: global loading overlay on initial mount (Image 2 — reload w/ expired token) + "Session Expired" modal (refresh token itself invalid) + listens for session-expired event.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// SESSION PROVIDER
+//
+// Wraps the app (inside QueryClientProvider). Provides:
+//
+//   1. useSessionStatus() — 'checking' | 'valid' | 'expired'
+//
+//   2. Global full-screen loader while session check/refresh
+//      is in flight on initial mount (Image 2 scenario —
+//      page reload with expired access token)
+//
+//   3. "Session expired" modal when refresh token itself is
+//      invalid — explains what happened + button to re-login
+//      (instead of silently redirecting, which feels broken)
+//
+//   4. Listens for a global 'session-expired' event — dispatched
+//      by useAuthQuery.ts gqlFetch (Image 1 scenario — mid-action
+//      401 that even the proxy's refresh couldn't recover from)
+// ─────────────────────────────────────────────────────────────
+
+import &#123;
+  createContext, useContext, useEffect, useState, useCallback,
+&#125; from 'react';
+import &#123; useRouter &#125; from 'next/navigation';
+
+type SessionStatus = 'checking' | 'valid' | 'expired';
+
+const SessionContext = createContext&lt;&#123; status: SessionStatus &#125;&gt;(&#123;
+  status: 'checking',
+&#125;);
+
+export function useSessionStatus() &#123;
+  return useContext(SessionContext).status;
+&#125;
+
+// Dispatch this from anywhere (e.g. useAuthQuery gqlFetch) when
+// the proxy reports SESSION_EXPIRED — shows the modal immediately
+// instead of an abrupt redirect.
+export function notifySessionExpired() &#123;
+  window.dispatchEvent(new Event('session-expired'));
+&#125;
+
+export function SessionProvider(&#123; children &#125;: &#123; children: React.ReactNode &#125;) &#123;
+  const router = useRouter();
+  const [status, setStatus] = useState&lt;SessionStatus&gt;('checking');
+
+  const checkSession = useCallback(async () =&gt; &#123;
+    try &#123;
+      const res = await fetch('/api/auth/session', &#123;
+        credentials: 'include',
+        cache:       'no-store',
+      &#125;);
+      setStatus(res.ok ? 'valid' : 'expired');
+    &#125; catch &#123;
+      setStatus('expired');
+    &#125;
+  &#125;, []);
+
+  // Initial check on mount — covers Image 2 (reload with expired token)
+  useEffect(() =&gt; &#123;
+    checkSession();
+  &#125;, [checkSession]);
+
+  // Listen for mid-session expiry (Image 1 — action-triggered)
+  useEffect(() =&gt; &#123;
+    function handleExpired() &#123;
+      setStatus('expired');
+    &#125;
+    window.addEventListener('session-expired', handleExpired);
+    return () =&gt; window.removeEventListener('session-expired', handleExpired);
+  &#125;, []);
+
+  function goToLogin() &#123;
+    router.push('/login?reason=expired');
+  &#125;
+
+  return (
+    &lt;SessionContext.Provider value=&#123;&#123; status &#125;&#125;&gt;
+      &#123;children&#125;
+
+      &#123;/* ── Initial-load checking overlay ─────────────────────── */&#125;
+      &#123;status === 'checking' &amp;&amp; &lt;SessionCheckingOverlay /&gt;&#125;
+
+      &#123;/* ── Session expired modal ─────────────────────────────── */&#125;
+      &#123;status === 'expired' &amp;&amp; (
+        &lt;SessionExpiredModal onLogin=&#123;goToLogin&#125; /&gt;
+      )&#125;
+    &lt;/SessionContext.Provider&gt;
+  );
+&#125;
+
+// ── Full-screen loader — shown briefly while refreshing token ──
+function SessionCheckingOverlay() &#123;
+  return (
+    &lt;div className="fixed inset-0 z-[100] flex items-center justify-center
+      bg-white/70 backdrop-blur-sm"&gt;
+      &lt;div className="flex flex-col items-center gap-3"&gt;
+        &lt;svg className="w-6 h-6 animate-spin text-blue-600" viewBox="0 0 24 24" fill="none"&gt;
+          &lt;circle className="opacity-25" cx="12" cy="12" r="10"
+            stroke="currentColor" strokeWidth="4"/&gt;
+          &lt;path className="opacity-75" fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/&gt;
+        &lt;/svg&gt;
+        &lt;p className="text-sm text-gray-500"&gt;Restoring your session...&lt;/p&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+&#125;
+
+// ── Session expired — explains why, gives clear action ──────────
+function SessionExpiredModal(&#123; onLogin &#125;: &#123; onLogin: () =&gt; void &#125;) &#123;
+  return (
+    &lt;div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40"&gt;
+      &lt;div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 text-center"&gt;
+        &lt;div className="w-10 h-10 rounded-full bg-amber-100 flex items-center
+          justify-center mx-auto mb-4"&gt;
+          &lt;svg width="18" height="18" viewBox="0 0 24 24" fill="none"&gt;
+            &lt;path d="M12 9v4m0 4h.01M10.29 3.86l-8.18 14.18A2 2 0 003.82 21h16.36a2 2 0 001.71-3l-8.18-14.18a2 2 0 00-3.42 0z"
+              stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/&gt;
+          &lt;/svg&gt;
+        &lt;/div&gt;
+
+        &lt;h2 className="text-base font-semibold text-gray-900 mb-1"&gt;
+          Session Expired
+        &lt;/h2&gt;
+        &lt;p className="text-sm text-gray-500 mb-6"&gt;
+          Your session has expired for security reasons.
+          Please sign in again to continue.
+        &lt;/p&gt;
+
+        &lt;button
+          onClick=&#123;onLogin&#125;
+          className="w-full h-10 rounded-lg bg-blue-600 hover:bg-blue-700
+            text-white text-sm font-medium transition-colors"
+        &gt;
+          Sign In Again
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f3" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/modules/auth/hooks/useAuthQuery.ts</div>
+<div class="ng">CHANGED: SESSION_EXPIRED now dispatches notifySessionExpired() (shows modal) instead of immediate router.push — explains to user WHY before navigating.</div>
+<pre><code>'use client';
+
+// ─────────────────────────────────────────────────────────────
+// CHANGE vs previous version:
+//
+//   onExpired callback now calls notifySessionExpired()
+//   (dispatches 'session-expired' window event) INSTEAD OF
+//   router.push('/login?reason=expired') directly.
+//
+//   SessionProvider listens for this event and shows
+//   SessionExpiredModal — explains WHY before navigating,
+//   instead of an abrupt silent redirect (Image 1 scenario).
+//
+// Everything else — gqlFetch via /api/graphql proxy,
+// useAuthQuery/useAuthMutation signatures — UNCHANGED.
+// ─────────────────────────────────────────────────────────────
+
+import &#123;
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type UseQueryOptions,
+&#125; from '@tanstack/react-query';
+import &#123; notifySessionExpired &#125; from '@/components/providers/SessionProvider';
+
+async function gqlFetch&lt;TData&gt;(
+  query:      string,
+  variables?: object,
+): Promise&lt;TData&gt; &#123;
+
+  const res = await fetch('/api/graphql', &#123;
+    method:      'POST',
+    headers:     &#123; 'Content-Type': 'application/json' &#125;,
+    credentials: 'include',
+    body:        JSON.stringify(&#123; query, variables &#125;),
+    cache:       'no-store',
+  &#125;);
+
+  const json = await res.json() as &#123;
+    data?:   TData;
+    errors?: &#123; message: string &#125;[];
+  &#125;;
+
+  if (
+    res.status === 401 ||
+    json.errors?.[0]?.message === 'SESSION_EXPIRED'
+  ) &#123;
+    // Show "Session Expired" modal instead of silent redirect —
+    // proxy already tried refreshing and it failed (refresh
+    // token itself expired/invalid).
+    notifySessionExpired();
+    throw new Error('SESSION_EXPIRED');
+  &#125;
+
+  if (json.errors?.length) &#123;
+    throw new Error(json.errors[0].message);
+  &#125;
+
+  if (json.data === undefined || json.data === null) &#123;
+    throw new Error('No data returned from server');
+  &#125;
+
+  return json.data;
+&#125;
+
+export function useAuthQuery&lt;
+  TData,
+  TSelected = TData,
+&gt;(
+  queryKey:   readonly unknown[],
+  query:      string,
+  variables?: object,
+  options?:   Omit&lt;
+    UseQueryOptions&lt;TData, Error, TSelected&gt;,
+    'queryKey' | 'queryFn'
+  &gt;,
+) &#123;
+  return useQuery&lt;TData, Error, TSelected&gt;(&#123;
+    queryKey,
+    queryFn: () =&gt; gqlFetch&lt;TData&gt;(query, variables),
+    staleTime: 1000 * 60 * 5,
+    retry:     1,
+    ...options,
+  &#125;);
+&#125;
+
+export function useAuthMutation&lt;
+  TData,
+  TVars extends object = object,
+&gt;(
+  mutation: string,
+  options?: &#123;
+    onSuccess?:      (data: TData) =&gt; void;
+    onError?:        (error: Error) =&gt; void;
+    invalidateKeys?: unknown[][];
+  &#125;,
+) &#123;
+  const queryClient = useQueryClient();
+
+  return useMutation&lt;TData, Error, TVars&gt;(&#123;
+    mutationFn: (variables: TVars) =&gt; gqlFetch&lt;TData&gt;(mutation, variables),
+
+    onSuccess: (data) =&gt; &#123;
+      options?.invalidateKeys?.forEach(key =&gt;
+        queryClient.invalidateQueries(&#123; queryKey: key &#125;)
+      );
+      options?.onSuccess?.(data);
+    &#125;,
+
+    onError: options?.onError,
+  &#125;);
+&#125;
+</code></pre>
+</div>
+</div>
+<div id="tab-f4" class="panel">
+<div class="card">
+<div class="ctitle"><span class="tag" style="background:rgba(167,139,250,.12);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">CLIENT</span> src/PROVIDERS_WIRING.ts</div>
+<div class="ng">One-line addition to Providers.tsx — wrap children with SessionProvider.</div>
+<pre><code>// src/providers/Providers.tsx
+//
+// Add SessionProvider INSIDE QueryClientProvider
+// (it doesn't use TanStack Query, but logically belongs
+// with other cross-cutting client providers).
+
+import &#123; SessionProvider &#125; from '@/components/providers/SessionProvider';
+
+/*
+export function Providers(&#123; children &#125;: &#123; children: React.ReactNode &#125;) &#123;
+  return (
+    &lt;QueryClientProvider client=&#123;queryClient&#125;&gt;
+      &lt;SessionProvider&gt;          ← ADD THIS
+        &#123;children&#125;
+        &lt;Toaster position="bottom-right" richColors /&gt;
+      &lt;/SessionProvider&gt;          ← AND THIS
+    &lt;/QueryClientProvider&gt;
+  );
+&#125;
+*/
+
+export &#123;&#125;;
+</code></pre>
+</div>
+</div>
+<footer>Session Refresh Fix · 5 files · diagnostic logging · loading overlay · expired modal</footer>
+<script>
+function go(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body></html>
