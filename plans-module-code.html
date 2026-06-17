@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Plans Module — Code Reference</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3250;
+      --accent: #6c8ef5;
+      --accent2: #4ade80;
+      --warn: #f59e42;
+      --text: #e2e8f0;
+      --muted: #7c87a6;
+      --tag-ts: #3b82f6;
+      --tag-gql: #e879f9;
+      --tag-server: #4ade80;
+      --tag-client: #f59e42;
+      --tag-types: #38bdf8;
+      --tag-const: #fb923c;
+      --radius: 10px;
+      --font-mono: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      --font-ui: 'Inter', system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      padding: 32px 20px 60px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      max-width: 960px;
+      margin: 0 auto 40px;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .header-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .header p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 6px;
+      line-height: 1.6;
+    }
+
+    /* ── TOC ── */
+    .toc {
+      max-width: 960px;
+      margin: 0 auto 40px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+    .toc h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--muted);
+      margin-bottom: 14px;
+      font-weight: 600;
+    }
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 8px;
+    }
+    .toc-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: var(--surface2);
+      text-decoration: none;
+      transition: background .15s;
+    }
+    .toc-item:hover { background: var(--border); }
+    .toc-num {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 20px;
+    }
+    .toc-label {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .toc-path {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    /* ── Section ── */
+    .section {
+      max-width: 960px;
+      margin: 0 auto 32px;
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .step-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .section-meta h2 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+    .section-meta p {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── Tags ── */
+    .tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .tag-ts   { background: rgba(59,130,246,.18); color: var(--tag-ts); }
+    .tag-gql  { background: rgba(232,121,249,.18); color: var(--tag-gql); }
+    .tag-srv  { background: rgba(74,222,128,.15); color: var(--tag-server); }
+    .tag-cli  { background: rgba(245,158,66,.15); color: var(--tag-client); }
+    .tag-const{ background: rgba(251,146,60,.15); color: var(--tag-const); }
+
+    /* ── File card ── */
+    .file-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .file-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .file-path {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .file-path .dir { color: var(--muted); }
+    .copy-btn {
+      background: var(--border);
+      border: none;
+      color: var(--muted);
+      font-size: 11px;
+      font-family: var(--font-ui);
+      padding: 4px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+    .copy-btn:hover { background: var(--accent); color: #fff; }
+    .copy-btn.copied { background: #166534; color: var(--accent2); }
+
+    /* ── Code ── */
+    pre {
+      margin: 0;
+      padding: 20px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.7;
+      color: #cdd6f4;
+      background: transparent;
+    }
+    code { font-family: inherit; }
+
+    /* syntax tokens */
+    .k  { color: #cba6f7; }   /* keyword */
+    .s  { color: #a6e3a1; }   /* string */
+    .c  { color: #585b70; font-style: italic; } /* comment */
+    .t  { color: #89dceb; }   /* type */
+    .f  { color: #89b4fa; }   /* function */
+    .p  { color: #f38ba8; }   /* punctuation / operator */
+    .n  { color: #fab387; }   /* number / const value */
+    .i  { color: #cdd6f4; }   /* identifier */
+
+    /* ── Note box ── */
+    .note {
+      display: flex;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 7px;
+      font-size: 12.5px;
+      line-height: 1.6;
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+    .note-warn { background: rgba(245,158,66,.1); border-left: 3px solid var(--warn); color: #fcd34d; }
+    .note-tip  { background: rgba(74,222,128,.08); border-left: 3px solid var(--accent2); color: #86efac; }
+    .note-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Divider ── */
+    .divider {
+      max-width: 960px;
+      margin: 8px auto 32px;
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Footer ── */
+    footer {
+      max-width: 960px;
+      margin: 48px auto 0;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<div class="header">
+  <div class="header-top">
+    <span class="header-badge">Plans Module</span>
+    <h1>Code Reference — All Files</h1>
+  </div>
+  <p>
+    Complete file-by-file implementation for the <strong>Plans feature module</strong>.<br/>
+    Follow the order below: Types → GraphQL → Actions → Hooks → Constants → Page → Router update.
+  </p>
+</div>
+
+<!-- ══════════════ TOC ══════════════ -->
+<div class="toc">
+  <h2>File Index</h2>
+  <div class="toc-grid">
+    <a class="toc-item" href="#s1">
+      <span class="toc-num">01</span>
+      <div>
+        <div class="toc-label">plans.types.ts</div>
+        <div class="toc-path">src/modules/plans/types/</div>
+      </div>
+    </a>
+    <a class="toc-item" href="#s2">
+      <span class="toc-num">02</span>
+      <div>
+        <div class="toc-label">plans.queries.ts</div>
+        <div class="toc-path">src/modules/plans/graphql/</div>
+      </div>
+    </a>
+    <a class="toc-item" href="#s3">
+      <span class="toc-num">03</span>
+      <div>
+        <div class="toc-label">plans.mutations.ts</div>
+        <div class="toc-path">src/modules/plans/graphql/</div>
+      </div>
+    </a>
+    <a class="toc-item" href="#s4">
+      <span class="toc-num">04</span>
+      <div>
+        <div class="toc-label">server-plans.ts</div>
+        <div class="toc-path">src/modules/plans/actions/</div>
+      </div>
+    </a>
+    <a class="toc-item" href="#s5">
+      <span class="toc-num">05</span>
+      <div>
+        <div class="toc-label">plans.constants.ts</div>
+        <div class="toc-path">src/modules/plans/lib/</div>
+      </div>
+    </a>
+    <a class="toc-item" href="#s6">
+      <span class="toc-num">06</span>
+      <div>
+        <div class="toc-label">useChangePlan.ts</div>
+        <div class="toc-path">src/modules/plans/hooks/</div>
+      </div>
+    </a>
+    <a class="toc-item" href="#s7">
+      <span class="toc-num">07</span>
+      <div>
+        <div class="toc-label">page.tsx (Plan Selection)</div>
+        <div class="toc-path">src/app/(protected)/location/[slug]/[fn]/plan-selection/</div>
+      </div>
+    </a>
+    <a class="toc-item" href="#s8">
+      <span class="toc-num">08</span>
+      <div>
+        <div class="toc-label">page.tsx (fn router — updated)</div>
+        <div class="toc-path">src/app/(protected)/location/[slug]/[fn]/</div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- ══════════════ SECTION 1: TYPES ══════════════ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="step-badge">1</div>
+    <div class="section-meta">
+      <h2>Types <span class="tag tag-ts">TypeScript</span></h2>
+      <p>Always define types first — they are the contract everything else is built on.</p>
+    </div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path">
+        <span class="dir">src/modules/plans/types/</span>plans.types.ts
+      </span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">// Plan interval billing cycle</span>
+<span class="k">export type</span> <span class="t">PlanInterval</span> <span class="p">=</span> <span class="s">'MONTHLY'</span> <span class="p">|</span> <span class="s">'ANNUAL'</span><span class="p">;</span>
+
+<span class="c">// Lifecycle status for both plans and subscriptions</span>
+<span class="k">export type</span> <span class="t">PlanStatus</span> <span class="p">=</span> <span class="s">'ACTIVE'</span> <span class="p">|</span> <span class="s">'INACTIVE'</span> <span class="p">|</span> <span class="s">'DEPRECATED'</span><span class="p">;</span>
+
+<span class="k">export interface</span> <span class="t">PlanFeature</span> <span class="p">{</span>
+  <span class="i">id</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">name</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">description</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">included</span><span class="p">:</span> <span class="t">boolean</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export interface</span> <span class="t">Plan</span> <span class="p">{</span>
+  <span class="i">id</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">name</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">description</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">price</span><span class="p">:</span> <span class="t">number</span><span class="p">;</span>
+  <span class="i">interval</span><span class="p">:</span> <span class="t">PlanInterval</span><span class="p">;</span>
+  <span class="i">status</span><span class="p">:</span> <span class="t">PlanStatus</span><span class="p">;</span>
+  <span class="i">features</span><span class="p">:</span> <span class="t">PlanFeature</span><span class="p">[];</span>
+  <span class="i">isPopular</span><span class="p">?:</span> <span class="t">boolean</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export interface</span> <span class="t">ActivePlan</span> <span class="p">{</span>
+  <span class="i">id</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">plan</span><span class="p">:</span> <span class="t">Plan</span><span class="p">;</span>
+  <span class="i">locationId</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">startDate</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">renewalDate</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">status</span><span class="p">:</span> <span class="t">PlanStatus</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">// Server action return shapes</span>
+<span class="k">export interface</span> <span class="t">GetActivePlanResult</span> <span class="p">{</span>
+  <span class="i">activePlan</span><span class="p">:</span> <span class="t">ActivePlan</span> <span class="p">|</span> <span class="k">null</span><span class="p">;</span>
+  <span class="i">error</span><span class="p">?:</span> <span class="t">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export interface</span> <span class="t">GetMasterPlansResult</span> <span class="p">{</span>
+  <span class="i">plans</span><span class="p">:</span> <span class="t">Plan</span><span class="p">[];</span>
+  <span class="i">error</span><span class="p">?:</span> <span class="t">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">// Props contract for the page-level shell component</span>
+<span class="k">export interface</span> <span class="t">PlanShellProps</span> <span class="p">{</span>
+  <span class="i">activePlan</span><span class="p">:</span> <span class="t">ActivePlan</span> <span class="p">|</span> <span class="k">null</span><span class="p">;</span>
+  <span class="i">masterPlans</span><span class="p">:</span> <span class="t">Plan</span><span class="p">[];</span>
+  <span class="i">locationId</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ══════════════ SECTION 2: QUERIES ══════════════ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="step-badge">2</div>
+    <div class="section-meta">
+      <h2>GraphQL Queries <span class="tag tag-gql">GraphQL</span></h2>
+      <p>Define your data contracts before writing any fetch logic.</p>
+    </div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path">
+        <span class="dir">src/modules/plans/graphql/</span>plans.queries.ts
+      </span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import</span> <span class="p">{</span> <span class="i">gql</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'graphql-tag'</span><span class="p">;</span>
+
+<span class="k">export const</span> <span class="i">GET_ACTIVE_PLAN</span> <span class="p">=</span> <span class="f">gql</span><span class="s">`
+  query GetActivePlan($locationId: ID!) {
+    activePlan(locationId: $locationId) {
+      id
+      startDate
+      renewalDate
+      status
+      plan {
+        id
+        name
+        description
+        price
+        interval
+        features {
+          id
+          name
+          description
+          included
+        }
+      }
+    }
+  }
+`</span><span class="p">;</span>
+
+<span class="k">export const</span> <span class="i">GET_MASTER_PLANS</span> <span class="p">=</span> <span class="f">gql</span><span class="s">`
+  query GetMasterPlans {
+    plans {
+      id
+      name
+      description
+      price
+      interval
+      status
+      isPopular
+      features {
+        id
+        name
+        description
+        included
+      }
+    }
+  }
+`</span><span class="p">;</span></code></pre>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ══════════════ SECTION 3: MUTATIONS ══════════════ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="step-badge">3</div>
+    <div class="section-meta">
+      <h2>GraphQL Mutations <span class="tag tag-gql">GraphQL</span></h2>
+      <p>Keep mutations in a separate file from queries — easier to find and audit.</p>
+    </div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path">
+        <span class="dir">src/modules/plans/graphql/</span>plans.mutations.ts
+      </span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import</span> <span class="p">{</span> <span class="i">gql</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'graphql-tag'</span><span class="p">;</span>
+
+<span class="k">export const</span> <span class="i">CHANGE_PLAN</span> <span class="p">=</span> <span class="f">gql</span><span class="s">`
+  mutation ChangePlan($locationId: ID!, $planId: ID!) {
+    changePlan(locationId: $locationId, planId: $planId) {
+      id
+      status
+      plan {
+        id
+        name
+        price
+        interval
+      }
+    }
+  }
+`</span><span class="p">;</span></code></pre>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ══════════════ SECTION 4: SERVER ACTION ══════════════ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="step-badge">4</div>
+    <div class="section-meta">
+      <h2>Server Actions <span class="tag tag-srv">Server</span></h2>
+      <p>These run on the server. They call GraphQL and return typed results to Server Components.</p>
+    </div>
+  </div>
+
+  <div class="note note-warn">
+    <span class="note-icon">⚠️</span>
+    <span>Make sure your <code>getClient()</code> from <code>@/lib/apollo-server-client</code> is already set up to forward Cognito session tokens to GraphQL. If not, do that before wiring these actions.</span>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path">
+        <span class="dir">src/modules/plans/actions/</span>server-plans.ts
+      </span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use server'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">getClient</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/lib/apollo-server-client'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">GET_ACTIVE_PLAN</span><span class="p">,</span> <span class="i">GET_MASTER_PLANS</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../graphql/plans.queries'</span><span class="p">;</span>
+<span class="k">import type</span> <span class="p">{</span>
+  <span class="t">GetActivePlanResult</span><span class="p">,</span>
+  <span class="t">GetMasterPlansResult</span><span class="p">,</span>
+<span class="p">}</span> <span class="k">from</span> <span class="s">'../types/plans.types'</span><span class="p">;</span>
+
+<span class="k">export async function</span> <span class="f">getActivePlan</span><span class="p">(</span>
+  <span class="i">locationId</span><span class="p">:</span> <span class="t">string</span>
+<span class="p">):</span> <span class="t">Promise</span><span class="p">&lt;</span><span class="t">GetActivePlanResult</span><span class="p">&gt;</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="k">const</span> <span class="p">{</span> <span class="i">data</span> <span class="p">}</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getClient</span><span class="p">().</span><span class="f">query</span><span class="p">({</span>
+      <span class="i">query</span><span class="p">:</span> <span class="i">GET_ACTIVE_PLAN</span><span class="p">,</span>
+      <span class="i">variables</span><span class="p">:</span> <span class="p">{</span> <span class="i">locationId</span> <span class="p">},</span>
+    <span class="p">});</span>
+    <span class="k">return</span> <span class="p">{</span> <span class="i">activePlan</span><span class="p">:</span> <span class="i">data</span><span class="p">.</span><span class="i">activePlan</span> <span class="p">??</span> <span class="k">null</span> <span class="p">};</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="i">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="i">console</span><span class="p">.</span><span class="f">error</span><span class="p">(</span><span class="s">'[getActivePlan]'</span><span class="p">,</span> <span class="i">error</span><span class="p">);</span>
+    <span class="k">return</span> <span class="p">{</span> <span class="i">activePlan</span><span class="p">:</span> <span class="k">null</span><span class="p">,</span> <span class="i">error</span><span class="p">:</span> <span class="s">'Failed to fetch active plan'</span> <span class="p">};</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">export async function</span> <span class="f">getMasterPlans</span><span class="p">():</span> <span class="t">Promise</span><span class="p">&lt;</span><span class="t">GetMasterPlansResult</span><span class="p">&gt;</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="k">const</span> <span class="p">{</span> <span class="i">data</span> <span class="p">}</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getClient</span><span class="p">().</span><span class="f">query</span><span class="p">({</span>
+      <span class="i">query</span><span class="p">:</span> <span class="i">GET_MASTER_PLANS</span><span class="p">,</span>
+    <span class="p">});</span>
+    <span class="k">return</span> <span class="p">{</span> <span class="i">plans</span><span class="p">:</span> <span class="i">data</span><span class="p">.</span><span class="i">plans</span> <span class="p">??</span> <span class="p">[]</span> <span class="p">};</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="i">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="i">console</span><span class="p">.</span><span class="f">error</span><span class="p">(</span><span class="s">'[getMasterPlans]'</span><span class="p">,</span> <span class="i">error</span><span class="p">);</span>
+    <span class="k">return</span> <span class="p">{</span> <span class="i">plans</span><span class="p">:</span> <span class="p">[],</span> <span class="i">error</span><span class="p">:</span> <span class="s">'Failed to fetch master plans'</span> <span class="p">};</span>
+  <span class="p">}</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ══════════════ SECTION 5: CONSTANTS ══════════════ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="step-badge">5</div>
+    <div class="section-meta">
+      <h2>Query Key Constants <span class="tag tag-const">Constants</span></h2>
+      <p>Centralised query keys prevent cache invalidation bugs across hooks.</p>
+    </div>
+  </div>
+
+  <div class="note note-tip">
+    <span class="note-icon">💡</span>
+    <span>Never hardcode query key strings inside hooks. One rename here fixes cache everywhere.</span>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path">
+        <span class="dir">src/modules/plans/lib/</span>plans.constants.ts
+      </span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">// Centralised TanStack Query keys for the plans module.
+// Use these everywhere — hooks, invalidations, prefetching.</span>
+<span class="k">export const</span> <span class="i">PLAN_QUERY_KEYS</span> <span class="p">=</span> <span class="p">{</span>
+  <span class="i">all</span><span class="p">:</span> <span class="p">[</span><span class="s">'plans'</span><span class="p">]</span> <span class="k">as const</span><span class="p">,</span>
+  <span class="f">activePlan</span><span class="p">:</span> <span class="p">(</span><span class="i">locationId</span><span class="p">:</span> <span class="t">string</span><span class="p">)</span> <span class="p">=&gt;</span>
+    <span class="p">[</span><span class="s">'plans'</span><span class="p">,</span> <span class="s">'active'</span><span class="p">,</span> <span class="i">locationId</span><span class="p">]</span> <span class="k">as const</span><span class="p">,</span>
+  <span class="f">masterPlans</span><span class="p">:</span> <span class="p">()</span> <span class="p">=&gt;</span>
+    <span class="p">[</span><span class="s">'plans'</span><span class="p">,</span> <span class="s">'master'</span><span class="p">]</span> <span class="k">as const</span><span class="p">,</span>
+<span class="p">} <span class="k">as const</span><span class="p">;</span></span></code></pre>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ══════════════ SECTION 6: HOOK ══════════════ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="step-badge">6</div>
+    <div class="section-meta">
+      <h2>Client Mutation Hook <span class="tag tag-cli">Client</span></h2>
+      <p>Client-side only — handles the plan change mutation and cache invalidation.</p>
+    </div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path">
+        <span class="dir">src/modules/plans/hooks/</span>useChangePlan.ts
+      </span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use client'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">useMutation</span><span class="p">,</span> <span class="i">useQueryClient</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@tanstack/react-query'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">CHANGE_PLAN</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../graphql/plans.mutations'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">useGraphQLClient</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/hooks/useGraphQLClient'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">PLAN_QUERY_KEYS</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../lib/plans.constants'</span><span class="p">;</span>
+<span class="k">import type</span> <span class="p">{</span> <span class="t">ActivePlan</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../types/plans.types'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">ChangePlanVariables</span> <span class="p">{</span>
+  <span class="i">planId</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export function</span> <span class="f">useChangePlan</span><span class="p">(</span><span class="i">locationId</span><span class="p">:</span> <span class="t">string</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="i">queryClient</span> <span class="p">=</span> <span class="f">useQueryClient</span><span class="p">();</span>
+  <span class="k">const</span> <span class="i">graphqlClient</span> <span class="p">=</span> <span class="f">useGraphQLClient</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="f">useMutation</span><span class="p">&lt;</span><span class="t">ActivePlan</span><span class="p">,</span> <span class="t">Error</span><span class="p">,</span> <span class="t">ChangePlanVariables</span><span class="p">&gt;({</span>
+    <span class="f">mutationFn</span><span class="p">:</span> <span class="k">async</span> <span class="p">({</span> <span class="i">planId</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">{</span>
+      <span class="k">const</span> <span class="i">data</span> <span class="p">=</span> <span class="k">await</span> <span class="i">graphqlClient</span><span class="p">.</span><span class="f">request</span><span class="p">(</span><span class="i">CHANGE_PLAN</span><span class="p">,</span> <span class="p">{</span>
+        <span class="i">locationId</span><span class="p">,</span>
+        <span class="i">planId</span><span class="p">,</span>
+      <span class="p">});</span>
+      <span class="k">return</span> <span class="i">data</span><span class="p">.</span><span class="i">changePlan</span><span class="p">;</span>
+    <span class="p">},</span>
+    <span class="f">onSuccess</span><span class="p">:</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+      <span class="c">// Invalidate so active plan refetches from server</span>
+      <span class="i">queryClient</span><span class="p">.</span><span class="f">invalidateQueries</span><span class="p">({</span>
+        <span class="i">queryKey</span><span class="p">:</span> <span class="i">PLAN_QUERY_KEYS</span><span class="p">.</span><span class="f">activePlan</span><span class="p">(</span><span class="i">locationId</span><span class="p">),</span>
+      <span class="p">});</span>
+    <span class="p">},</span>
+  <span class="p">});</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ══════════════ SECTION 7: PAGE ══════════════ -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <div class="step-badge">7</div>
+    <div class="section-meta">
+      <h2>Plan Selection Page <span class="tag tag-srv">Server Component</span></h2>
+      <p>Fetches all data server-side in parallel, passes down to the Shell client component.</p>
+    </div>
+  </div>
+
+  <div class="note note-tip">
+    <span class="note-icon">💡</span>
+    <span><strong>Always use Promise.all</strong> for parallel server fetches — never await them sequentially. Sequential awaits add latency equal to the sum of all requests. Parallel keeps it to the slowest one.</span>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path">
+        <span class="dir">src/app/(protected)/location/[slug]/[fn]/plan-selection/</span>page.tsx
+      </span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import</span> <span class="p">{</span> <span class="i">notFound</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'next/navigation'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getActivePlan</span><span class="p">,</span> <span class="i">getMasterPlans</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/plans/actions/server-plans'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">PlanShell</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/plans/components/PlanShell'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">Props</span> <span class="p">{</span>
+  <span class="i">params</span><span class="p">:</span> <span class="t">Promise</span><span class="p">&lt;{</span> <span class="i">slug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span> <span class="i">fn</span><span class="p">:</span> <span class="t">string</span> <span class="p">}&gt;;</span>
+<span class="p">}</span>
+
+<span class="k">export default async function</span> <span class="f">PlanSelectionPage</span><span class="p">({</span> <span class="i">params</span> <span class="p">}:</span> <span class="t">Props</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="p">{</span> <span class="i">slug</span> <span class="p">}</span> <span class="p">=</span> <span class="k">await</span> <span class="i">params</span><span class="p">;</span>
+
+  <span class="c">// ✅ Parallel fetch — never sequential awaits</span>
+  <span class="k">const</span> <span class="p">[</span><span class="i">activePlanResult</span><span class="p">,</span> <span class="i">masterPlansResult</span><span class="p">]</span> <span class="p">=</span> <span class="k">await</span> <span class="t">Promise</span><span class="p">.</span><span class="f">all</span><span class="p">([</span>
+    <span class="f">getActivePlan</span><span class="p">(</span><span class="i">slug</span><span class="p">),</span>
+    <span class="f">getMasterPlans</span><span class="p">(),</span>
+  <span class="p">]);</span>
+
+  <span class="c">// Both failed — nothing useful to render</span>
+  <span class="k">if</span> <span class="p">(</span><span class="i">activePlanResult</span><span class="p">.</span><span class="i">error</span> <span class="p">&amp;&amp;</span> <span class="i">masterPlansResult</span><span class="p">.</span><span class="i">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="f">notFound</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="i">PlanShell</span>
+      <span class="i">activePlan</span><span class="p">={</span><span class="i">activePlanResult</span><span class="p">.</span><span class="i">activePlan</span><span class="p">}</span>
+      <span class="i">masterPlans</span><span class="p">={</span><span class="i">masterPlansResult</span><span class="p">.</span><span class="i">plans</span><span class="p">}</span>
+      <span class="i">locationId</span><span class="p">={</span><span class="i">slug</span><span class="p">}</span>
+    <span class="p">/&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ══════════════ SECTION 8: FN ROUTER ══════════════ -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="step-badge">8</div>
+    <div class="section-meta">
+      <h2>[fn] Router — Replace Switch <span class="tag tag-srv">Server Component</span></h2>
+      <p>Scalable dynamic map pattern. Adding a new function = one line. Zero logic changes.</p>
+    </div>
+  </div>
+
+  <div class="note note-warn">
+    <span class="note-icon">⚠️</span>
+    <span>This <strong>replaces your existing switch statement</strong> in <code>src/app/(protected)/location/[slug]/[fn]/page.tsx</code>. The map pattern scales to 20+ functions without touching routing logic.</span>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path">
+        <span class="dir">src/app/(protected)/location/[slug]/[fn]/</span>page.tsx
+      </span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import</span> <span class="p">{</span> <span class="i">notFound</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'next/navigation'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getNodeAndPathBySlug</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/lib/slug'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getLocationsTree</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/actions/server-locations'</span><span class="p">;</span>
+
+<span class="c">// ─── Import each function page ───────────────────────</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">Config</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'./config/page'</span><span class="p">;</span>
+<span class="k">import</span> <span class="i">PlanSelectionPage</span> <span class="k">from</span> <span class="s">'./plan-selection/page'</span><span class="p">;</span>
+<span class="c">// import TicketsPage   from './tickets/page';
+// import EventsPage    from './events/page';
+// Add one line per new function — nothing else changes</span>
+
+<span class="c">// ─── Map: url segment → page component ───────────────</span>
+<span class="k">const</span> <span class="i">FUNCTION_PAGE_MAP</span> <span class="p">=</span> <span class="p">{</span>
+  <span class="s">'config'</span><span class="p">:</span>           <span class="i">Config</span><span class="p">,</span>
+  <span class="s">'plan-selection'</span><span class="p">:</span>   <span class="i">PlanSelectionPage</span><span class="p">,</span>
+  <span class="c">// 'tickets':        TicketsPage,
+  // 'events':         EventsPage,</span>
+<span class="p">}</span> <span class="k">as const</span><span class="p">;</span>
+
+<span class="k">type</span> <span class="t">FunctionKey</span> <span class="p">=</span> <span class="k">keyof typeof</span> <span class="i">FUNCTION_PAGE_MAP</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">Props</span> <span class="p">{</span>
+  <span class="i">params</span><span class="p">:</span> <span class="t">Promise</span><span class="p">&lt;{</span> <span class="i">slug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span> <span class="i">fn</span><span class="p">:</span> <span class="t">string</span> <span class="p">}&gt;;</span>
+<span class="p">}</span>
+
+<span class="k">export default async function</span> <span class="f">LocationFunctionPage</span><span class="p">({</span> <span class="i">params</span> <span class="p">}:</span> <span class="t">Props</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="p">{</span> <span class="i">slug</span><span class="p">,</span> <span class="i">fn</span> <span class="p">}</span> <span class="p">=</span> <span class="k">await</span> <span class="i">params</span><span class="p">;</span>
+
+  <span class="c">// Validate the location exists in the tree</span>
+  <span class="k">const</span> <span class="i">tree</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getLocationsTree</span><span class="p">();</span>
+  <span class="k">const</span> <span class="i">found</span> <span class="p">=</span> <span class="f">getNodeAndPathBySlug</span><span class="p">(</span><span class="i">tree</span><span class="p">,</span> <span class="i">slug</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">found</span><span class="p">)</span> <span class="f">notFound</span><span class="p">();</span>
+
+  <span class="c">// Resolve the function page from the map</span>
+  <span class="k">const</span> <span class="i">PageComponent</span> <span class="p">=</span> <span class="i">FUNCTION_PAGE_MAP</span><span class="p">[</span><span class="i">fn</span> <span class="k">as</span> <span class="t">FunctionKey</span><span class="p">];</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">PageComponent</span><span class="p">)</span> <span class="f">notFound</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="p">&lt;</span><span class="i">PageComponent</span> <span class="i">params</span><span class="p">={</span><span class="t">Promise</span><span class="p">.</span><span class="f">resolve</span><span class="p">({</span> <span class="i">slug</span><span class="p">,</span> <span class="i">fn</span> <span class="p">})}</span> <span class="p">/&gt;;</span>
+<span class="p">}</span></code></pre>
+  </div>
+
+  <div class="note note-tip">
+    <span class="note-icon">💡</span>
+    <span><strong>Folder structure summary</strong> — create these files in this order:<br/>
+    <code>modules/plans/types/plans.types.ts</code> →
+    <code>modules/plans/graphql/plans.queries.ts</code> →
+    <code>modules/plans/graphql/plans.mutations.ts</code> →
+    <code>modules/plans/actions/server-plans.ts</code> →
+    <code>modules/plans/lib/plans.constants.ts</code> →
+    <code>modules/plans/hooks/useChangePlan.ts</code> →
+    <code>app/(protected)/location/[slug]/[fn]/plan-selection/page.tsx</code> →
+    update <code>app/(protected)/location/[slug]/[fn]/page.tsx</code>
+    </span>
+  </div>
+</div>
+
+<footer>
+  Plans Module · Next.js 15 App Router · TypeScript · GraphQL · TanStack Query
+</footer>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.file-card').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ Copied';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
