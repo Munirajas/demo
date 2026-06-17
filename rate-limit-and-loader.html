@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rate Limit Fix + Navigation Loader</title>
+  <style>
+    :root {
+      --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3250;
+      --accent:#6c8ef5;--accent2:#4ade80;--warn:#f59e42;--danger:#f87171;
+      --text:#e2e8f0;--muted:#7c87a6;--radius:10px;
+      --mono:'Fira Code','Consolas',monospace;--ui:'Inter',system-ui,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:var(--ui);padding:32px 20px 60px;}
+    .header{max-width:980px;margin:0 auto 32px;}
+    .header-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+    .badge{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:3px 10px;border-radius:20px;}
+    .badge-blue{background:var(--accent);color:#fff;}
+    .badge-orange{background:#ea580c;color:#fff;}
+    .badge-green{background:#16a34a;color:#fff;}
+    h1{font-size:22px;font-weight:700;color:#fff;}
+    .header p{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.6;}
+
+    .alert{max-width:980px;margin:0 auto 16px;display:flex;gap:12px;padding:13px 17px;border-radius:8px;font-size:13px;line-height:1.6;}
+    .alert-warn{background:rgba(245,158,66,.1);border-left:3px solid var(--warn);color:#fcd34d;}
+    .alert-tip{background:rgba(74,222,128,.08);border-left:3px solid var(--accent2);color:#86efac;}
+    .alert-danger{background:rgba(248,113,113,.1);border-left:3px solid var(--danger);color:#fca5a5;}
+    .alert-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+    .alert strong{color:#fff;}
+
+    .toc{max-width:980px;margin:0 auto 32px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;}
+    .toc h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;font-weight:600;}
+    .toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:7px;}
+    .toc-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;background:var(--surface2);text-decoration:none;transition:background .15s;}
+    .toc-item:hover{background:var(--border);}
+    .toc-num{font-size:11px;font-weight:800;color:var(--accent);min-width:20px;}
+    .toc-label{font-size:12px;color:var(--text);line-height:1.3;}
+    .toc-path{font-size:10px;color:var(--muted);}
+    .toc-badge{font-size:9px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:10px;margin-left:4px;}
+    .tb-new{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tb-upd{background:rgba(245,158,66,.15);color:var(--warn);}
+
+    .section{max-width:980px;margin:0 auto 24px;}
+    .section-header{display:flex;align-items:flex-start;gap:13px;margin-bottom:12px;}
+    .step{background:var(--accent);color:#fff;font-size:11px;font-weight:800;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+    .step-orange{background:#ea580c;}
+    .step-green{background:#16a34a;}
+    .step-meta h2{font-size:15px;font-weight:700;color:#fff;margin-bottom:2px;}
+    .step-meta p{font-size:12px;color:var(--muted);}
+
+    .tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:20px;margin-left:5px;vertical-align:middle;}
+    .tag-ts{background:rgba(59,130,246,.18);color:#60a5fa;}
+    .tag-tsx{background:rgba(99,102,241,.2);color:#a5b4fc;}
+    .tag-srv{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tag-cli{background:rgba(245,158,66,.15);color:var(--warn);}
+    .tag-new{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tag-upd{background:rgba(248,113,113,.15);color:var(--danger);}
+
+    .file-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:13px;}
+    .file-card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+    .file-path{font-family:var(--mono);font-size:12px;color:var(--accent);}
+    .file-path .dir{color:var(--muted);}
+    .copy-btn{background:var(--border);border:none;color:var(--muted);font-size:11px;font-family:var(--ui);padding:4px 12px;border-radius:5px;cursor:pointer;transition:background .15s,color .15s;}
+    .copy-btn:hover{background:var(--accent);color:#fff;}
+    .copy-btn.copied{background:#166534;color:var(--accent2);}
+    pre{margin:0;padding:20px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.75;color:#cdd6f4;}
+
+    .k{color:#cba6f7;} .s{color:#a6e3a1;} .c{color:#585b70;font-style:italic;}
+    .t{color:#89dceb;} .f{color:#89b4fa;} .p{color:#f38ba8;}
+    .n{color:#fab387;} .i{color:#cdd6f4;} .jsx{color:#f9e2af;}
+
+    hr.div{max-width:980px;margin:6px auto 24px;border:none;border-top:1px solid var(--border);}
+
+    .flow{max-width:980px;margin:0 auto 20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;}
+    .flow h3{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;}
+    .flow pre{font-family:var(--mono);font-size:12px;color:#cdd6f4;line-height:1.9;background:transparent;padding:0;}
+
+    footer{max-width:980px;margin:48px auto 0;text-align:center;font-size:12px;color:var(--muted);}
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <span class="badge badge-orange">Rate Limit Fix</span>
+    <span class="badge badge-green">Navigation Loader</span>
+  </div>
+  <h1>Server Fetch Error Handling + Navigation Loading States</h1>
+  <p>Updated to match your existing <code>serverGqlFetch</code> pattern using <code>GraphQLClient</code> from <code>graphql-request</code>.<br/>
+  Loader uses <code>loading.tsx</code> + <code>useTransition</code> combined for full coverage.</p>
+</div>
+
+<!-- FLOW -->
+<div class="flow">
+  <h3>Navigation Loader Strategy</h3>
+  <pre><span class="s">Full page load</span>  /location/motb
+  → <span class="f">loading.tsx</span> at [slug] level shows skeleton ✅ automatic
+
+<span class="s">Function switch</span>  Plans → Payment Providers (same location)
+  → <span class="f">useTransition</span> in FunctionNav shows spinner ✅ manual
+
+<span class="s">Location switch</span>  MOTB → Grand Hall
+  → <span class="f">useTransition</span> in LocationTreeView shows spinner ✅ manual
+
+<span class="c">Both together = seamless loading for every navigation type</span></pre>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h2>File Index</h2>
+  <div class="toc-grid">
+    <a class="toc-item" href="#s1"><span class="toc-num">01</span><div><div class="toc-label">server-gql-fetcher.ts <span class="toc-badge tb-upd">updated</span></div><div class="toc-path">src/lib/graphql/</div></div></a>
+    <a class="toc-item" href="#s2"><span class="toc-num">02</span><div><div class="toc-label">server-location-functions.ts <span class="toc-badge tb-upd">updated</span></div><div class="toc-path">src/modules/locations/actions/</div></div></a>
+    <a class="toc-item" href="#s3"><span class="toc-num">03</span><div><div class="toc-badge tb-new">new</span> <div class="toc-label">GqlError types</div><div class="toc-path">src/lib/graphql/gql-errors.ts</div></div></a>
+    <a class="toc-item" href="#s4"><span class="toc-num">04</span><div><div class="toc-label">loading.tsx (slug level) <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/app/(protected)/location/[slug]/</div></div></a>
+    <a class="toc-item" href="#s5"><span class="toc-num">05</span><div><div class="toc-label">loading.tsx (fn level) <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/app/(protected)/location/[slug]/[fn]/</div></div></a>
+    <a class="toc-item" href="#s6"><span class="toc-num">06</span><div><div class="toc-label">FunctionNav.tsx <span class="toc-badge tb-upd">updated</span></div><div class="toc-path">src/modules/locations/components/</div></div></a>
+    <a class="toc-item" href="#s7"><span class="toc-num">07</span><div><div class="toc-label">LocationTreeView.tsx <span class="toc-badge tb-upd">updated</span></div><div class="toc-path">src/modules/locations/components/</div></div></a>
+    <a class="toc-item" href="#s8"><span class="toc-num">08</span><div><div class="toc-label">NavLink.tsx (shared) <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/components/nav/</div></div></a>
+  </div>
+</div>
+
+<!-- ══ PART 1 HEADER ══ -->
+<div class="alert alert-danger" style="max-width:980px;margin:0 auto 20px;">
+  <span class="alert-icon">🔴</span>
+  <div><strong>Part 1 — Rate Limit Handling.</strong> Your existing fetcher uses <code>GraphQLClient</code> from <code>graphql-request</code>. The fix wraps the existing pattern — no structural change needed.</div>
+</div>
+
+<!-- ══ 01 GQL ERRORS ══ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="step step-orange">1</div>
+    <div class="step-meta">
+      <h2>gql-errors.ts <span class="tag tag-ts">TypeScript</span><span class="tag tag-new">New</span></h2>
+      <p>Typed error classes. Create this first — both fetcher and actions import from here.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/lib/graphql/</span>gql-errors.ts</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">/**
+ * Typed error classes for GraphQL fetch failures.
+ * Import these in server actions to handle specific error types.
+ */</span>
+
+<span class="c">// Thrown when BE returns HTTP 429</span>
+<span class="k">export class</span> <span class="t">RateLimitError</span> <span class="k">extends</span> <span class="t">Error</span> <span class="p">{</span>
+  <span class="k">readonly</span> <span class="i">statusCode</span> <span class="p">=</span> <span class="n">429</span><span class="p">;</span>
+  <span class="k">constructor</span><span class="p">(</span><span class="i">message</span> <span class="p">=</span> <span class="s">'Too many requests'</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">super</span><span class="p">(</span><span class="i">message</span><span class="p">);</span>
+    <span class="k">this</span><span class="p">.</span><span class="i">name</span> <span class="p">=</span> <span class="s">'RateLimitError'</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">// Thrown when session is expired or token is invalid</span>
+<span class="k">export class</span> <span class="t">SessionExpiredError</span> <span class="k">extends</span> <span class="t">Error</span> <span class="p">{</span>
+  <span class="k">readonly</span> <span class="i">statusCode</span> <span class="p">=</span> <span class="n">401</span><span class="p">;</span>
+  <span class="k">constructor</span><span class="p">(</span><span class="i">message</span> <span class="p">=</span> <span class="s">'Session expired'</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">super</span><span class="p">(</span><span class="i">message</span><span class="p">);</span>
+    <span class="k">this</span><span class="p">.</span><span class="i">name</span> <span class="p">=</span> <span class="s">'SessionExpiredError'</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">// Thrown for all other GraphQL/network failures</span>
+<span class="k">export class</span> <span class="t">GqlFetchError</span> <span class="k">extends</span> <span class="t">Error</span> <span class="p">{</span>
+  <span class="k">constructor</span><span class="p">(</span>
+    <span class="i">message</span><span class="p">:</span> <span class="t">string</span><span class="p">,</span>
+    <span class="k">public readonly</span> <span class="i">statusCode</span><span class="p">?:</span> <span class="t">number</span><span class="p">,</span>
+  <span class="p">)</span> <span class="p">{</span>
+    <span class="k">super</span><span class="p">(</span><span class="i">message</span><span class="p">);</span>
+    <span class="k">this</span><span class="p">.</span><span class="i">name</span> <span class="p">=</span> <span class="s">'GqlFetchError'</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">// Type guard helpers — use in catch blocks</span>
+<span class="k">export function</span> <span class="f">isRateLimitError</span><span class="p">(</span><span class="i">e</span><span class="p">:</span> <span class="t">unknown</span><span class="p">):</span> <span class="i">e</span> <span class="k">is</span> <span class="t">RateLimitError</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="i">e</span> <span class="k">instanceof</span> <span class="t">RateLimitError</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export function</span> <span class="f">isSessionExpiredError</span><span class="p">(</span><span class="i">e</span><span class="p">:</span> <span class="t">unknown</span><span class="p">):</span> <span class="i">e</span> <span class="k">is</span> <span class="t">SessionExpiredError</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="i">e</span> <span class="k">instanceof</span> <span class="t">SessionExpiredError</span><span class="p">;</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 02 SERVER GQL FETCHER ══ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="step step-orange">2</div>
+    <div class="step-meta">
+      <h2>server-gql-fetcher.ts <span class="tag tag-ts">TypeScript</span><span class="tag tag-upd">Updated</span></h2>
+      <p>Keeps your existing GraphQLClient pattern. Adds rate limit detection + retry with exponential backoff.</p>
+    </div>
+  </div>
+  <div class="alert alert-warn" style="max-width:980px;margin:0 auto 12px;">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>Your existing pattern is kept intact.</strong> Only additions: rate limit check before throwing, retry logic, and typed error throwing. Your <code>isAuthError</code>, <code>buildClient</code>, token refresh flow — all unchanged.</div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/lib/graphql/</span>server-gql-fetcher.ts</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use server'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">GraphQLClient</span><span class="p">,</span> <span class="i">ClientError</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'graphql-request'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">GQL_ENDPOINT</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/lib/constants'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getAccessToken</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/modules/auth/lib/cookies'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">refreshAccessToken</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/modules/auth/lib/refresh'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span>
+  <span class="t">RateLimitError</span><span class="p">,</span>
+  <span class="t">SessionExpiredError</span><span class="p">,</span>
+  <span class="t">GqlFetchError</span><span class="p">,</span>
+<span class="p">}</span> <span class="k">from</span> <span class="s">'./gql-errors'</span><span class="p">;</span>
+
+<span class="c">// ─── Config ────────────────────────────────────────────</span>
+<span class="k">const</span> <span class="i">MAX_RETRIES</span> <span class="p">=</span> <span class="n">2</span><span class="p">;</span>
+<span class="k">const</span> <span class="i">BASE_RETRY_DELAY_MS</span> <span class="p">=</span> <span class="n">400</span><span class="p">;</span>
+
+<span class="k">function</span> <span class="f">wait</span><span class="p">(</span><span class="i">ms</span><span class="p">:</span> <span class="t">number</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return new</span> <span class="t">Promise</span><span class="p">((</span><span class="i">r</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="f">setTimeout</span><span class="p">(</span><span class="i">r</span><span class="p">,</span> <span class="i">ms</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="c">// ─── YOUR existing buildClient — unchanged ─────────────</span>
+<span class="k">function</span> <span class="f">buildClient</span><span class="p">(</span><span class="i">token</span><span class="p">:</span> <span class="t">string</span><span class="p">):</span> <span class="t">GraphQLClient</span> <span class="p">{</span>
+  <span class="k">return new</span> <span class="t">GraphQLClient</span><span class="p">(</span><span class="i">GQL_ENDPOINT</span><span class="p">,</span> <span class="p">{</span>
+    <span class="i">headers</span><span class="p">:</span> <span class="p">{</span> <span class="i">Authorization</span><span class="p">:</span> <span class="s">`Bearer <span class="i">${token}</span>`</span> <span class="p">},</span>
+  <span class="p">});</span>
+<span class="p">}</span>
+
+<span class="c">// ─── YOUR existing isAuthError — unchanged ─────────────</span>
+<span class="k">function</span> <span class="f">isAuthError</span><span class="p">(</span><span class="i">error</span><span class="p">:</span> <span class="t">unknown</span><span class="p">):</span> <span class="t">boolean</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="i">error</span> <span class="k">instanceof</span> <span class="t">ClientError</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="i">error</span><span class="p">.</span><span class="i">response</span><span class="p">.</span><span class="i">status</span> <span class="p">===</span> <span class="n">401</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">return false</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">// ─── NEW: rate limit detection ─────────────────────────</span>
+<span class="k">function</span> <span class="f">isRateLimitResponse</span><span class="p">(</span><span class="i">error</span><span class="p">:</span> <span class="t">unknown</span><span class="p">):</span> <span class="t">boolean</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="i">error</span> <span class="k">instanceof</span> <span class="t">ClientError</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="i">error</span><span class="p">.</span><span class="i">response</span><span class="p">.</span><span class="i">status</span> <span class="p">===</span> <span class="n">429</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="c">// Also catch plain text "Too many r..." parse errors</span>
+  <span class="k">if</span> <span class="p">(</span><span class="i">error</span> <span class="k">instanceof</span> <span class="t">SyntaxError</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="i">error</span><span class="p">.</span><span class="i">message</span><span class="p">.</span><span class="f">includes</span><span class="p">(</span><span class="s">'Too many'</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">return false</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">// ─── UPDATED serverGqlFetch ────────────────────────────</span>
+<span class="k">export async function</span> <span class="f">serverGqlFetch</span><span class="p">&lt;</span>
+  <span class="t">TData</span><span class="p">,</span>
+  <span class="t">TVars</span> <span class="k">extends</span> <span class="t">Record</span><span class="p">&lt;</span><span class="t">string</span><span class="p">,</span> <span class="t">unknown</span><span class="p">&gt;</span> <span class="p">=</span> <span class="t">Record</span><span class="p">&lt;</span><span class="t">string</span><span class="p">,</span> <span class="t">unknown</span><span class="p">&gt;</span>
+<span class="p">&gt;(</span>
+  <span class="i">query</span><span class="p">:</span> <span class="t">string</span><span class="p">,</span>
+  <span class="i">variables</span><span class="p">?:</span> <span class="t">TVars</span><span class="p">,</span>
+  <span class="i">retryCount</span> <span class="p">=</span> <span class="n">0</span><span class="p">,</span>
+<span class="p">):</span> <span class="t">Promise</span><span class="p">&lt;</span><span class="t">TData</span><span class="p">&gt;</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="i">token</span><span class="p">:</span> <span class="t">string</span> <span class="p">|</span> <span class="k">undefined</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getAccessToken</span><span class="p">();</span>
+  <span class="k">let</span> <span class="i">alreadyRefreshed</span> <span class="p">=</span> <span class="k">false</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(!</span><span class="i">token</span><span class="p">)</span> <span class="p">{</span>
+    <span class="i">token</span> <span class="p">=</span> <span class="p">(</span><span class="k">await</span> <span class="f">refreshAccessToken</span><span class="p">())</span> <span class="p">??</span> <span class="k">undefined</span><span class="p">;</span>
+    <span class="i">alreadyRefreshed</span> <span class="p">=</span> <span class="k">true</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(!</span><span class="i">token</span><span class="p">)</span> <span class="k">throw new</span> <span class="t">SessionExpiredError</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="k">const</span> <span class="i">result</span> <span class="p">=</span> <span class="k">await</span> <span class="f">buildClient</span><span class="p">(</span><span class="i">token</span><span class="p">).</span><span class="f">request</span><span class="p">&lt;</span><span class="t">TData</span><span class="p">&gt;(</span>
+      <span class="i">query</span><span class="p">,</span>
+      <span class="i">variables</span><span class="p">,</span>
+    <span class="p">);</span>
+    <span class="k">return</span> <span class="i">result</span><span class="p">;</span>
+
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="i">error</span><span class="p">)</span> <span class="p">{</span>
+
+    <span class="c">// ── Rate limit: retry with exponential backoff ──────</span>
+    <span class="k">if</span> <span class="p">(</span><span class="f">isRateLimitResponse</span><span class="p">(</span><span class="i">error</span><span class="p">))</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span><span class="i">retryCount</span> <span class="p">&lt;</span> <span class="i">MAX_RETRIES</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">const</span> <span class="i">delay</span> <span class="p">=</span> <span class="i">BASE_RETRY_DELAY_MS</span> <span class="p">*</span> <span class="t">Math</span><span class="p">.</span><span class="f">pow</span><span class="p">(</span><span class="n">2</span><span class="p">,</span> <span class="i">retryCount</span><span class="p">);</span>
+        <span class="i">console</span><span class="p">.</span><span class="f">warn</span><span class="p">(</span>
+          <span class="s">`[serverGqlFetch] Rate limited. Retry <span class="i">${retryCount + 1}</span>/<span class="i">${MAX_RETRIES}</span>`</span>
+          <span class="p">+</span> <span class="s">` in <span class="i">${delay}</span>ms`</span>
+        <span class="p">);</span>
+        <span class="k">await</span> <span class="f">wait</span><span class="p">(</span><span class="i">delay</span><span class="p">);</span>
+        <span class="c">// Recursive retry — passes retryCount up</span>
+        <span class="k">return</span> <span class="f">serverGqlFetch</span><span class="p">&lt;</span><span class="t">TData</span><span class="p">,</span> <span class="t">TVars</span><span class="p">&gt;(</span>
+          <span class="i">query</span><span class="p">,</span> <span class="i">variables</span><span class="p">,</span> <span class="i">retryCount</span> <span class="p">+</span> <span class="n">1</span>
+        <span class="p">);</span>
+      <span class="p">}</span>
+      <span class="c">// All retries exhausted — throw typed error</span>
+      <span class="i">console</span><span class="p">.</span><span class="f">error</span><span class="p">(</span><span class="s">'[serverGqlFetch] Rate limit exceeded after retries'</span><span class="p">);</span>
+      <span class="k">throw new</span> <span class="t">RateLimitError</span><span class="p">();</span>
+    <span class="p">}</span>
+
+    <span class="c">// ── Auth error: try token refresh once ──────────────</span>
+    <span class="k">if</span> <span class="p">(</span><span class="f">isAuthError</span><span class="p">(</span><span class="i">error</span><span class="p">))</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span><span class="i">alreadyRefreshed</span><span class="p">)</span> <span class="k">throw new</span> <span class="t">SessionExpiredError</span><span class="p">();</span>
+      <span class="k">const</span> <span class="i">newToken</span> <span class="p">=</span> <span class="p">(</span><span class="k">await</span> <span class="f">refreshAccessToken</span><span class="p">())</span> <span class="p">??</span> <span class="k">undefined</span><span class="p">;</span>
+      <span class="k">if</span> <span class="p">(!</span><span class="i">newToken</span><span class="p">)</span> <span class="k">throw new</span> <span class="t">SessionExpiredError</span><span class="p">();</span>
+      <span class="k">return</span> <span class="f">buildClient</span><span class="p">(</span><span class="i">newToken</span><span class="p">).</span><span class="f">request</span><span class="p">&lt;</span><span class="t">TData</span><span class="p">&gt;(</span><span class="i">query</span><span class="p">,</span> <span class="i">variables</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="c">// ── Everything else ─────────────────────────────────</span>
+    <span class="i">console</span><span class="p">.</span><span class="f">error</span><span class="p">(</span><span class="s">'[serverGqlFetch] Unexpected error:'</span><span class="p">,</span> <span class="i">error</span><span class="p">);</span>
+    <span class="k">throw new</span> <span class="t">GqlFetchError</span><span class="p">(</span>
+      <span class="i">error</span> <span class="k">instanceof</span> <span class="t">Error</span>
+        <span class="p">?</span> <span class="i">error</span><span class="p">.</span><span class="i">message</span>
+        <span class="p">:</span> <span class="s">'GraphQL request failed'</span>
+    <span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 03 SERVER LOCATION FUNCTIONS ══ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="step step-orange">3</div>
+    <div class="step-meta">
+      <h2>server-location-functions.ts <span class="tag tag-ts">TypeScript</span><span class="tag tag-upd">Updated</span></h2>
+      <p>Updated catch block to handle typed errors. Same pattern applies to ALL your server actions.</p>
+    </div>
+  </div>
+  <div class="alert alert-tip" style="max-width:980px;margin:0 auto 12px;">
+    <span class="alert-icon">💡</span>
+    <div><strong>Apply this catch pattern to every server action</strong> — <code>server-locations.ts</code>, <code>server-location-plans.ts</code> etc. Only the catch block changes, nothing else.</div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/locations/actions/</span>server-location-functions.ts</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use server'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">cache</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'react'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">serverGqlFetch</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/lib/graphql/server-gql-fetcher'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="t">LocationFunction</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/types/locations'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">FUNCTION_MAPPING</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../lib/constants'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">GET_LOCATION_FUNCTIONS</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../graphql/locations.mutations'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span>
+  <span class="f">isRateLimitError</span><span class="p">,</span>
+  <span class="f">isSessionExpiredError</span><span class="p">,</span>
+<span class="p">}</span> <span class="k">from</span> <span class="s">'@/lib/graphql/gql-errors'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">GetLocationConfigResponse</span> <span class="p">{</span>
+  <span class="i">getLocationFunctions</span><span class="p">: {</span>
+    <span class="i">success</span><span class="p">:</span> <span class="t">boolean</span><span class="p">;</span>
+    <span class="i">message</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+    <span class="i">data</span><span class="p">:</span> <span class="t">LocationFunction</span><span class="p">[];</span>
+  <span class="p">};</span>
+<span class="p">}</span>
+
+<span class="k">export const</span> <span class="i">getLocationFunctions</span> <span class="p">=</span> <span class="f">cache</span><span class="p">(</span>
+  <span class="k">async</span> <span class="p">(</span><span class="i">locationId</span><span class="p">:</span> <span class="t">string</span><span class="p">):</span> <span class="t">Promise</span><span class="p">&lt;</span><span class="t">LocationFunction</span><span class="p">[]&gt;</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="k">try</span> <span class="p">{</span>
+      <span class="k">const</span> <span class="i">response</span> <span class="p">=</span> <span class="k">await</span> <span class="i">serverGqlFetch</span><span class="p">&lt;</span><span class="t">GetLocationConfigResponse</span><span class="p">&gt;(</span>
+        <span class="i">GET_LOCATION_FUNCTIONS</span><span class="p">,</span>
+        <span class="p">{</span> <span class="i">type</span><span class="p">:</span> <span class="s">'client'</span><span class="p">,</span> <span class="i">locationId</span><span class="p">:</span> <span class="t">Number</span><span class="p">(</span><span class="i">locationId</span><span class="p">)</span> <span class="p">},</span>
+      <span class="p">);</span>
+
+      <span class="k">if</span> <span class="p">(!</span><span class="i">response</span><span class="p">.</span><span class="i">getLocationFunctions</span><span class="p">?.</span><span class="i">success</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="p">[];</span>
+      <span class="p">}</span>
+
+      <span class="k">const</span> <span class="i">functionsData</span> <span class="p">=</span>
+        <span class="i">response</span><span class="p">.</span><span class="i">getLocationFunctions</span><span class="p">.</span><span class="i">data</span><span class="p">;</span>
+      <span class="k">const</span> <span class="i">apiIds</span> <span class="p">=</span> <span class="k">new</span> <span class="t">Set</span><span class="p">(</span>
+        <span class="i">functionsData</span><span class="p">.</span><span class="f">map</span><span class="p">((</span><span class="i">i</span><span class="p">:</span> <span class="t">LocationFunction</span><span class="p">)</span> <span class="p">=&gt;</span>
+          <span class="i">i</span><span class="p">.</span><span class="i">Function_Type_Id</span>
+        <span class="p">),</span>
+      <span class="p">);</span>
+      <span class="k">return</span> <span class="i">FUNCTION_MAPPING</span><span class="p">.</span><span class="f">filter</span><span class="p">((</span><span class="i">fn</span><span class="p">)</span> <span class="p">=&gt;</span>
+        <span class="i">apiIds</span><span class="p">.</span><span class="f">has</span><span class="p">(</span><span class="i">fn</span><span class="p">.</span><span class="i">Function_Type_Id</span><span class="p">),</span>
+      <span class="p">);</span>
+
+    <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="i">error</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c">// ── Rate limit: return empty, don't crash ──────────</span>
+      <span class="k">if</span> <span class="p">(</span><span class="f">isRateLimitError</span><span class="p">(</span><span class="i">error</span><span class="p">))</span> <span class="p">{</span>
+        <span class="i">console</span><span class="p">.</span><span class="f">warn</span><span class="p">(</span><span class="s">'[getLocationFunctions] Rate limited — returning []'</span><span class="p">);</span>
+        <span class="k">return</span> <span class="p">[];</span>
+      <span class="p">}</span>
+      <span class="c">// ── Session expired: re-throw so middleware handles ─</span>
+      <span class="k">if</span> <span class="p">(</span><span class="f">isSessionExpiredError</span><span class="p">(</span><span class="i">error</span><span class="p">))</span> <span class="k">throw</span> <span class="i">error</span><span class="p">;</span>
+
+      <span class="c">// ── Anything else: log and degrade gracefully ───────</span>
+      <span class="i">console</span><span class="p">.</span><span class="f">error</span><span class="p">(</span><span class="s">'[getLocationFunctions]'</span><span class="p">,</span> <span class="i">error</span><span class="p">);</span>
+      <span class="k">return</span> <span class="p">[];</span>
+    <span class="p">}</span>
+  <span class="p">},</span>
+<span class="p">);</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ PART 2 HEADER ══ -->
+<div class="alert alert-tip" style="max-width:980px;margin:0 auto 20px;">
+  <span class="alert-icon">🟢</span>
+  <div><strong>Part 2 — Navigation Loader.</strong> <code>loading.tsx</code> handles automatic skeleton on full page load. <code>useTransition</code> in nav components handles same-layout navigation (function/location switching).</div>
+</div>
+
+<!-- ══ 04 LOADING SLUG ══ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="step step-green">4</div>
+    <div class="step-meta">
+      <h2>[slug]/loading.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-new">New</span></h2>
+      <p>Auto-shown by Next.js when navigating to a new location. Renders in Col 2+3 area while layout fetches data.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/app/(protected)/location/[slug]/</span>loading.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">// Next.js automatically shows this while [slug]/layout.tsx
+// is fetching data (getLocationsTree, getLocationFunctions).
+// No imports needed — pure skeleton UI.</span>
+
+<span class="k">export default function</span> <span class="f">LocationLoading</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex flex-1 animate-pulse"</span><span class="p">&gt;</span>
+      <span class="c">{/* Col 2 skeleton — function nav */}</span>
+      <span class="p">&lt;</span><span class="jsx">aside</span> <span class="i">className</span><span class="p">=</span><span class="s">"w-52 flex-shrink-0 border-r
+        border-gray-200 bg-white p-4"</span><span class="p">&gt;</span>
+        <span class="c">{/* Location name skeleton */}</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-4 border-b border-gray-100 pb-3"</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-2 h-3 w-16 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-4 w-28 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+        <span class="c">{/* Function nav items skeleton */}</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"space-y-2"</span><span class="p">&gt;</span>
+          <span class="p">{[</span><span class="n">80</span><span class="p">,</span> <span class="n">110</span><span class="p">,</span> <span class="n">65</span><span class="p">,</span> <span class="n">95</span><span class="p">,</span> <span class="n">75</span><span class="p">].</span><span class="f">map</span><span class="p">((</span><span class="i">w</span><span class="p">,</span> <span class="i">i</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">(</span>
+            <span class="p">&lt;</span><span class="jsx">div</span>
+              <span class="i">key</span><span class="p">={</span><span class="i">i</span><span class="p">}</span>
+              <span class="i">className</span><span class="p">=</span><span class="s">"h-8 rounded bg-gray-100 px-3"</span>
+              <span class="i">style</span><span class="p">={{</span> <span class="i">width</span><span class="p">:</span> <span class="s">`<span class="i">${w}</span>%`</span> <span class="p">}}</span>
+            <span class="p">/&gt;</span>
+          <span class="p">))}</span>
+        <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">aside</span><span class="p">&gt;</span>
+
+      <span class="c">{/* Col 3 skeleton — content area */}</span>
+      <span class="p">&lt;</span><span class="jsx">main</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex-1 bg-gray-50 p-6"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-6 h-6 w-40 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"grid grid-cols-3 gap-4"</span><span class="p">&gt;</span>
+          <span class="p">{[</span><span class="n">1</span><span class="p">,</span> <span class="n">2</span><span class="p">,</span> <span class="n">3</span><span class="p">].</span><span class="f">map</span><span class="p">((</span><span class="i">i</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">(</span>
+            <span class="p">&lt;</span><span class="jsx">div</span>
+              <span class="i">key</span><span class="p">={</span><span class="i">i</span><span class="p">}</span>
+              <span class="i">className</span><span class="p">=</span><span class="s">"h-28 rounded-lg border
+                border-gray-200 bg-white"</span>
+            <span class="p">/&gt;</span>
+          <span class="p">))}</span>
+        <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">main</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 05 LOADING FN ══ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="step step-green">5</div>
+    <div class="step-meta">
+      <h2>[fn]/loading.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-new">New</span></h2>
+      <p>Shown while function page data loads. Only Col 3 content — Col 1 and Col 2 stay visible.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/app/(protected)/location/[slug]/[fn]/</span>loading.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">// Shown while [fn]/page.tsx server data fetches.
+// Col 1 (tree) and Col 2 (function nav) stay fully visible.
+// Only this content area shows loading state.</span>
+
+<span class="k">export default function</span> <span class="f">FunctionPageLoading</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex-1 animate-pulse p-6"</span><span class="p">&gt;</span>
+      <span class="c">{/* Page title skeleton */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-6"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-2 h-5 w-36 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-3 w-56 rounded bg-gray-100"</span> <span class="p">/&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+
+      <span class="c">{/* Active plan banner skeleton */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-6 h-16 w-full rounded-lg
+        border border-gray-200 bg-gray-100"</span> <span class="p">/&gt;</span>
+
+      <span class="c">{/* Cards skeleton */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"grid grid-cols-1 gap-3
+        sm:grid-cols-2 lg:grid-cols-3"</span><span class="p">&gt;</span>
+        <span class="p">{[</span><span class="n">1</span><span class="p">,</span> <span class="n">2</span><span class="p">,</span> <span class="n">3</span><span class="p">].</span><span class="f">map</span><span class="p">((</span><span class="i">i</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">(</span>
+          <span class="p">&lt;</span><span class="jsx">div</span>
+            <span class="i">key</span><span class="p">={</span><span class="i">i</span><span class="p">}</span>
+            <span class="i">className</span><span class="p">=</span><span class="s">"h-24 rounded-lg border-2
+              border-gray-200 bg-white p-4"</span>
+          <span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-2 h-4 w-3/4 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+            <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-3 w-1/2 rounded bg-gray-100"</span> <span class="p">/&gt;</span>
+          <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+        <span class="p">))}</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 06 NAV LINK ══ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="step step-green">6</div>
+    <div class="step-meta">
+      <h2>NavLink.tsx — Shared <span class="tag tag-tsx">TSX</span><span class="tag tag-cli">Client</span><span class="tag tag-new">New</span></h2>
+      <p>Reusable nav link with built-in pending state via useTransition. Use this in FunctionNav AND LocationTreeView.</p>
+    </div>
+  </div>
+  <div class="alert alert-tip" style="max-width:980px;margin:0 auto 12px;">
+    <span class="alert-icon">💡</span>
+    <div><strong>Why useTransition here?</strong> <code>loading.tsx</code> only fires on full segment navigation. When switching between functions (same layout, different fn), there's no loading.tsx trigger — <code>useTransition</code> fills this gap and shows a spinner on the clicked item only.</div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/components/nav/</span>NavLink.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use client'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">useTransition</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'react'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">useRouter</span><span class="p">,</span> <span class="i">usePathname</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'next/navigation'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">NavLinkProps</span> <span class="p">{</span>
+  <span class="i">href</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">label</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">className</span><span class="p">?:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">activeClassName</span><span class="p">?:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">inactiveClassName</span><span class="p">?:</span> <span class="t">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">/**
+ * NavLink — nav button with useTransition pending state.
+ *
+ * Shows a spinner on the clicked item while the next
+ * server page loads. Works for ALL nav types:
+ *   - function switching (FunctionNav)
+ *   - location switching (LocationTreeView)
+ *
+ * PATTERN: use this instead of plain <Link> in any nav
+ * component that needs a loading indicator.
+ */</span>
+<span class="k">export function</span> <span class="f">NavLink</span><span class="p">({</span>
+  <span class="i">href</span><span class="p">,</span>
+  <span class="i">label</span><span class="p">,</span>
+  <span class="i">activeClassName</span> <span class="p">=</span> <span class="s">'border-l-2 border-blue-500 bg-blue-50 font-medium text-blue-700'</span><span class="p">,</span>
+  <span class="i">inactiveClassName</span> <span class="p">=</span> <span class="s">'text-gray-600 hover:bg-gray-50 hover:text-gray-900'</span><span class="p">,</span>
+<span class="p">}:</span> <span class="t">NavLinkProps</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="i">router</span> <span class="p">=</span> <span class="f">useRouter</span><span class="p">();</span>
+  <span class="k">const</span> <span class="i">pathname</span> <span class="p">=</span> <span class="f">usePathname</span><span class="p">();</span>
+  <span class="k">const</span> <span class="p">[</span><span class="i">isPending</span><span class="p">,</span> <span class="i">startTransition</span><span class="p">]</span> <span class="p">=</span> <span class="f">useTransition</span><span class="p">();</span>
+
+  <span class="k">const</span> <span class="i">isActive</span> <span class="p">=</span> <span class="i">pathname</span> <span class="p">===</span> <span class="i">href</span><span class="p">;</span>
+
+  <span class="k">function</span> <span class="f">handleClick</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="i">isActive</span><span class="p">)</span> <span class="k">return</span><span class="p">;</span>
+    <span class="f">startTransition</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+      <span class="i">router</span><span class="p">.</span><span class="f">push</span><span class="p">(</span><span class="i">href</span><span class="p">);</span>
+    <span class="p">});</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">button</span>
+      <span class="i">type</span><span class="p">=</span><span class="s">"button"</span>
+      <span class="i">onClick</span><span class="p">={</span><span class="i">handleClick</span><span class="p">}</span>
+      <span class="i">disabled</span><span class="p">={</span><span class="i">isPending</span><span class="p">}</span>
+      <span class="i">className</span><span class="p">={[</span>
+        <span class="s">'flex w-full items-center justify-between'</span><span class="p">,</span>
+        <span class="s">'px-4 py-2.5 text-sm transition-colors'</span><span class="p">,</span>
+        <span class="i">isActive</span> <span class="p">?</span> <span class="i">activeClassName</span> <span class="p">:</span> <span class="i">inactiveClassName</span><span class="p">,</span>
+        <span class="i">isPending</span> <span class="p">?</span> <span class="s">'opacity-60'</span> <span class="p">:</span> <span class="s">''</span><span class="p">,</span>
+      <span class="p">].</span><span class="f">join</span><span class="p">(</span><span class="s">' '</span><span class="p">)}</span>
+      <span class="i">aria-current</span><span class="p">={</span><span class="i">isActive</span> <span class="p">?</span> <span class="s">'page'</span> <span class="p">:</span> <span class="k">undefined</span><span class="p">}</span>
+    <span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">span</span><span class="p">&gt;</span><span class="p">{</span><span class="i">label</span><span class="p">}</span><span class="p">&lt;/</span><span class="jsx">span</span><span class="p">&gt;</span>
+
+      <span class="c">{/* Spinner — only on the clicked item */}</span>
+      <span class="p">{</span><span class="i">isPending</span> <span class="p">&amp;&amp;</span> <span class="p">(</span>
+        <span class="p">&lt;</span><span class="jsx">svg</span>
+          <span class="i">className</span><span class="p">=</span><span class="s">"h-3.5 w-3.5 animate-spin text-blue-500"</span>
+          <span class="i">viewBox</span><span class="p">=</span><span class="s">"0 0 24 24"</span>
+          <span class="i">fill</span><span class="p">=</span><span class="s">"none"</span>
+        <span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">circle</span>
+            <span class="i">className</span><span class="p">=</span><span class="s">"opacity-25"</span>
+            <span class="i">cx</span><span class="p">=</span><span class="s">"12"</span> <span class="i">cy</span><span class="p">=</span><span class="s">"12"</span> <span class="i">r</span><span class="p">=</span><span class="s">"10"</span>
+            <span class="i">stroke</span><span class="p">=</span><span class="s">"currentColor"</span> <span class="i">strokeWidth</span><span class="p">=</span><span class="s">"4"</span>
+          <span class="p">/&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">path</span>
+            <span class="i">className</span><span class="p">=</span><span class="s">"opacity-75"</span>
+            <span class="i">fill</span><span class="p">=</span><span class="s">"currentColor"</span>
+            <span class="i">d</span><span class="p">=</span><span class="s">"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"</span>
+          <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">svg</span><span class="p">&gt;</span>
+      <span class="p">)}</span>
+    <span class="p">&lt;/</span><span class="jsx">button</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 07 FUNCTION NAV ══ -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <div class="step step-green">7</div>
+    <div class="step-meta">
+      <h2>FunctionNav.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-cli">Client</span><span class="tag tag-upd">Updated</span></h2>
+      <p>Now uses NavLink — spinner appears on clicked function item during transition.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/locations/components/</span>FunctionNav.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use client'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">NavLink</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/components/nav/NavLink'</span><span class="p">;</span>
+<span class="k">import type</span> <span class="p">{</span> <span class="t">LocationFunction</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/types/locations'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="f">generateSlug</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/modules/locations/lib/utils'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">FunctionNavProps</span> <span class="p">{</span>
+  <span class="i">functions</span><span class="p">:</span> <span class="t">LocationFunction</span><span class="p">[];</span>
+  <span class="i">locationSlug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export function</span> <span class="f">FunctionNav</span><span class="p">({</span> <span class="i">functions</span><span class="p">,</span> <span class="i">locationSlug</span> <span class="p">}:</span> <span class="t">FunctionNavProps</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="i">functions</span><span class="p">.</span><span class="i">length</span> <span class="p">===</span> <span class="n">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">(</span>
+      <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"px-4 py-3 text-xs text-gray-400"</span><span class="p">&gt;</span>
+        No functions available
+      <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+    <span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">nav</span> <span class="i">className</span><span class="p">=</span><span class="s">"py-2"</span> <span class="i">aria-label</span><span class="p">=</span><span class="s">"Location functions"</span><span class="p">&gt;</span>
+      <span class="p">{</span><span class="i">functions</span><span class="p">.</span><span class="f">map</span><span class="p">((</span><span class="i">fn</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">(</span>
+        <span class="p">&lt;</span><span class="jsx">NavLink</span>
+          <span class="i">key</span><span class="p">={</span><span class="i">fn</span><span class="p">.</span><span class="i">Function_Type_Id</span><span class="p">}</span>
+          <span class="i">href</span><span class="p">={</span><span class="s">`/location/<span class="i">${locationSlug}</span>/<span class="i">${generateSlug(fn.name)}</span>`</span><span class="p">}</span>
+          <span class="i">label</span><span class="p">={</span><span class="i">fn</span><span class="p">.</span><span class="i">name</span><span class="p">}</span>
+        <span class="p">/&gt;</span>
+      <span class="p">))}</span>
+    <span class="p">&lt;/</span><span class="jsx">nav</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 08 LOCATION TREE ══ -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="step step-green">8</div>
+    <div class="step-meta">
+      <h2>LocationTreeView.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-cli">Client</span><span class="tag tag-upd">Updated</span></h2>
+      <p>Location items now use NavLink too — spinner appears on clicked location during tree/layout reload.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/locations/components/</span>LocationTreeView.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use client'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">useState</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'react'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">NavLink</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/components/nav/NavLink'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="f">generateSlug</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/modules/locations/lib/utils'</span><span class="p">;</span>
+<span class="k">import type</span> <span class="p">{</span> <span class="t">LocationNode</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/modules/locations/lib/utils'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">LocationTreeViewProps</span> <span class="p">{</span>
+  <span class="i">tree</span><span class="p">:</span> <span class="t">LocationNode</span><span class="p">[];</span>
+<span class="p">}</span>
+
+<span class="c">// Recursive node component</span>
+<span class="k">function</span> <span class="f">TreeNode</span><span class="p">({</span>
+  <span class="i">node</span><span class="p">,</span>
+  <span class="i">depth</span> <span class="p">=</span> <span class="n">0</span><span class="p">,</span>
+<span class="p">}: {</span>
+  <span class="i">node</span><span class="p">:</span> <span class="t">LocationNode</span><span class="p">;</span>
+  <span class="i">depth</span><span class="p">?:</span> <span class="t">number</span><span class="p">;</span>
+<span class="p">})</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="p">[</span><span class="i">expanded</span><span class="p">,</span> <span class="i">setExpanded</span><span class="p">]</span> <span class="p">=</span> <span class="f">useState</span><span class="p">(</span><span class="k">true</span><span class="p">);</span>
+  <span class="k">const</span> <span class="i">hasChildren</span> <span class="p">=</span> <span class="p">(</span><span class="i">node</span><span class="p">.</span><span class="i">children</span><span class="p">?..</span><span class="i">length</span> <span class="p">??</span> <span class="n">0</span><span class="p">)</span> <span class="p">&gt;</span> <span class="n">0</span><span class="p">;</span>
+  <span class="k">const</span> <span class="i">slug</span> <span class="p">=</span> <span class="f">generateSlug</span><span class="p">(</span><span class="i">node</span><span class="p">.</span><span class="i">name</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">div</span>
+        <span class="i">className</span><span class="p">=</span><span class="s">"flex items-center"</span>
+        <span class="i">style</span><span class="p">={{</span> <span class="i">paddingLeft</span><span class="p">:</span> <span class="s">`<span class="i">${depth * 12}</span>px`</span> <span class="p">}}</span>
+      <span class="p">&gt;</span>
+        <span class="c">{/* Expand/collapse toggle */}</span>
+        <span class="p">{</span><span class="i">hasChildren</span> <span class="p">?</span> <span class="p">(</span>
+          <span class="p">&lt;</span><span class="jsx">button</span>
+            <span class="i">type</span><span class="p">=</span><span class="s">"button"</span>
+            <span class="i">onClick</span><span class="p">={()</span> <span class="p">=&gt;</span> <span class="f">setExpanded</span><span class="p">((</span><span class="i">e</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">!</span><span class="i">e</span><span class="p">)}</span>
+            <span class="i">className</span><span class="p">=</span><span class="s">"mr-1 flex h-4 w-4 flex-shrink-0
+              items-center justify-center text-gray-400
+              hover:text-gray-600"</span>
+          <span class="p">&gt;</span>
+            <span class="p">{</span><span class="i">expanded</span> <span class="p">?</span> <span class="s">'▾'</span> <span class="p">:</span> <span class="s">'▸'</span><span class="p">}</span>
+          <span class="p">&lt;/</span><span class="jsx">button</span><span class="p">&gt;</span>
+        <span class="p">) : (</span>
+          <span class="p">&lt;</span><span class="jsx">span</span> <span class="i">className</span><span class="p">=</span><span class="s">"mr-1 w-4 flex-shrink-0"</span> <span class="p">/&gt;</span>
+        <span class="p">)}</span>
+
+        <span class="c">{/* NavLink — spinner on click ✅ */}</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex-1"</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">NavLink</span>
+            <span class="i">href</span><span class="p">={</span><span class="s">`/location/<span class="i">${slug}</span>`</span><span class="p">}</span>
+            <span class="i">label</span><span class="p">={</span><span class="i">node</span><span class="p">.</span><span class="i">name</span><span class="p">}</span>
+            <span class="i">activeClassName</span><span class="p">=</span><span class="s">"bg-blue-50 font-semibold text-blue-700"</span>
+            <span class="i">inactiveClassName</span><span class="p">=</span><span class="s">"text-gray-700 hover:bg-gray-100"</span>
+          <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+
+      <span class="c">{/* Children */}</span>
+      <span class="p">{</span><span class="i">hasChildren</span> <span class="p">&amp;&amp;</span> <span class="i">expanded</span> <span class="p">&amp;&amp;</span> <span class="p">(</span>
+        <span class="p">&lt;</span><span class="jsx">div</span><span class="p">&gt;</span>
+          <span class="p">{</span><span class="i">node</span><span class="p">.</span><span class="i">children</span><span class="p">!.</span><span class="f">map</span><span class="p">((</span><span class="i">child</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">(</span>
+            <span class="p">&lt;</span><span class="jsx">TreeNode</span>
+              <span class="i">key</span><span class="p">={</span><span class="i">child</span><span class="p">.</span><span class="i">id</span><span class="p">}</span>
+              <span class="i">node</span><span class="p">={</span><span class="i">child</span><span class="p">}</span>
+              <span class="i">depth</span><span class="p">={</span><span class="i">depth</span> <span class="p">+</span> <span class="n">1</span><span class="p">}</span>
+            <span class="p">/&gt;</span>
+          <span class="p">))}</span>
+        <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+      <span class="p">)}</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">export function</span> <span class="f">LocationTreeView</span><span class="p">({</span> <span class="i">tree</span> <span class="p">}:</span> <span class="t">LocationTreeViewProps</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">tree</span><span class="p">.</span><span class="i">length</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">(</span>
+      <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"px-4 py-3 text-xs text-gray-400"</span><span class="p">&gt;</span>
+        No locations found
+      <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+    <span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"py-2"</span><span class="p">&gt;</span>
+      <span class="p">{</span><span class="i">tree</span><span class="p">.</span><span class="f">map</span><span class="p">((</span><span class="i">node</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">(</span>
+        <span class="p">&lt;</span><span class="jsx">TreeNode</span> <span class="i">key</span><span class="p">={</span><span class="i">node</span><span class="p">.</span><span class="i">id</span><span class="p">}</span> <span class="i">node</span><span class="p">={</span><span class="i">node</span><span class="p">}</span> <span class="p">/&gt;</span>
+      <span class="p">))}</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<footer style="padding-bottom:40px;">
+  Rate Limit Fix + Navigation Loader · Next.js 15 App Router · graphql-request pattern preserved
+</footer>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.file-card').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = '✓ Copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2200);
+    });
+  }
+</script>
+</body>
+</html>
