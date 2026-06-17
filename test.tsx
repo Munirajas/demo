@@ -1,66 +1,86 @@
-// src/app/(protected)/location/[slug]/[fn]/page.tsx
-// URL: /location/motb/plan-selection
+// src/app/(protected)/location/[slug]/[fn]/not-found.tsx
+// This catches notFound() from [fn]/page.tsx
+// Renders ONLY in Col 3 — layout stays intact
 
-import { notFound } from 'next/navigation';
-import { getLocationsTree } from '@/modules/locations/actions/server-locations';
-import { getNodeAndPathBySlug } from '@/modules/locations/lib/utils';
-import { renderFunctionPage } from './render-function-page';
-
-interface Props {
-  params: Promise<{ slug: string; fn: string }>;
+export default function FunctionNotFound() {
+  return (
+    <div className="flex h-full items-center justify-center p-8">
+      <div className="text-center">
+        <div className="mb-4 flex justify-center">
+          <div className="flex h-12 w-12 items-center justify-center
+            rounded-full bg-gray-100">
+            <svg
+              className="h-6 w-6 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 
+                   10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+        </div>
+        <h3 className="text-sm font-semibold text-gray-900">
+          Page not available
+        </h3>
+        <p className="mt-1 text-xs text-gray-500">
+          This function page is not yet configured.
+        </p>
+      </div>
+    </div>
+  );
 }
 
-export default async function LocationFunctionPage({ params }: Props) {
-  const { slug, fn } = await params;
-
-  console.log('FN page - slug:', slug, 'fn:', fn); // keep temporarily
-
-  // ⚠️ Tree is cached — no second network call (React.cache)
-  const tree = await getLocationsTree();
-  const found = getNodeAndPathBySlug(tree, slug);
-
-  console.log('FN page - found:', JSON.stringify(found)); // check this
-
-  if (!found) notFound();
-
-  const locationId: number = found.node.id;
-
-  return renderFunctionPage({ fn, locationId });
-}
 
 
-// src/app/(protected)/location/[slug]/[fn]/render-function-page.tsx
-// ONLY file to edit when adding new function pages
+===============
 
-import { notFound } from 'next/navigation';
-import { getLocationPlans } from '@/modules/plans/actions/server-location-plans';
-import { PlanShell } from '@/modules/plans/components/PlanShell';
+  // src/app/(protected)/location/[slug]/not-found.tsx
+// Catches when slug doesn't match any location
+// Renders inside (protected)/layout.tsx so tree sidebar stays
 
-interface Props {
-  fn: string;
-  locationId: number;
-}
+export default function LocationNotFound() {
+  return (
+    <>
+      {/* Col 2 — empty function nav placeholder */}
+      <aside className="w-52 flex-shrink-0 border-r border-gray-200
+        bg-white" />
 
-export async function renderFunctionPage({ fn, locationId }: Props) {
-  switch (fn) {
-    case 'plan-selection': {
-      const result = await getLocationPlans(locationId);
-      return (
-        <PlanShell
-          plans={result.plans}
-          locationId={locationId}
-          message={result.message}
-        />
-      );
-    }
-
-    // Add next function here when ready:
-    // case 'tickets': {
-    //   const result = await getLocationTickets(locationId);
-    //   return <TicketsShell ... />;
-    // }
-
-    default:
-      notFound();
-  }
+      {/* Col 3 — not found message */}
+      <main className="flex flex-1 items-center justify-center
+        bg-gray-50 p-8">
+        <div className="text-center">
+          <div className="mb-4 flex justify-center">
+            <div className="flex h-12 w-12 items-center justify-center
+              rounded-full bg-red-50">
+              <svg
+                className="h-6 w-6 text-red-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900">
+            Location not found
+          </h3>
+          <p className="mt-1 text-xs text-gray-500">
+            The location you're looking for doesn't exist.
+          </p>
+        </div>
+      </main>
+    </>
+  );
 }
