@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Layout Stability + Loading State Fix</title>
+  <style>
+    :root {
+      --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3250;
+      --accent:#6c8ef5;--accent2:#4ade80;--warn:#f59e42;--danger:#f87171;
+      --text:#e2e8f0;--muted:#7c87a6;--radius:10px;
+      --mono:'Fira Code','Consolas',monospace;--ui:'Inter',system-ui,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:var(--ui);padding:32px 20px 60px;}
+
+    .header{max-width:980px;margin:0 auto 28px;}
+    .header-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+    .badge{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:3px 10px;border-radius:20px;}
+    .badge-red{background:#dc2626;color:#fff;}
+    .badge-green{background:#16a34a;color:#fff;}
+    .badge-blue{background:var(--accent);color:#fff;}
+    h1{font-size:22px;font-weight:700;color:#fff;}
+    .header p{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.6;}
+
+    /* diagnosis box */
+    .diag{max-width:980px;margin:0 auto 24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+    .diag-header{padding:12px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:var(--surface2);}
+    .diag-header span{font-size:13px;font-weight:700;color:#fff;}
+    .diag-body{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+    .diag-col{padding:16px 18px;}
+    .diag-col:first-child{border-right:1px solid var(--border);}
+    .diag-col h3{font-size:11px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;font-weight:700;}
+    .h-red{color:var(--danger);}
+    .h-green{color:var(--accent2);}
+    .diag-col ul{list-style:none;font-size:12.5px;line-height:2.1;}
+    .ul-bad li::before{content:'✗ ';color:var(--danger);}
+    .ul-good li::before{content:'✓ ';color:var(--accent2);}
+
+    .alert{max-width:980px;margin:0 auto 14px;display:flex;gap:12px;padding:13px 17px;border-radius:8px;font-size:13px;line-height:1.6;}
+    .alert-warn{background:rgba(245,158,66,.1);border-left:3px solid var(--warn);color:#fcd34d;}
+    .alert-tip{background:rgba(74,222,128,.08);border-left:3px solid var(--accent2);color:#86efac;}
+    .alert-danger{background:rgba(248,113,113,.1);border-left:3px solid var(--danger);color:#fca5a5;}
+    .alert-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+    .alert strong{color:#fff;}
+    .alert code{background:rgba(255,255,255,.1);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:11px;}
+
+    /* layout diagram */
+    .layout-diagram{max-width:980px;margin:0 auto 24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;}
+    .layout-diagram h3{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:14px;}
+    .layout-diagram pre{font-family:var(--mono);font-size:12px;color:#cdd6f4;line-height:1.9;background:transparent;padding:0;}
+
+    .toc{max-width:980px;margin:0 auto 28px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;}
+    .toc h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;font-weight:600;}
+    .toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:7px;}
+    .toc-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;background:var(--surface2);text-decoration:none;transition:background .15s;}
+    .toc-item:hover{background:var(--border);}
+    .toc-num{font-size:11px;font-weight:800;color:var(--accent);min-width:20px;}
+    .toc-label{font-size:12px;color:var(--text);line-height:1.3;}
+    .toc-path{font-size:10px;color:var(--muted);}
+    .toc-badge{font-size:9px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:10px;margin-left:4px;}
+    .tb-new{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tb-upd{background:rgba(245,158,66,.15);color:var(--warn);}
+    .tb-del{background:rgba(248,113,113,.15);color:var(--danger);}
+    .tb-fix{background:rgba(99,102,241,.2);color:#a5b4fc;}
+
+    .section{max-width:980px;margin:0 auto 22px;}
+    .section-header{display:flex;align-items:flex-start;gap:13px;margin-bottom:12px;}
+    .step{color:#fff;font-size:11px;font-weight:800;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+    .step-red{background:#dc2626;}
+    .step-blue{background:var(--accent);}
+    .step-green{background:#16a34a;}
+    .step-meta h2{font-size:15px;font-weight:700;color:#fff;margin-bottom:2px;}
+    .step-meta p{font-size:12px;color:var(--muted);}
+
+    .tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:20px;margin-left:5px;vertical-align:middle;}
+    .tag-ts{background:rgba(59,130,246,.18);color:#60a5fa;}
+    .tag-tsx{background:rgba(99,102,241,.2);color:#a5b4fc;}
+    .tag-srv{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tag-cli{background:rgba(245,158,66,.15);color:var(--warn);}
+    .tag-new{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tag-fix{background:rgba(99,102,241,.2);color:#a5b4fc;}
+    .tag-del{background:rgba(248,113,113,.15);color:var(--danger);}
+
+    .file-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:13px;}
+    .file-card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+    .file-path{font-family:var(--mono);font-size:12px;color:var(--accent);}
+    .file-path .dir{color:var(--muted);}
+    .copy-btn{background:var(--border);border:none;color:var(--muted);font-size:11px;font-family:var(--ui);padding:4px 12px;border-radius:5px;cursor:pointer;transition:background .15s,color .15s;}
+    .copy-btn:hover{background:var(--accent);color:#fff;}
+    .copy-btn.copied{background:#166534;color:var(--accent2);}
+    pre{margin:0;padding:20px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.75;color:#cdd6f4;}
+
+    .k{color:#cba6f7;} .s{color:#a6e3a1;} .c{color:#585b70;font-style:italic;}
+    .t{color:#89dceb;} .f{color:#89b4fa;} .p{color:#f38ba8;}
+    .n{color:#fab387;} .i{color:#cdd6f4;} .jsx{color:#f9e2af;}
+
+    hr.div{max-width:980px;margin:6px auto 22px;border:none;border-top:1px solid var(--border);}
+    footer{max-width:980px;margin:48px auto 0;text-align:center;font-size:12px;color:var(--muted);}
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <span class="badge badge-red">Layout Fix</span>
+    <span class="badge badge-green">Col3-Only Loading</span>
+    <span class="badge badge-blue">FunctionsNav Fix</span>
+  </div>
+  <h1>Layout Stability + Scoped Loading State</h1>
+  <p>Col 2 (function nav) must never disappear during function switching.<br/>
+  Loading skeleton must only appear in Col 3. Root cause: <code>&lt;Link&gt;</code> in FunctionsNav + <code>loading.tsx</code> at wrong level.</p>
+</div>
+
+<!-- DIAGNOSIS -->
+<div class="diag">
+  <div class="diag-header"><span>🔍 Root Cause Diagnosis</span></div>
+  <div class="diag-body">
+    <div class="diag-col">
+      <h3 class="h-red">What's Wrong Now</h3>
+      <ul class="ul-bad">
+        <li><code>&lt;Link&gt;</code> in FunctionsNav triggers full layout re-render</li>
+        <li><code>loading.tsx</code> at <code>[slug]</code> level replaces Col2+Col3</li>
+        <li>Col 2 function nav disappears on every function click</li>
+        <li>No way to grey out only Col 3</li>
+      </ul>
+    </div>
+    <div class="diag-col">
+      <h3 class="h-green">After Fix</h3>
+      <ul class="ul-good">
+        <li><code>useTransition</code> in FunctionsNav — no layout re-render</li>
+        <li>Delete <code>[slug]/loading.tsx</code> — not needed</li>
+        <li><code>[fn]/loading.tsx</code> only — Col3 skeleton only</li>
+        <li>Col 2 stays 100% visible during all transitions</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- LAYOUT DIAGRAM -->
+<div class="layout-diagram">
+  <h3>Correct Layout Architecture</h3>
+  <pre><span class="s">(protected)/layout.tsx</span>          ← Col 1 tree — NEVER re-renders
+  └── <span class="s">location/[slug]/layout.tsx</span>    ← Col 2 fn nav — stays on fn switch ✅
+        ├── <span class="s">[slug]/loading.tsx</span>       ← ❌ DELETE THIS — causes Col2 to disappear
+        └── <span class="s">[fn]/page.tsx</span>            ← Col 3 content — re-renders on fn switch
+              └── <span class="s">[fn]/loading.tsx</span>   ← ✅ KEEP THIS — only greys Col 3
+
+<span class="c">Rule: loading.tsx at [slug] level = Col2+Col3 disappear
+      loading.tsx at [fn] level  = Col3 only greys out ✅</span>
+
+<span class="s">FunctionsNav click behavior:</span>
+  <span class="p">Link (current)</span>   → full [slug]/layout re-render → Col2 disappears ❌
+  <span class="f">useTransition</span>    → only [fn]/page re-renders  → Col2 stays     ✅</pre>
+</div>
+
+<div class="alert alert-danger">
+  <span class="alert-icon">🚨</span>
+  <div><strong>Delete <code>[slug]/loading.tsx</code> immediately.</strong> This single file is why Col 2 disappears. It fires on every location AND function navigation, replacing the entire layout children including your function nav.</div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h2>File Index — What Changes</h2>
+  <div class="toc-grid">
+    <a class="toc-item" href="#s1"><span class="toc-num">01</span><div><div class="toc-label">FunctionsNav.tsx <span class="toc-badge tb-fix">fixed</span></div><div class="toc-path">src/components/nav/ — replace Link with useTransition</div></div></a>
+    <a class="toc-item" href="#s2"><span class="toc-num">02</span><div><div class="toc-label">[slug]/loading.tsx <span class="toc-badge tb-del">DELETE</span></div><div class="toc-path">src/app/(protected)/location/[slug]/</div></div></a>
+    <a class="toc-item" href="#s3"><span class="toc-num">03</span><div><div class="toc-label">[fn]/loading.tsx <span class="toc-badge tb-upd">keep + fix</span></div><div class="toc-path">src/app/(protected)/location/[slug]/[fn]/</div></div></a>
+    <a class="toc-item" href="#s4"><span class="toc-num">04</span><div><div class="toc-label">[slug]/layout.tsx <span class="toc-badge tb-fix">fix</span></div><div class="toc-path">src/app/(protected)/location/[slug]/</div></div></a>
+    <a class="toc-item" href="#s5"><span class="toc-num">05</span><div><div class="toc-label">ContentArea.tsx <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/components/layout/ — grey overlay wrapper</div></div></a>
+    <a class="toc-item" href="#s6"><span class="toc-num">06</span><div><div class="toc-label">NavLink.tsx <span class="toc-badge tb-upd">updated</span></div><div class="toc-path">src/components/nav/ — exposes isPending to parent</div></div></a>
+  </div>
+</div>
+
+<!-- ══ 01 FUNCTIONS NAV ══ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="step step-red">1</div>
+    <div class="step-meta">
+      <h2>FunctionsNav.tsx — Replace Link with useTransition <span class="tag tag-fix">Root Fix</span></h2>
+      <p>This is the main fix. useTransition navigates without triggering layout re-render. Spinner shows on clicked item only.</p>
+    </div>
+  </div>
+
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>Why not <code>&lt;Link&gt;</code>?</strong> Next.js <code>&lt;Link&gt;</code> re-evaluates the nearest layout boundary on navigation. Since <code>[slug]/layout.tsx</code> wraps Col 2, it re-renders and Col 2 disappears. <code>router.push()</code> inside <code>useTransition</code> only re-renders the page segment, leaving the layout intact.</div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/components/nav/</span>FunctionsNav.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use client'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">useTransition</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'react'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">useRouter</span><span class="p">,</span> <span class="i">usePathname</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'next/navigation'</span><span class="p">;</span>
+<span class="k">import type</span> <span class="p">{</span> <span class="t">LocationFunction</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/types/locations'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">Props</span> <span class="p">{</span>
+  <span class="i">locationSlug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">activeFn</span><span class="p">:</span> <span class="t">string</span> <span class="p">|</span> <span class="k">null</span><span class="p">;</span>
+  <span class="i">functions</span><span class="p">:</span> <span class="t">LocationFunction</span><span class="p">[];</span>
+<span class="p">}</span>
+
+<span class="c">/**
+ * FunctionsNav — uses useTransition NOT Link.
+ *
+ * WHY: Link triggers [slug]/layout re-render → Col2 disappears.
+ * useTransition + router.push() only re-renders [fn]/page.tsx
+ * leaving Col2 completely intact during navigation.
+ *
+ * The isPending state from useTransition is used to:
+ *   1. Show spinner on the clicked nav item
+ *   2. Signal ContentArea to show grey overlay on Col3
+ */</span>
+<span class="k">export function</span> <span class="f">FunctionsNav</span><span class="p">({</span>
+  <span class="i">locationSlug</span><span class="p">,</span>
+  <span class="i">activeFn</span><span class="p">,</span>
+  <span class="i">functions</span><span class="p">,</span>
+<span class="p">}:</span> <span class="t">Props</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="i">router</span> <span class="p">=</span> <span class="f">useRouter</span><span class="p">();</span>
+  <span class="k">const</span> <span class="i">pathname</span> <span class="p">=</span> <span class="f">usePathname</span><span class="p">();</span>
+  <span class="k">const</span> <span class="p">[</span><span class="i">isPending</span><span class="p">,</span> <span class="i">startTransition</span><span class="p">]</span> <span class="p">=</span> <span class="f">useTransition</span><span class="p">();</span>
+
+  <span class="c">// Which fn slug is currently navigating (for per-item spinner)</span>
+  <span class="k">const</span> <span class="p">[</span><span class="i">pendingSlug</span><span class="p">,</span> <span class="i">setPendingSlug</span><span class="p">]</span> <span class="p">=</span>
+    <span class="f">useState</span><span class="p">&lt;</span><span class="t">string</span> <span class="p">|</span> <span class="k">null</span><span class="p">&gt;(</span><span class="k">null</span><span class="p">);</span>
+
+  <span class="k">function</span> <span class="f">handleNavigate</span><span class="p">(</span><span class="i">fnSlug</span><span class="p">:</span> <span class="t">string</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">const</span> <span class="i">href</span> <span class="p">=</span> <span class="s">`/location/<span class="i">${locationSlug}</span>/<span class="i">${fnSlug}</span>`</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="i">pathname</span> <span class="p">===</span> <span class="i">href</span><span class="p">)</span> <span class="k">return</span><span class="p">;</span>
+
+    <span class="f">setPendingSlug</span><span class="p">(</span><span class="i">fnSlug</span><span class="p">);</span>
+    <span class="f">startTransition</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+      <span class="i">router</span><span class="p">.</span><span class="f">push</span><span class="p">(</span><span class="i">href</span><span class="p">);</span>
+    <span class="p">});</span>
+  <span class="p">}</span>
+
+  <span class="c">// Clear pending slug when transition completes</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">isPending</span> <span class="p">&amp;&amp;</span> <span class="i">pendingSlug</span><span class="p">)</span> <span class="p">{</span>
+    <span class="f">setPendingSlug</span><span class="p">(</span><span class="k">null</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="i">functions</span><span class="p">.</span><span class="i">length</span> <span class="p">===</span> <span class="n">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">(</span>
+      <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"px-4 py-3 text-xs text-gray-400"</span><span class="p">&gt;</span>
+        No functions available
+      <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+    <span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">nav</span> <span class="i">className</span><span class="p">=</span><span class="s">"py-2"</span> <span class="i">aria-label</span><span class="p">=</span><span class="s">"Location functions"</span><span class="p">&gt;</span>
+      <span class="p">{</span><span class="i">functions</span><span class="p">.</span><span class="f">map</span><span class="p">((</span><span class="i">fn</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+        <span class="k">const</span> <span class="i">href</span> <span class="p">=</span> <span class="s">`/location/<span class="i">${locationSlug}</span>/<span class="i">${fn.slug}</span>`</span><span class="p">;</span>
+        <span class="k">const</span> <span class="i">isActive</span> <span class="p">=</span> <span class="i">pathname</span> <span class="p">===</span> <span class="i">href</span><span class="p">;</span>
+        <span class="k">const</span> <span class="i">isThisPending</span> <span class="p">=</span>
+          <span class="i">isPending</span> <span class="p">&amp;&amp;</span> <span class="i">pendingSlug</span> <span class="p">===</span> <span class="i">fn</span><span class="p">.</span><span class="i">slug</span><span class="p">;</span>
+
+        <span class="k">return</span> <span class="p">(</span>
+          <span class="p">&lt;</span><span class="jsx">button</span>
+            <span class="i">key</span><span class="p">={</span><span class="i">fn</span><span class="p">.</span><span class="i">slug</span><span class="p">}</span>
+            <span class="i">type</span><span class="p">=</span><span class="s">"button"</span>
+            <span class="i">onClick</span><span class="p">={()</span> <span class="p">=&gt;</span> <span class="f">handleNavigate</span><span class="p">(</span><span class="i">fn</span><span class="p">.</span><span class="i">slug</span><span class="p">)}</span>
+            <span class="i">disabled</span><span class="p">={</span><span class="i">isPending</span><span class="p">}</span>
+            <span class="i">aria-current</span><span class="p">={</span><span class="i">isActive</span> <span class="p">?</span> <span class="s">'page'</span> <span class="p">:</span> <span class="k">undefined</span><span class="p">}</span>
+            <span class="i">className</span><span class="p">={[</span>
+              <span class="c">// Base styles — full width block button</span>
+              <span class="s">'flex w-full items-center justify-between'</span><span class="p">,</span>
+              <span class="s">'px-4 py-2.5 text-sm transition-colors text-left'</span><span class="p">,</span>
+              <span class="c">// Active state</span>
+              <span class="i">isActive</span>
+                <span class="p">?</span> <span class="s">'border-l-2 border-blue-600 bg-blue-50'</span>
+                  <span class="p">+</span> <span class="s">' font-medium text-blue-700'</span>
+                <span class="p">:</span> <span class="s">'border-l-2 border-transparent text-gray-600'</span>
+                  <span class="p">+</span> <span class="s">' hover:bg-gray-50 hover:text-gray-900'</span><span class="p">,</span>
+              <span class="c">// Dim all items while any transition is pending</span>
+              <span class="i">isPending</span> <span class="p">?</span> <span class="s">'opacity-50 cursor-not-allowed'</span> <span class="p">:</span> <span class="s">''</span><span class="p">,</span>
+            <span class="p">].</span><span class="f">join</span><span class="p">(</span><span class="s">' '</span><span class="p">)}</span>
+          <span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="jsx">span</span><span class="p">&gt;</span><span class="p">{</span><span class="i">fn</span><span class="p">.</span><span class="i">label</span><span class="p">}</span><span class="p">&lt;/</span><span class="jsx">span</span><span class="p">&gt;</span>
+
+            <span class="c">{/* Spinner on clicked item only */}</span>
+            <span class="p">{</span><span class="i">isThisPending</span> <span class="p">&amp;&amp;</span> <span class="p">(</span>
+              <span class="p">&lt;</span><span class="jsx">svg</span>
+                <span class="i">className</span><span class="p">=</span><span class="s">"h-3.5 w-3.5 animate-spin text-blue-500"</span>
+                <span class="i">viewBox</span><span class="p">=</span><span class="s">"0 0 24 24"</span>
+                <span class="i">fill</span><span class="p">=</span><span class="s">"none"</span>
+              <span class="p">&gt;</span>
+                <span class="p">&lt;</span><span class="jsx">circle</span>
+                  <span class="i">cx</span><span class="p">=</span><span class="s">"12"</span> <span class="i">cy</span><span class="p">=</span><span class="s">"12"</span> <span class="i">r</span><span class="p">=</span><span class="s">"10"</span>
+                  <span class="i">stroke</span><span class="p">=</span><span class="s">"currentColor"</span>
+                  <span class="i">strokeWidth</span><span class="p">=</span><span class="s">"4"</span>
+                  <span class="i">className</span><span class="p">=</span><span class="s">"opacity-25"</span>
+                <span class="p">/&gt;</span>
+                <span class="p">&lt;</span><span class="jsx">path</span>
+                  <span class="i">fill</span><span class="p">=</span><span class="s">"currentColor"</span>
+                  <span class="i">className</span><span class="p">=</span><span class="s">"opacity-75"</span>
+                  <span class="i">d</span><span class="p">=</span><span class="s">"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"</span>
+                <span class="p">/&gt;</span>
+              <span class="p">&lt;/</span><span class="jsx">svg</span><span class="p">&gt;</span>
+            <span class="p">)}</span>
+          <span class="p">&lt;/</span><span class="jsx">button</span><span class="p">&gt;</span>
+        <span class="p">);</span>
+      <span class="p">})}</span>
+    <span class="p">&lt;/</span><span class="jsx">nav</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c">// Missing import — add at top</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">useState</span><span class="p">,</span> <span class="i">useTransition</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'react'</span><span class="p">;</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 02 DELETE SLUG LOADING ══ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="step step-red">2</div>
+    <div class="step-meta">
+      <h2>[slug]/loading.tsx — DELETE THIS FILE <span class="tag tag-del">Delete</span></h2>
+      <p>This file causes Col 2 to disappear. It's not needed once FunctionsNav uses useTransition.</p>
+    </div>
+  </div>
+  <div class="alert alert-danger">
+    <span class="alert-icon">🗑️</span>
+    <div><strong>Simply delete:</strong> <code>src/app/(protected)/location/[slug]/loading.tsx</code><br/>
+    This file fires on EVERY navigation involving <code>[slug]</code> — including function switches. It replaces all layout children including Col 2. Without it, Col 2 stays visible always.</div>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 03 FN LOADING ══ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="step step-green">3</div>
+    <div class="step-meta">
+      <h2>[fn]/loading.tsx — Col 3 Skeleton Only <span class="tag tag-tsx">TSX</span></h2>
+      <p>Keep this — it's at the right level. Only fires when [fn]/page.tsx is loading. Col 1 and Col 2 unaffected.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/app/(protected)/location/[slug]/[fn]/</span>loading.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">// ✅ This is at [fn] level — ONLY Col 3 shows this skeleton.
+// Col 1 (tree) and Col 2 (function nav) stay 100% visible.
+// Fires automatically when [fn]/page.tsx server data is loading.</span>
+
+<span class="k">export default function</span> <span class="f">FunctionPageLoading</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-full w-full animate-pulse p-6"</span><span class="p">&gt;</span>
+
+      <span class="c">{/* Page title skeleton */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-6"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-2 h-5 w-40 rounded-md bg-gray-200"</span> <span class="p">/&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-3 w-64 rounded-md bg-gray-100"</span> <span class="p">/&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+
+      <span class="c">{/* Banner skeleton (active plan banner etc.) */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-6 h-16 w-full rounded-lg
+        border border-gray-200 bg-gray-100"</span> <span class="p">/&gt;</span>
+
+      <span class="c">{/* Section label */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-3 h-4 w-32 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+
+      <span class="c">{/* Cards grid skeleton */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"grid grid-cols-1 gap-3
+        sm:grid-cols-2 lg:grid-cols-3"</span><span class="p">&gt;</span>
+        <span class="p">{[</span><span class="n">1</span><span class="p">,</span> <span class="n">2</span><span class="p">,</span> <span class="n">3</span><span class="p">].</span><span class="f">map</span><span class="p">((</span><span class="i">i</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">(</span>
+          <span class="p">&lt;</span><span class="jsx">div</span>
+            <span class="i">key</span><span class="p">={</span><span class="i">i</span><span class="p">}</span>
+            <span class="i">className</span><span class="p">=</span><span class="s">"rounded-lg border-2 border-gray-200
+              bg-white p-4 h-24"</span>
+          <span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-2 h-4 w-3/4 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+            <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-3 w-1/2 rounded bg-gray-100"</span> <span class="p">/&gt;</span>
+          <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+        <span class="p">))}</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 04 SLUG LAYOUT ══ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="step step-blue">4</div>
+    <div class="step-meta">
+      <h2>[slug]/layout.tsx — Stable Col 2 <span class="tag tag-tsx">TSX</span><span class="tag tag-srv">Server</span></h2>
+      <p>Col 2 must be rendered here permanently. Never conditionally render it. Children = Col 3 only.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/app/(protected)/location/[slug]/</span>layout.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import</span> <span class="p">{</span> <span class="i">notFound</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'next/navigation'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getLocationsTree</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/actions/server-locations'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getLocationFunctions</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/actions/server-location-functions'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getNodeAndPathBySlug</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/lib/utils'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">FunctionsNav</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/components/nav/FunctionsNav'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">Props</span> <span class="p">{</span>
+  <span class="i">children</span><span class="p">:</span> <span class="t">React</span><span class="p">.</span><span class="t">ReactNode</span><span class="p">;</span>
+  <span class="i">params</span><span class="p">:</span> <span class="t">Promise</span><span class="p">&lt;{</span> <span class="i">slug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span> <span class="i">fn</span><span class="p">?:</span> <span class="t">string</span> <span class="p">}&gt;;</span>
+<span class="p">}</span>
+
+<span class="k">export default async function</span> <span class="f">LocationLayout</span><span class="p">({</span>
+  <span class="i">children</span><span class="p">,</span>
+  <span class="i">params</span><span class="p">,</span>
+<span class="p">}:</span> <span class="t">Props</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="p">{</span> <span class="i">slug</span><span class="p">,</span> <span class="i">fn</span> <span class="p">}</span> <span class="p">=</span> <span class="k">await</span> <span class="i">params</span><span class="p">;</span>
+
+  <span class="k">const</span> <span class="i">tree</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getLocationsTree</span><span class="p">();</span>
+  <span class="k">const</span> <span class="i">found</span> <span class="p">=</span> <span class="f">getNodeAndPathBySlug</span><span class="p">(</span><span class="i">tree</span><span class="p">,</span> <span class="i">slug</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">found</span><span class="p">)</span> <span class="f">notFound</span><span class="p">();</span>
+
+  <span class="k">const</span> <span class="i">locationId</span> <span class="p">=</span> <span class="i">found</span><span class="p">.</span><span class="i">node</span><span class="p">.</span><span class="i">id</span><span class="p">;</span>
+  <span class="k">const</span> <span class="i">locationName</span> <span class="p">=</span> <span class="i">found</span><span class="p">.</span><span class="i">node</span><span class="p">.</span><span class="i">name</span><span class="p">;</span>
+  <span class="k">const</span> <span class="i">functions</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getLocationFunctions</span><span class="p">(</span><span class="i">locationId</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex h-full w-full overflow-hidden"</span><span class="p">&gt;</span>
+
+      <span class="c">{/* ── Col 2: Function nav — NEVER re-renders ─────── */}</span>
+      <span class="p">&lt;</span><span class="jsx">aside</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex w-52 flex-shrink-0 flex-col
+        border-r border-gray-200 bg-white"</span><span class="p">&gt;</span>
+
+        <span class="c">{/* Location breadcrumb header */}</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"border-b border-gray-100 px-4 py-3"</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-[10px] font-medium uppercase
+            tracking-wider text-gray-400"</span><span class="p">&gt;</span>
+            Location
+          <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"mt-0.5 text-sm font-semibold
+            text-gray-800 truncate"</span><span class="p">&gt;</span>
+            <span class="p">{</span><span class="i">locationName</span><span class="p">}</span>
+          <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+
+        <span class="c">{/* Function nav — client component with useTransition */}</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex-1 overflow-y-auto"</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">FunctionsNav</span>
+            <span class="i">locationSlug</span><span class="p">={</span><span class="i">slug</span><span class="p">}</span>
+            <span class="i">activeFn</span><span class="p">={</span><span class="i">fn</span> <span class="p">??</span> <span class="k">null</span><span class="p">}</span>
+            <span class="i">functions</span><span class="p">={</span><span class="i">functions</span><span class="p">}</span>
+          <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">aside</span><span class="p">&gt;</span>
+
+      <span class="c">{/* ── Col 3: Page content — only this changes ─────── */}</span>
+      <span class="p">&lt;</span><span class="jsx">main</span> <span class="i">className</span><span class="p">=</span><span class="s">"relative flex-1 overflow-y-auto
+        bg-gray-50"</span><span class="p">&gt;</span>
+        <span class="p">{</span><span class="i">children</span><span class="p">}</span>
+      <span class="p">&lt;/</span><span class="jsx">main</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 05 CONTENT AREA ══ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="step step-blue">5</div>
+    <div class="step-meta">
+      <h2>ContentArea.tsx — Grey Overlay Wrapper <span class="tag tag-tsx">TSX</span><span class="tag tag-cli">Client</span><span class="tag tag-new">New</span></h2>
+      <p>Optional: use this in PlanShell and future shells to show grey overlay during mutation loading. Not for navigation — for in-page async actions.</p>
+    </div>
+  </div>
+  <div class="alert alert-tip">
+    <span class="alert-icon">💡</span>
+    <div><strong>Pattern:</strong> Wrap your shell content in <code>&lt;ContentArea isLoading={isChangingPlan}&gt;</code> to grey out Col 3 during mutations (e.g. applying a plan). Different from navigation loading — this is for client-side async actions within the page.</div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/components/layout/</span>ContentArea.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use client'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">ContentAreaProps</span> <span class="p">{</span>
+  <span class="i">children</span><span class="p">:</span> <span class="t">React</span><span class="p">.</span><span class="t">ReactNode</span><span class="p">;</span>
+  <span class="i">isLoading</span><span class="p">?:</span> <span class="t">boolean</span><span class="p">;</span>
+  <span class="i">loadingMessage</span><span class="p">?:</span> <span class="t">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">/**
+ * ContentArea — wraps Col 3 content with an optional grey overlay.
+ *
+ * Use when:
+ *   - A mutation is in progress (applying plan, saving config)
+ *   - You want to block interaction but keep content visible
+ *
+ * NOT for navigation loading — that's handled by [fn]/loading.tsx
+ *
+ * Usage in PlanShell:
+ *   const { isLoading } = useChangePlan(locationId);
+ *   return (
+ *     <ContentArea isLoading={isLoading} loadingMessage="Applying plan...">
+ *       <ActivePlanBanner ... />
+ *       <PlanGrid ... />
+ *     </ContentArea>
+ *   );
+ */</span>
+<span class="k">export function</span> <span class="f">ContentArea</span><span class="p">({</span>
+  <span class="i">children</span><span class="p">,</span>
+  <span class="i">isLoading</span> <span class="p">=</span> <span class="k">false</span><span class="p">,</span>
+  <span class="i">loadingMessage</span><span class="p">,</span>
+<span class="p">}:</span> <span class="t">ContentAreaProps</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"relative h-full w-full"</span><span class="p">&gt;</span>
+      <span class="p">{</span><span class="i">children</span><span class="p">}</span>
+
+      <span class="c">{/* Grey overlay — only when isLoading is true */}</span>
+      <span class="p">{</span><span class="i">isLoading</span> <span class="p">&amp;&amp;</span> <span class="p">(</span>
+        <span class="p">&lt;</span><span class="jsx">div</span>
+          <span class="i">className</span><span class="p">=</span><span class="s">"absolute inset-0 z-10 flex
+            flex-col items-center justify-center
+            bg-white/60 backdrop-blur-[1px]"</span>
+          <span class="i">aria-busy</span><span class="p">=</span><span class="s">"true"</span>
+          <span class="i">aria-label</span><span class="p">={</span><span class="i">loadingMessage</span> <span class="p">??</span> <span class="s">'Loading...'</span><span class="p">}</span>
+        <span class="p">&gt;</span>
+          <span class="c">{/* Spinner */}</span>
+          <span class="p">&lt;</span><span class="jsx">svg</span>
+            <span class="i">className</span><span class="p">=</span><span class="s">"mb-3 h-8 w-8 animate-spin text-blue-500"</span>
+            <span class="i">viewBox</span><span class="p">=</span><span class="s">"0 0 24 24"</span>
+            <span class="i">fill</span><span class="p">=</span><span class="s">"none"</span>
+          <span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="jsx">circle</span>
+              <span class="i">cx</span><span class="p">=</span><span class="s">"12"</span> <span class="i">cy</span><span class="p">=</span><span class="s">"12"</span> <span class="i">r</span><span class="p">=</span><span class="s">"10"</span>
+              <span class="i">stroke</span><span class="p">=</span><span class="s">"currentColor"</span>
+              <span class="i">strokeWidth</span><span class="p">=</span><span class="s">"4"</span>
+              <span class="i">className</span><span class="p">=</span><span class="s">"opacity-25"</span>
+            <span class="p">/&gt;</span>
+            <span class="p">&lt;</span><span class="jsx">path</span>
+              <span class="i">fill</span><span class="p">=</span><span class="s">"currentColor"</span>
+              <span class="i">className</span><span class="p">=</span><span class="s">"opacity-75"</span>
+              <span class="i">d</span><span class="p">=</span><span class="s">"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"</span>
+            <span class="p">/&gt;</span>
+          <span class="p">&lt;/</span><span class="jsx">svg</span><span class="p">&gt;</span>
+
+          <span class="p">{</span><span class="i">loadingMessage</span> <span class="p">&amp;&amp;</span> <span class="p">(</span>
+            <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-xs font-medium text-gray-500"</span><span class="p">&gt;</span>
+              <span class="p">{</span><span class="i">loadingMessage</span><span class="p">}</span>
+            <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+          <span class="p">)}</span>
+        <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+      <span class="p">)}</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<footer style="padding-bottom:40px;">
+  Layout Stability Fix · Col3-Only Loading · FunctionsNav useTransition · Next.js 15 App Router
+</footer>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.file-card').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = '✓ Copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2200);
+    });
+  }
+</script>
+</body>
+</html>
