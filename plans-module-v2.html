@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Plans Module v2 — Real API Code Reference</title>
+  <style>
+    :root {
+      --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --border:#2e3250;
+      --accent:#6c8ef5; --accent2:#4ade80; --warn:#f59e42; --danger:#f87171;
+      --text:#e2e8f0; --muted:#7c87a6;
+      --tag-ts:#3b82f6; --tag-gql:#e879f9; --tag-srv:#4ade80;
+      --tag-cli:#f59e42; --tag-const:#fb923c; --tag-warn:#f87171;
+      --radius:10px;
+      --mono:'Fira Code','Cascadia Code','Consolas',monospace;
+      --ui:'Inter',system-ui,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:var(--ui);padding:32px 20px 60px;min-height:100vh;}
+
+    /* header */
+    .header{max-width:980px;margin:0 auto 36px;}
+    .header-top{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+    .hbadge{background:var(--accent);color:#fff;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 10px;border-radius:20px;}
+    .hbadge2{background:#7c3aed;color:#fff;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 10px;border-radius:20px;}
+    h1{font-size:24px;font-weight:700;color:#fff;}
+    .header p{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.6;}
+
+    /* api contract box */
+    .contract{max-width:980px;margin:0 auto 36px;background:var(--surface);border:1px solid #7c3aed44;border-radius:var(--radius);overflow:hidden;}
+    .contract-header{background:#1e1b3a;padding:12px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #7c3aed44;}
+    .contract-header span{font-size:13px;font-weight:700;color:#c4b5fd;}
+    .contract-body{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+    .contract-col{padding:18px 20px;}
+    .contract-col:first-child{border-right:1px solid var(--border);}
+    .contract-col h3{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;}
+    .contract-col pre{font-family:var(--mono);font-size:12px;color:#cdd6f4;line-height:1.6;background:var(--surface2);padding:12px;border-radius:6px;}
+
+    /* warning box */
+    .alert{max-width:980px;margin:0 auto 24px;display:flex;gap:12px;padding:14px 18px;border-radius:8px;font-size:13px;line-height:1.6;}
+    .alert-warn{background:rgba(245,158,66,.1);border-left:3px solid var(--warn);color:#fcd34d;}
+    .alert-tip{background:rgba(74,222,128,.08);border-left:3px solid var(--accent2);color:#86efac;}
+    .alert-danger{background:rgba(248,113,113,.1);border-left:3px solid var(--danger);color:#fca5a5;}
+    .alert-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+    .alert strong{color:#fff;}
+
+    /* toc */
+    .toc{max-width:980px;margin:0 auto 36px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;}
+    .toc h2{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:14px;font-weight:600;}
+    .toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:8px;}
+    .toc-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;background:var(--surface2);text-decoration:none;transition:background .15s;}
+    .toc-item:hover{background:var(--border);}
+    .toc-num{font-size:11px;font-weight:800;color:var(--accent);min-width:22px;}
+    .toc-label{font-size:12px;color:var(--text);line-height:1.4;}
+    .toc-path{font-size:10px;color:var(--muted);}
+
+    /* section */
+    .section{max-width:980px;margin:0 auto 28px;}
+    .section-header{display:flex;align-items:flex-start;gap:14px;margin-bottom:12px;}
+    .step{background:var(--accent);color:#fff;font-size:11px;font-weight:800;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+    .step-meta h2{font-size:16px;font-weight:700;color:#fff;margin-bottom:2px;}
+    .step-meta p{font-size:12px;color:var(--muted);}
+
+    /* tags */
+    .tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle;}
+    .tag-ts{background:rgba(59,130,246,.18);color:var(--tag-ts);}
+    .tag-gql{background:rgba(232,121,249,.18);color:var(--tag-gql);}
+    .tag-srv{background:rgba(74,222,128,.15);color:var(--tag-srv);}
+    .tag-cli{background:rgba(245,158,66,.15);color:var(--tag-cli);}
+    .tag-const{background:rgba(251,146,60,.15);color:var(--tag-const);}
+    .tag-upd{background:rgba(248,113,113,.15);color:var(--tag-warn);}
+
+    /* file card */
+    .file-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px;}
+    .file-card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+    .file-path{font-family:var(--mono);font-size:12px;color:var(--accent);}
+    .file-path .dir{color:var(--muted);}
+    .copy-btn{background:var(--border);border:none;color:var(--muted);font-size:11px;font-family:var(--ui);padding:4px 12px;border-radius:5px;cursor:pointer;transition:background .15s,color .15s;}
+    .copy-btn:hover{background:var(--accent);color:#fff;}
+    .copy-btn.copied{background:#166534;color:var(--accent2);}
+    pre{margin:0;padding:20px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.75;color:#cdd6f4;background:transparent;}
+
+    /* syntax */
+    .k{color:#cba6f7;} .s{color:#a6e3a1;} .c{color:#585b70;font-style:italic;}
+    .t{color:#89dceb;} .f{color:#89b4fa;} .p{color:#f38ba8;}
+    .n{color:#fab387;} .i{color:#cdd6f4;} .cm{color:#f9e2af;}
+
+    hr.div{max-width:980px;margin:8px auto 28px;border:none;border-top:1px solid var(--border);}
+    footer{max-width:980px;margin:48px auto 0;text-align:center;font-size:12px;color:var(--muted);}
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <span class="hbadge">Plans Module</span>
+    <span class="hbadge2">v2 — Real API</span>
+    <h1>Code Reference — Updated from Actual GraphQL Schema</h1>
+  </div>
+  <p>All files updated to match the real <code>getLocationPlan</code> mutation contract from your backend.<br/>
+  Snake_case fields are normalized at the data layer — components only ever see camelCase.</p>
+</div>
+
+<!-- API CONTRACT -->
+<div class="contract">
+  <div class="contract-header">
+    <span>📡 Actual GraphQL Contract (from your screenshot)</span>
+  </div>
+  <div class="contract-body">
+    <div class="contract-col">
+      <h3>Mutation + Request</h3>
+      <pre>mutation getLocationPlan {
+  getLocationPlan(request: {
+    type: "client",
+    locationId: 1,
+    clientPlanId: Int  // optional
+  }) {
+    success
+    message
+    data  // JSON
+  }
+}</pre>
+    </div>
+    <div class="contract-col">
+      <h3>Response</h3>
+      <pre>{
+  "data": {
+    "getLocationPlan": {
+      "success": true,
+      "message": "Location Plans Fetched",
+      "data": [
+        {
+          "Client_Plan_Id": 3,
+          "Client_Plan_Name": "Flexible Buy Now,
+                               Pay Later Plan"
+        }
+      ]
+    }
+  }
+}</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ALERTS -->
+<div class="alert alert-warn" style="max-width:980px;margin:0 auto 14px;">
+  <span class="alert-icon">⚠️</span>
+  <div><strong>BE named a data fetch as a Mutation.</strong> Don't rename it — just wrap it cleanly in your action layer so UI code treats it like a normal data fetch. Never call mutations directly from components.</div>
+</div>
+<div class="alert alert-danger" style="max-width:980px;margin:0 auto 24px;">
+  <span class="alert-icon">🚨</span>
+  <div><strong>Snake_case fields must be normalized immediately</strong> in your mapper util (<code>Client_Plan_Id → id</code>, <code>Client_Plan_Name → name</code>). Never pass raw BE response shapes to your components — this will bite you badly at scale when BE changes field names.</div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h2>File Index — All Changed/New Files</h2>
+  <div class="toc-grid">
+    <a class="toc-item" href="#s1"><span class="toc-num">01</span><div><div class="toc-label">plans.types.ts <span style="color:#f87171;font-size:10px;">UPDATED</span></div><div class="toc-path">src/modules/plans/types/</div></div></a>
+    <a class="toc-item" href="#s2"><span class="toc-num">02</span><div><div class="toc-label">plans.mappers.ts <span style="color:#4ade80;font-size:10px;">NEW</span></div><div class="toc-path">src/modules/plans/lib/</div></div></a>
+    <a class="toc-item" href="#s3"><span class="toc-num">03</span><div><div class="toc-label">plans.mutations.ts <span style="color:#f87171;font-size:10px;">UPDATED</span></div><div class="toc-path">src/modules/plans/graphql/</div></div></a>
+    <a class="toc-item" href="#s4"><span class="toc-num">04</span><div><div class="toc-label">plans.constants.ts <span style="color:#f87171;font-size:10px;">UPDATED</span></div><div class="toc-path">src/modules/plans/lib/</div></div></a>
+    <a class="toc-item" href="#s5"><span class="toc-num">05</span><div><div class="toc-label">server-plans.ts <span style="color:#f87171;font-size:10px;">UPDATED</span></div><div class="toc-path">src/modules/plans/actions/</div></div></a>
+    <a class="toc-item" href="#s6"><span class="toc-num">06</span><div><div class="toc-label">useLocationPlan.ts <span style="color:#f87171;font-size:10px;">UPDATED</span></div><div class="toc-path">src/modules/plans/hooks/</div></div></a>
+    <a class="toc-item" href="#s7"><span class="toc-num">07</span><div><div class="toc-label">plan-selection/page.tsx <span style="color:#f87171;font-size:10px;">UPDATED</span></div><div class="toc-path">src/app/(protected)/location/[slug]/[fn]/</div></div></a>
+    <a class="toc-item" href="#s8"><span class="toc-num">08</span><div><div class="toc-label">[fn]/page.tsx — guard only <span style="color:#f87171;font-size:10px;">FIXED</span></div><div class="toc-path">src/app/(protected)/location/[slug]/[fn]/</div></div></a>
+  </div>
+</div>
+
+<!-- ══ 1. TYPES ══ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="step">1</div>
+    <div class="step-meta">
+      <h2>plans.types.ts <span class="tag tag-ts">TypeScript</span><span class="tag tag-upd">Updated</span></h2>
+      <p>Two type layers: raw BE response (snake_case) + normalized UI types (camelCase). Keep them separate.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/types/</span>plans.types.ts</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">// ─────────────────────────────────────────────────────────
+// RAW BE RESPONSE TYPES  (snake_case — match API exactly)
+// Never use these in components. Only used in mappers.
+// ─────────────────────────────────────────────────────────</span>
+
+<span class="k">export interface</span> <span class="t">RawLocationPlan</span> <span class="p">{</span>
+  <span class="i">Client_Plan_Id</span><span class="p">:</span> <span class="t">number</span><span class="p">;</span>
+  <span class="i">Client_Plan_Name</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export interface</span> <span class="t">RawGetLocationPlanResponse</span> <span class="p">{</span>
+  <span class="i">success</span><span class="p">:</span> <span class="t">boolean</span><span class="p">;</span>
+  <span class="i">message</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">data</span><span class="p">:</span> <span class="t">RawLocationPlan</span><span class="p">[]</span> <span class="p">|</span> <span class="k">null</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">// ─────────────────────────────────────────────────────────
+// NORMALIZED UI TYPES  (camelCase — what components use)
+// ─────────────────────────────────────────────────────────</span>
+
+<span class="k">export interface</span> <span class="t">LocationPlan</span> <span class="p">{</span>
+  <span class="i">id</span><span class="p">:</span> <span class="t">number</span><span class="p">;</span>
+  <span class="i">name</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">// Server action result wrapper — consistent shape across all actions</span>
+<span class="k">export interface</span> <span class="t">GetLocationPlansResult</span> <span class="p">{</span>
+  <span class="i">plans</span><span class="p">:</span> <span class="t">LocationPlan</span><span class="p">[];</span>
+  <span class="i">success</span><span class="p">:</span> <span class="t">boolean</span><span class="p">;</span>
+  <span class="i">message</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">error</span><span class="p">?:</span> <span class="t">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">// Request input type matching BE contract</span>
+<span class="k">export interface</span> <span class="t">GetLocationPlanRequest</span> <span class="p">{</span>
+  <span class="i">type</span><span class="p">:</span> <span class="s">'client'</span><span class="p">;</span>          <span class="c">// always "client" for now</span>
+  <span class="i">locationId</span><span class="p">:</span> <span class="t">number</span><span class="p">;</span>
+  <span class="i">clientPlanId</span><span class="p">?:</span> <span class="t">number</span><span class="p">;</span>  <span class="c">// optional filter</span>
+<span class="p">}</span>
+
+<span class="c">// Props for the plan selection page shell</span>
+<span class="k">export interface</span> <span class="t">PlanShellProps</span> <span class="p">{</span>
+  <span class="i">plans</span><span class="p">:</span> <span class="t">LocationPlan</span><span class="p">[];</span>
+  <span class="i">locationId</span><span class="p">:</span> <span class="t">number</span><span class="p">;</span>
+  <span class="i">message</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 2. MAPPER ══ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="step">2</div>
+    <div class="step-meta">
+      <h2>plans.mappers.ts <span class="tag tag-ts">TypeScript</span><span class="tag tag-upd" style="background:rgba(74,222,128,.15);color:var(--accent2);">NEW</span></h2>
+      <p>The normalization layer. Snake_case → camelCase happens here only. One place to fix if BE renames fields.</p>
+    </div>
+  </div>
+  <div class="alert alert-tip" style="max-width:980px;margin:0 auto 12px;">
+    <span class="alert-icon">💡</span>
+    <div><strong>Why a separate mapper file?</strong> When BE changes <code>Client_Plan_Id</code> to <code>plan_id</code>, you fix it in exactly one place. Without this, you'd be hunting snake_case across components, hooks, and pages.</div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/lib/</span>plans.mappers.ts</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import type</span> <span class="p">{</span>
+  <span class="t">RawLocationPlan</span><span class="p">,</span>
+  <span class="t">LocationPlan</span><span class="p">,</span>
+<span class="p">}</span> <span class="k">from</span> <span class="s">'../types/plans.types'</span><span class="p">;</span>
+
+<span class="c">/**
+ * Normalizes a single raw BE plan to UI-safe camelCase shape.
+ * Only place in the codebase that knows about Client_Plan_Id etc.
+ */</span>
+<span class="k">export function</span> <span class="f">mapRawPlanToLocationPlan</span><span class="p">(</span>
+  <span class="i">raw</span><span class="p">:</span> <span class="t">RawLocationPlan</span>
+<span class="p">):</span> <span class="t">LocationPlan</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">{</span>
+    <span class="i">id</span><span class="p">:</span>   <span class="i">raw</span><span class="p">.</span><span class="i">Client_Plan_Id</span><span class="p">,</span>
+    <span class="i">name</span><span class="p">:</span> <span class="i">raw</span><span class="p">.</span><span class="i">Client_Plan_Name</span><span class="p">,</span>
+  <span class="p">};</span>
+<span class="p">}</span>
+
+<span class="c">/**
+ * Maps an array of raw BE plans.
+ * Filters out any null/undefined items defensively.
+ */</span>
+<span class="k">export function</span> <span class="f">mapRawPlansToLocationPlans</span><span class="p">(</span>
+  <span class="i">rawPlans</span><span class="p">:</span> <span class="t">RawLocationPlan</span><span class="p">[]</span> <span class="p">|</span> <span class="k">null</span> <span class="p">|</span> <span class="k">undefined</span>
+<span class="p">):</span> <span class="t">LocationPlan</span><span class="p">[]</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">rawPlans</span><span class="p">)</span> <span class="k">return</span> <span class="p">[];</span>
+  <span class="k">return</span> <span class="i">rawPlans</span>
+    <span class="p">.</span><span class="f">filter</span><span class="p">(</span><span class="t">Boolean</span><span class="p">)</span>
+    <span class="p">.</span><span class="f">map</span><span class="p">(</span><span class="i">mapRawPlanToLocationPlan</span><span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 3. MUTATION (GraphQL) ══ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="step">3</div>
+    <div class="step-meta">
+      <h2>plans.mutations.ts <span class="tag tag-gql">GraphQL</span><span class="tag tag-upd">Updated</span></h2>
+      <p>Matches your actual BE mutation exactly. The <code>data</code> field returns JSON so we fetch the whole thing.</p>
+    </div>
+  </div>
+  <div class="alert alert-warn" style="max-width:980px;margin:0 auto 12px;">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>Note:</strong> The old <code>plans.queries.ts</code> file is now <strong>deleted</strong> — BE has no separate queries for plans, only this mutation. Keep your graphql folder clean — don't leave empty files.</div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/graphql/</span>plans.mutations.ts</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import</span> <span class="p">{</span> <span class="i">gql</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'graphql-tag'</span><span class="p">;</span>
+
+<span class="c">/**
+ * BE uses a mutation to fetch plan data (their design choice).
+ * We treat it as a data fetch in our action layer.
+ * Do not call this directly from components or hooks.
+ */</span>
+<span class="k">export const</span> <span class="i">GET_LOCATION_PLAN</span> <span class="p">=</span> <span class="f">gql</span><span class="s">`
+  mutation GetLocationPlan($request: DeleteLocation!) {
+    getLocationPlan(request: $request) {
+      success
+      message
+      data
+    }
+  }
+`</span><span class="p">;</span>
+
+<span class="c">// ─── Future mutations (add here as BE provides them) ────</span>
+<span class="c">// export const ASSIGN_PLAN = gql`...`;</span>
+<span class="c">// export const REMOVE_PLAN = gql`...`;</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 4. CONSTANTS ══ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="step">4</div>
+    <div class="step-meta">
+      <h2>plans.constants.ts <span class="tag tag-const">Constants</span><span class="tag tag-upd">Updated</span></h2>
+      <p>Query keys updated to match real data shape. Also stores the plan type constant.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/lib/</span>plans.constants.ts</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">// TanStack Query cache keys — always use these, never inline strings</span>
+<span class="k">export const</span> <span class="i">PLAN_QUERY_KEYS</span> <span class="p">=</span> <span class="p">{</span>
+  <span class="i">all</span><span class="p">:</span> <span class="p">[</span><span class="s">'plans'</span><span class="p">]</span> <span class="k">as const</span><span class="p">,</span>
+
+  <span class="c">// Key for fetching all plans for a given location</span>
+  <span class="f">locationPlans</span><span class="p">:</span> <span class="p">(</span><span class="i">locationId</span><span class="p">:</span> <span class="t">number</span><span class="p">)</span> <span class="p">=&gt;</span>
+    <span class="p">[</span><span class="s">'plans'</span><span class="p">,</span> <span class="s">'location'</span><span class="p">,</span> <span class="i">locationId</span><span class="p">]</span> <span class="k">as const</span><span class="p">,</span>
+
+  <span class="c">// Key for a specific plan detail (for future use)</span>
+  <span class="f">planDetail</span><span class="p">:</span> <span class="p">(</span><span class="i">locationId</span><span class="p">:</span> <span class="t">number</span><span class="p">,</span> <span class="i">planId</span><span class="p">:</span> <span class="t">number</span><span class="p">)</span> <span class="p">=&gt;</span>
+    <span class="p">[</span><span class="s">'plans'</span><span class="p">,</span> <span class="s">'location'</span><span class="p">,</span> <span class="i">locationId</span><span class="p">,</span> <span class="s">'detail'</span><span class="p">,</span> <span class="i">planId</span><span class="p">]</span> <span class="k">as const</span><span class="p">,</span>
+<span class="p">} <span class="k">as const</span><span class="p">;</span></span>
+
+<span class="c">// BE requires this type value — centralise so it's not a magic string</span>
+<span class="k">export const</span> <span class="i">PLAN_REQUEST_TYPE</span> <span class="p">=</span> <span class="s">'client'</span> <span class="k">as const</span><span class="p">;</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 5. SERVER ACTION ══ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="step">5</div>
+    <div class="step-meta">
+      <h2>server-plans.ts <span class="tag tag-srv">Server</span><span class="tag tag-upd">Updated</span></h2>
+      <p>Calls the mutation, normalizes the response, returns clean types. This is the only file that deals with raw BE data.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/actions/</span>server-plans.ts</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use server'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">getClient</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/lib/apollo-server-client'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">GET_LOCATION_PLAN</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../graphql/plans.mutations'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">mapRawPlansToLocationPlans</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../lib/plans.mappers'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">PLAN_REQUEST_TYPE</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../lib/plans.constants'</span><span class="p">;</span>
+<span class="k">import type</span> <span class="p">{</span>
+  <span class="t">GetLocationPlansResult</span><span class="p">,</span>
+  <span class="t">RawGetLocationPlanResponse</span><span class="p">,</span>
+<span class="p">}</span> <span class="k">from</span> <span class="s">'../types/plans.types'</span><span class="p">;</span>
+
+<span class="c">/**
+ * Fetches all plans for a location.
+ *
+ * NOTE: BE exposes this as a mutation (getLocationPlan).
+ * We use Apollo mutate() here to match that. The naming
+ * in this file stays "get" to be clear about intent.
+ *
+ * @param locationId - numeric location ID from the tree node
+ * @param clientPlanId - optional: filter to a specific plan
+ */</span>
+<span class="k">export async function</span> <span class="f">getLocationPlans</span><span class="p">(</span>
+  <span class="i">locationId</span><span class="p">:</span> <span class="t">number</span><span class="p">,</span>
+  <span class="i">clientPlanId</span><span class="p">?:</span> <span class="t">number</span><span class="p">,</span>
+<span class="p">):</span> <span class="t">Promise</span><span class="p">&lt;</span><span class="t">GetLocationPlansResult</span><span class="p">&gt;</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="k">const</span> <span class="p">{</span> <span class="i">data</span> <span class="p">}</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getClient</span><span class="p">().</span><span class="f">mutate</span><span class="p">&lt;{</span>
+      <span class="i">getLocationPlan</span><span class="p">:</span> <span class="t">RawGetLocationPlanResponse</span><span class="p">;</span>
+    <span class="p">}&gt;({</span>
+      <span class="i">mutation</span><span class="p">:</span> <span class="i">GET_LOCATION_PLAN</span><span class="p">,</span>
+      <span class="i">variables</span><span class="p">:</span> <span class="p">{</span>
+        <span class="i">request</span><span class="p">:</span> <span class="p">{</span>
+          <span class="i">type</span><span class="p">:</span> <span class="i">PLAN_REQUEST_TYPE</span><span class="p">,</span>
+          <span class="i">locationId</span><span class="p">,</span>
+          <span class="p">...</span><span class="p">(</span><span class="i">clientPlanId</span> <span class="p">!==</span> <span class="k">undefined</span> <span class="p">&amp;&amp;</span> <span class="p">{</span> <span class="i">clientPlanId</span> <span class="p">}),</span>
+        <span class="p">},</span>
+      <span class="p">},</span>
+    <span class="p">});</span>
+
+    <span class="k">const</span> <span class="i">result</span> <span class="p">=</span> <span class="i">data</span><span class="p">?.</span><span class="i">getLocationPlan</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(!</span><span class="i">result</span><span class="p">?.</span><span class="i">success</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="p">{</span>
+        <span class="i">plans</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="i">success</span><span class="p">:</span> <span class="k">false</span><span class="p">,</span>
+        <span class="i">message</span><span class="p">:</span> <span class="i">result</span><span class="p">?.</span><span class="i">message</span> <span class="p">??</span> <span class="s">'Unknown error'</span><span class="p">,</span>
+        <span class="i">error</span><span class="p">:</span> <span class="i">result</span><span class="p">?.</span><span class="i">message</span><span class="p">,</span>
+      <span class="p">};</span>
+    <span class="p">}</span>
+
+    <span class="c">// Normalize snake_case → camelCase here, never downstream</span>
+    <span class="k">const</span> <span class="i">plans</span> <span class="p">=</span> <span class="f">mapRawPlansToLocationPlans</span><span class="p">(</span><span class="i">result</span><span class="p">.</span><span class="i">data</span><span class="p">);</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+      <span class="i">plans</span><span class="p">,</span>
+      <span class="i">success</span><span class="p">:</span> <span class="k">true</span><span class="p">,</span>
+      <span class="i">message</span><span class="p">:</span> <span class="i">result</span><span class="p">.</span><span class="i">message</span><span class="p">,</span>
+    <span class="p">};</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="i">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="i">console</span><span class="p">.</span><span class="f">error</span><span class="p">(</span><span class="s">'[getLocationPlans]'</span><span class="p">,</span> <span class="i">error</span><span class="p">);</span>
+    <span class="k">return</span> <span class="p">{</span>
+      <span class="i">plans</span><span class="p">:</span> <span class="p">[],</span>
+      <span class="i">success</span><span class="p">:</span> <span class="k">false</span><span class="p">,</span>
+      <span class="i">message</span><span class="p">:</span> <span class="s">'Failed to fetch location plans'</span><span class="p">,</span>
+      <span class="i">error</span><span class="p">:</span> <span class="s">'Failed to fetch location plans'</span><span class="p">,</span>
+    <span class="p">};</span>
+  <span class="p">}</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 6. HOOK ══ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="step">6</div>
+    <div class="step-meta">
+      <h2>useLocationPlan.ts <span class="tag tag-cli">Client</span><span class="tag tag-upd">Updated</span></h2>
+      <p>Client hook for when you need to <em>re-fetch plans on user action</em> (e.g. filter change). For initial load, the server action is sufficient.</p>
+    </div>
+  </div>
+  <div class="alert alert-tip" style="max-width:980px;margin:0 auto 12px;">
+    <span class="alert-icon">💡</span>
+    <div><strong>When to use this hook vs server action:</strong> Server action = initial page load (no spinner). This hook = user triggers a re-fetch (e.g. changes a filter, refreshes after action). Both call the same BE mutation internally.</div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/hooks/</span>useLocationPlan.ts</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use client'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">useMutation</span><span class="p">,</span> <span class="i">useQueryClient</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@tanstack/react-query'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">useGraphQLClient</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/hooks/useGraphQLClient'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">GET_LOCATION_PLAN</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../graphql/plans.mutations'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">mapRawPlansToLocationPlans</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../lib/plans.mappers'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">PLAN_QUERY_KEYS</span><span class="p">,</span> <span class="i">PLAN_REQUEST_TYPE</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../lib/plans.constants'</span><span class="p">;</span>
+<span class="k">import type</span> <span class="p">{</span>
+  <span class="t">LocationPlan</span><span class="p">,</span>
+  <span class="t">RawGetLocationPlanResponse</span><span class="p">,</span>
+<span class="p">}</span> <span class="k">from</span> <span class="s">'../types/plans.types'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">UseLocationPlanOptions</span> <span class="p">{</span>
+  <span class="i">locationId</span><span class="p">:</span> <span class="t">number</span><span class="p">;</span>
+  <span class="i">onSuccess</span><span class="p">?:</span> <span class="p">(</span><span class="i">plans</span><span class="p">:</span> <span class="t">LocationPlan</span><span class="p">[])</span> <span class="p">=&gt;</span> <span class="k">void</span><span class="p">;</span>
+  <span class="i">onError</span><span class="p">?:</span> <span class="p">(</span><span class="i">message</span><span class="p">:</span> <span class="t">string</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="k">void</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export function</span> <span class="f">useLocationPlan</span><span class="p">({</span>
+  <span class="i">locationId</span><span class="p">,</span>
+  <span class="i">onSuccess</span><span class="p">,</span>
+  <span class="i">onError</span><span class="p">,</span>
+<span class="p">}:</span> <span class="t">UseLocationPlanOptions</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="i">queryClient</span> <span class="p">=</span> <span class="f">useQueryClient</span><span class="p">();</span>
+  <span class="k">const</span> <span class="i">graphqlClient</span> <span class="p">=</span> <span class="f">useGraphQLClient</span><span class="p">();</span>
+
+  <span class="k">const</span> <span class="i">mutation</span> <span class="p">=</span> <span class="f">useMutation</span><span class="p">&lt;</span>
+    <span class="t">LocationPlan</span><span class="p">[],</span>
+    <span class="t">Error</span><span class="p">,</span>
+    <span class="p">{</span> <span class="i">clientPlanId</span><span class="p">?:</span> <span class="t">number</span> <span class="p">}</span>
+  <span class="p">&gt;({</span>
+    <span class="f">mutationFn</span><span class="p">:</span> <span class="k">async</span> <span class="p">({</span> <span class="i">clientPlanId</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">{</span>
+      <span class="k">const</span> <span class="i">response</span> <span class="p">=</span> <span class="k">await</span> <span class="i">graphqlClient</span><span class="p">.</span><span class="f">request</span><span class="p">&lt;{</span>
+        <span class="i">getLocationPlan</span><span class="p">:</span> <span class="t">RawGetLocationPlanResponse</span><span class="p">;</span>
+      <span class="p">}&gt;(</span><span class="i">GET_LOCATION_PLAN</span><span class="p">,</span> <span class="p">{</span>
+        <span class="i">request</span><span class="p">:</span> <span class="p">{</span>
+          <span class="i">type</span><span class="p">:</span> <span class="i">PLAN_REQUEST_TYPE</span><span class="p">,</span>
+          <span class="i">locationId</span><span class="p">,</span>
+          <span class="p">...</span><span class="p">(</span><span class="i">clientPlanId</span> <span class="p">!==</span> <span class="k">undefined</span> <span class="p">&amp;&amp;</span> <span class="p">{</span> <span class="i">clientPlanId</span> <span class="p">}),</span>
+        <span class="p">},</span>
+      <span class="p">});</span>
+
+      <span class="k">const</span> <span class="i">result</span> <span class="p">=</span> <span class="i">response</span><span class="p">.</span><span class="i">getLocationPlan</span><span class="p">;</span>
+      <span class="k">if</span> <span class="p">(!</span><span class="i">result</span><span class="p">.</span><span class="i">success</span><span class="p">)</span> <span class="k">throw new</span> <span class="t">Error</span><span class="p">(</span><span class="i">result</span><span class="p">.</span><span class="i">message</span><span class="p">);</span>
+
+      <span class="c">// Normalize here too — same mapper, same safety</span>
+      <span class="k">return</span> <span class="f">mapRawPlansToLocationPlans</span><span class="p">(</span><span class="i">result</span><span class="p">.</span><span class="i">data</span><span class="p">);</span>
+    <span class="p">},</span>
+    <span class="f">onSuccess</span><span class="p">:</span> <span class="p">(</span><span class="i">plans</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+      <span class="c">// Update cache so other components see fresh data</span>
+      <span class="i">queryClient</span><span class="p">.</span><span class="f">setQueryData</span><span class="p">(</span>
+        <span class="i">PLAN_QUERY_KEYS</span><span class="p">.</span><span class="f">locationPlans</span><span class="p">(</span><span class="i">locationId</span><span class="p">),</span>
+        <span class="i">plans</span>
+      <span class="p">);</span>
+      <span class="i">onSuccess</span><span class="p">?.(</span><span class="i">plans</span><span class="p">);</span>
+    <span class="p">},</span>
+    <span class="f">onError</span><span class="p">:</span> <span class="p">(</span><span class="i">error</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+      <span class="i">onError</span><span class="p">?.(</span><span class="i">error</span><span class="p">.</span><span class="i">message</span><span class="p">);</span>
+    <span class="p">},</span>
+  <span class="p">});</span>
+
+  <span class="k">return</span> <span class="p">{</span>
+    <span class="i">fetchPlans</span><span class="p">:</span> <span class="i">mutation</span><span class="p">.</span><span class="i">mutate</span><span class="p">,</span>
+    <span class="i">fetchPlansAsync</span><span class="p">:</span> <span class="i">mutation</span><span class="p">.</span><span class="i">mutateAsync</span><span class="p">,</span>
+    <span class="i">plans</span><span class="p">:</span> <span class="i">mutation</span><span class="p">.</span><span class="i">data</span> <span class="p">??</span> <span class="p">[],</span>
+    <span class="i">isLoading</span><span class="p">:</span> <span class="i">mutation</span><span class="p">.</span><span class="i">isPending</span><span class="p">,</span>
+    <span class="i">isError</span><span class="p">:</span> <span class="i">mutation</span><span class="p">.</span><span class="i">isError</span><span class="p">,</span>
+    <span class="i">error</span><span class="p">:</span> <span class="i">mutation</span><span class="p">.</span><span class="i">error</span><span class="p">,</span>
+  <span class="p">};</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 7. PAGE ══ -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <div class="step">7</div>
+    <div class="step-meta">
+      <h2>plan-selection/page.tsx <span class="tag tag-srv">Server Component</span><span class="tag tag-upd">Updated</span></h2>
+      <p>Uses the updated server action. locationId converted to number here since slug is always a string from the URL.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/app/(protected)/location/[slug]/[fn]/plan-selection/</span>page.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import</span> <span class="p">{</span> <span class="i">notFound</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'next/navigation'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getLocationsTree</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/actions/server-locations'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getNodeAndPathBySlug</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/lib/slug'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getLocationPlans</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/plans/actions/server-plans'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">PlanShell</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/plans/components/PlanShell'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">Props</span> <span class="p">{</span>
+  <span class="i">params</span><span class="p">:</span> <span class="t">Promise</span><span class="p">&lt;{</span> <span class="i">slug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span> <span class="i">fn</span><span class="p">:</span> <span class="t">string</span> <span class="p">}&gt;;</span>
+<span class="p">}</span>
+
+<span class="k">export default async function</span> <span class="f">PlanSelectionPage</span><span class="p">({</span> <span class="i">params</span> <span class="p">}:</span> <span class="t">Props</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="p">{</span> <span class="i">slug</span> <span class="p">}</span> <span class="p">=</span> <span class="k">await</span> <span class="i">params</span><span class="p">;</span>
+
+  <span class="c">// Get the numeric locationId from the tree node</span>
+  <span class="k">const</span> <span class="i">tree</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getLocationsTree</span><span class="p">();</span>
+  <span class="k">const</span> <span class="i">found</span> <span class="p">=</span> <span class="f">getNodeAndPathBySlug</span><span class="p">(</span><span class="i">tree</span><span class="p">,</span> <span class="i">slug</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">found</span><span class="p">)</span> <span class="f">notFound</span><span class="p">();</span>
+
+  <span class="k">const</span> <span class="i">locationId</span> <span class="p">=</span> <span class="i">found</span><span class="p">.</span><span class="i">node</span><span class="p">.</span><span class="i">id</span><span class="p">;</span> <span class="c">// number from tree</span>
+
+  <span class="c">// Fetch plans using the real BE mutation</span>
+  <span class="k">const</span> <span class="i">result</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getLocationPlans</span><span class="p">(</span><span class="i">locationId</span><span class="p">);</span>
+
+  <span class="k">if</span> <span class="p">(!</span><span class="i">result</span><span class="p">.</span><span class="i">success</span> <span class="p">&amp;&amp;</span> <span class="i">result</span><span class="p">.</span><span class="i">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c">// You can render an error UI instead of notFound if preferred</span>
+    <span class="f">notFound</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="i">PlanShell</span>
+      <span class="i">plans</span><span class="p">={</span><span class="i">result</span><span class="p">.</span><span class="i">plans</span><span class="p">}</span>
+      <span class="i">locationId</span><span class="p">={</span><span class="i">locationId</span><span class="p">}</span>
+      <span class="i">message</span><span class="p">={</span><span class="i">result</span><span class="p">.</span><span class="i">message</span><span class="p">}</span>
+    <span class="p">/&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 8. FN GUARD PAGE ══ -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="step">8</div>
+    <div class="step-meta">
+      <h2>[fn]/page.tsx — Guard Only <span class="tag tag-srv">Server Component</span><span class="tag tag-upd">Fixed</span></h2>
+      <p>Replaces the broken switch/map pattern. Validates location + fn segment only. Next.js routes to subfolder pages automatically.</p>
+    </div>
+  </div>
+  <div class="alert alert-warn" style="max-width:980px;margin:0 auto 12px;">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>This fixes your TS error.</strong> No more component map here. App Router handles routing to <code>plan-selection/page.tsx</code> naturally. This file is a guard only — validate then return null.</div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/app/(protected)/location/[slug]/[fn]/</span>page.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import</span> <span class="p">{</span> <span class="i">notFound</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'next/navigation'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getNodeAndPathBySlug</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/lib/slug'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getLocationsTree</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/actions/server-locations'</span><span class="p">;</span>
+
+<span class="c">// ── Add new fn segments here as you build them ──────────</span>
+<span class="k">const</span> <span class="i">VALID_FUNCTIONS</span> <span class="p">=</span> <span class="k">new</span> <span class="t">Set</span><span class="p">([</span>
+  <span class="s">'config'</span><span class="p">,</span>
+  <span class="s">'plan-selection'</span><span class="p">,</span>
+  <span class="s">'tickets'</span><span class="p">,</span>
+  <span class="s">'events'</span><span class="p">,</span>
+  <span class="s">'facilities'</span><span class="p">,</span>
+  <span class="s">'groups'</span><span class="p">,</span>
+  <span class="s">'discounts'</span><span class="p">,</span>
+  <span class="s">'customers'</span><span class="p">,</span>
+  <span class="s">'legal'</span><span class="p">,</span>
+  <span class="s">'physicalAddress'</span><span class="p">,</span>
+  <span class="s">'seating-maps'</span><span class="p">,</span>
+<span class="p">]);</span>
+
+<span class="k">interface</span> <span class="t">Props</span> <span class="p">{</span>
+  <span class="i">params</span><span class="p">:</span> <span class="t">Promise</span><span class="p">&lt;{</span> <span class="i">slug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span> <span class="i">fn</span><span class="p">:</span> <span class="t">string</span> <span class="p">}&gt;;</span>
+<span class="p">}</span>
+
+<span class="k">export default async function</span> <span class="f">LocationFunctionPage</span><span class="p">({</span> <span class="i">params</span> <span class="p">}:</span> <span class="t">Props</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="p">{</span> <span class="i">slug</span><span class="p">,</span> <span class="i">fn</span> <span class="p">}</span> <span class="p">=</span> <span class="k">await</span> <span class="i">params</span><span class="p">;</span>
+
+  <span class="c">// Guard 1: location must exist in the tree</span>
+  <span class="k">const</span> <span class="i">tree</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getLocationsTree</span><span class="p">();</span>
+  <span class="k">const</span> <span class="i">found</span> <span class="p">=</span> <span class="f">getNodeAndPathBySlug</span><span class="p">(</span><span class="i">tree</span><span class="p">,</span> <span class="i">slug</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">found</span><span class="p">)</span> <span class="f">notFound</span><span class="p">();</span>
+
+  <span class="c">// Guard 2: fn segment must be a known function</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">VALID_FUNCTIONS</span><span class="p">.</span><span class="f">has</span><span class="p">(</span><span class="i">fn</span><span class="p">))</span> <span class="f">notFound</span><span class="p">();</span>
+
+  <span class="c">// Next.js App Router renders the matching subfolder page.tsx.
+  // No component map needed — the framework handles routing.</span>
+  <span class="k">return null</span><span class="p">;</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<footer style="padding-bottom:32px;">
+  Plans Module v2 · Matches real <code>getLocationPlan</code> BE mutation · snake_case normalized at data layer
+</footer>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.file-card').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = '✓ Copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
