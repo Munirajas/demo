@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Plans Module v3 — PlanShell + Corrected Server Action</title>
+  <style>
+    :root {
+      --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --border:#2e3250;
+      --accent:#6c8ef5; --accent2:#4ade80; --warn:#f59e42; --danger:#f87171;
+      --text:#e2e8f0; --muted:#7c87a6;
+      --radius:10px;
+      --mono:'Fira Code','Cascadia Code','Consolas',monospace;
+      --ui:'Inter',system-ui,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:var(--ui);padding:32px 20px 60px;}
+
+    .header{max-width:980px;margin:0 auto 32px;}
+    .header-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+    .badge{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:3px 10px;border-radius:20px;}
+    .badge-blue{background:var(--accent);color:#fff;}
+    .badge-purple{background:#7c3aed;color:#fff;}
+    .badge-green{background:#16a34a;color:#fff;}
+    h1{font-size:23px;font-weight:700;color:#fff;}
+    .header p{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.6;}
+
+    /* verdict box */
+    .verdict{max-width:980px;margin:0 auto 28px;background:var(--surface);border:1px solid #7c3aed55;border-radius:var(--radius);overflow:hidden;}
+    .verdict-header{background:#1e1b3a;padding:12px 20px;border-bottom:1px solid #7c3aed44;}
+    .verdict-header span{font-size:13px;font-weight:700;color:#c4b5fd;}
+    .verdict-body{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+    .verdict-col{padding:16px 20px;}
+    .verdict-col:first-child{border-right:1px solid var(--border);}
+    .verdict-col h3{font-size:12px;font-weight:700;margin-bottom:10px;}
+    .verdict-col h3.bad{color:var(--danger);}
+    .verdict-col h3.good{color:var(--accent2);}
+    .verdict-col ul{list-style:none;font-size:12.5px;line-height:2;}
+    .verdict-col ul li::before{margin-right:8px;}
+    .col-bad li::before{content:'✗';color:var(--danger);}
+    .col-good li::before{content:'✓';color:var(--accent2);}
+
+    /* alert */
+    .alert{max-width:980px;margin:0 auto 16px;display:flex;gap:12px;padding:13px 17px;border-radius:8px;font-size:13px;line-height:1.6;}
+    .alert-warn{background:rgba(245,158,66,.1);border-left:3px solid var(--warn);color:#fcd34d;}
+    .alert-tip{background:rgba(74,222,128,.08);border-left:3px solid var(--accent2);color:#86efac;}
+    .alert-danger{background:rgba(248,113,113,.1);border-left:3px solid var(--danger);color:#fca5a5;}
+    .alert-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+    .alert strong{color:#fff;}
+
+    /* toc */
+    .toc{max-width:980px;margin:0 auto 32px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;}
+    .toc h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;font-weight:600;}
+    .toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:7px;}
+    .toc-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;background:var(--surface2);text-decoration:none;transition:background .15s;}
+    .toc-item:hover{background:var(--border);}
+    .toc-num{font-size:11px;font-weight:800;color:var(--accent);min-width:20px;}
+    .toc-label{font-size:12px;color:var(--text);line-height:1.3;}
+    .toc-path{font-size:10px;color:var(--muted);}
+    .toc-badge{font-size:9px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:10px;margin-left:4px;}
+    .tb-new{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tb-fix{background:rgba(248,113,113,.15);color:var(--danger);}
+    .tb-upd{background:rgba(245,158,66,.15);color:var(--warn);}
+
+    /* section */
+    .section{max-width:980px;margin:0 auto 24px;}
+    .section-header{display:flex;align-items:flex-start;gap:13px;margin-bottom:12px;}
+    .step{background:var(--accent);color:#fff;font-size:11px;font-weight:800;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+    .step-meta h2{font-size:15px;font-weight:700;color:#fff;margin-bottom:2px;}
+    .step-meta p{font-size:12px;color:var(--muted);}
+
+    /* tags */
+    .tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:20px;margin-left:5px;vertical-align:middle;}
+    .tag-ts{background:rgba(59,130,246,.18);color:#60a5fa;}
+    .tag-tsx{background:rgba(99,102,241,.2);color:#a5b4fc;}
+    .tag-srv{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tag-cli{background:rgba(245,158,66,.15);color:var(--warn);}
+    .tag-new{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tag-fix{background:rgba(248,113,113,.15);color:var(--danger);}
+
+    /* file card */
+    .file-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:13px;}
+    .file-card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+    .file-path{font-family:var(--mono);font-size:12px;color:var(--accent);}
+    .file-path .dir{color:var(--muted);}
+    .copy-btn{background:var(--border);border:none;color:var(--muted);font-size:11px;font-family:var(--ui);padding:4px 12px;border-radius:5px;cursor:pointer;transition:background .15s,color .15s;}
+    .copy-btn:hover{background:var(--accent);color:#fff;}
+    .copy-btn.copied{background:#166534;color:var(--accent2);}
+    pre{margin:0;padding:20px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.75;color:#cdd6f4;}
+
+    /* syntax */
+    .k{color:#cba6f7;} .s{color:#a6e3a1;} .c{color:#585b70;font-style:italic;}
+    .t{color:#89dceb;} .f{color:#89b4fa;} .p{color:#f38ba8;}
+    .n{color:#fab387;} .i{color:#cdd6f4;} .jsx{color:#f9e2af;}
+
+    hr.div{max-width:980px;margin:6px auto 24px;border:none;border-top:1px solid var(--border);}
+
+    /* component tree */
+    .tree{max-width:980px;margin:0 auto 28px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;}
+    .tree h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:14px;font-weight:600;}
+    .tree pre{font-family:var(--mono);font-size:12.5px;color:#cdd6f4;line-height:1.9;background:transparent;padding:0;}
+
+    footer{max-width:980px;margin:48px auto 0;text-align:center;font-size:12px;color:var(--muted);}
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <span class="badge badge-blue">Plans Module</span>
+    <span class="badge badge-purple">v3</span>
+    <span class="badge badge-green">PlanShell + Server Action Fix</span>
+  </div>
+  <h1>PlanShell Components + Corrected Server Action</h1>
+  <p>Your <code>serverGqlFetch</code> + <code>React.cache()</code> approach is the right base — combined with mapper normalization and correct module placement.</p>
+</div>
+
+<!-- VERDICT -->
+<div class="verdict">
+  <div class="verdict-header"><span>⚖️ Your Approach vs Suggested — Verdict</span></div>
+  <div class="verdict-body">
+    <div class="verdict-col">
+      <h3 class="bad">Your Current Code — Issues</h3>
+      <ul class="col-bad">
+        <li>Mutation file in <code>locations/graphql</code> (wrong module)</li>
+        <li>Returns raw <code>planData</code> with snake_case fields</li>
+        <li>No normalization — <code>Client_Plan_Id</code> leaks to UI</li>
+        <li>Inline interface instead of shared types file</li>
+      </ul>
+    </div>
+    <div class="verdict-col">
+      <h3 class="good">Keep These — They're Good</h3>
+      <ul class="col-good">
+        <li><code>React.cache()</code> wrapping — smart, keep it</li>
+        <li><code>serverGqlFetch</code> util — clean abstraction</li>
+        <li><code>'use server'</code> directive — correct</li>
+        <li>Async function pattern — correct</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-tip">
+  <span class="alert-icon">✅</span>
+  <div><strong>Best approach = Your pattern + my normalisation.</strong> Use <code>serverGqlFetch</code> + <code>React.cache()</code> but add the mapper and move the mutation to the plans module. The corrected server action is File 01 below.</div>
+</div>
+
+<!-- COMPONENT TREE -->
+<div class="tree">
+  <h2>Plans Component Tree — What We're Building</h2>
+  <pre><span class="s">PlanSelectionPage</span> (server — fetches data)
+  └── <span class="f">PlanShell</span> (client shell — receives server data as props)
+        ├── <span class="t">ActivePlanBanner</span>   ← shows current active plan (if any)
+        ├── <span class="t">PlanGrid</span>           ← grid of all available plans
+        │     └── <span class="t">PlanCard</span>      ← individual plan card (× N)
+        └── <span class="t">PlanEmptyState</span>     ← shown when plans array is empty
+
+<span class="c">All components accept only normalised LocationPlan types — never raw BE shapes</span></pre>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h2>File Index</h2>
+  <div class="toc-grid">
+    <a class="toc-item" href="#s1"><span class="toc-num">01</span><div><div class="toc-label">server-location-plans.ts <span class="toc-badge tb-fix">fixed</span></div><div class="toc-path">src/modules/plans/actions/</div></div></a>
+    <a class="toc-item" href="#s2"><span class="toc-num">02</span><div><div class="toc-label">PlanShell.tsx <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/modules/plans/components/</div></div></a>
+    <a class="toc-item" href="#s3"><span class="toc-num">03</span><div><div class="toc-label">ActivePlanBanner.tsx <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/modules/plans/components/</div></div></a>
+    <a class="toc-item" href="#s4"><span class="toc-num">04</span><div><div class="toc-label">PlanCard.tsx <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/modules/plans/components/</div></div></a>
+    <a class="toc-item" href="#s5"><span class="toc-num">05</span><div><div class="toc-label">PlanGrid.tsx <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/modules/plans/components/</div></div></a>
+    <a class="toc-item" href="#s6"><span class="toc-num">06</span><div><div class="toc-label">PlanEmptyState.tsx <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/modules/plans/components/</div></div></a>
+    <a class="toc-item" href="#s7"><span class="toc-num">07</span><div><div class="toc-label">index.ts (barrel export) <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/modules/plans/components/</div></div></a>
+    <a class="toc-item" href="#s8"><span class="toc-num">08</span><div><div class="toc-label">plan-selection/page.tsx <span class="toc-badge tb-upd">updated</span></div><div class="toc-path">src/app/(protected)/location/[slug]/[fn]/</div></div></a>
+  </div>
+</div>
+
+<!-- ══ 01 SERVER ACTION ══ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="step">1</div>
+    <div class="step-meta">
+      <h2>server-location-plans.ts <span class="tag tag-srv">Server</span><span class="tag tag-fix">Fixed</span></h2>
+      <p>Your pattern kept. Added mapper normalization + imports from correct modules.</p>
+    </div>
+  </div>
+
+  <div class="alert alert-danger" style="max-width:980px;margin:0 auto 12px;">
+    <span class="alert-icon">🚨</span>
+    <div><strong>Move the mutation import.</strong> Change <code>../../locations/graphql/locations.mutations</code> → <code>../graphql/plans.mutations</code>. Plans mutations must live in the plans module.</div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/actions/</span>server-location-plans.ts</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use server'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">cache</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'react'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">serverGqlFetch</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/lib/graphql/server-gql-fetcher'</span><span class="p">;</span>
+
+<span class="c">// ✅ Correct: mutation lives in plans module, not locations</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">GET_LOCATION_PLAN_MUTATION</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'../graphql/plans.mutations'</span><span class="p">;</span>
+
+<span class="c">// ✅ Shared types — not inline interfaces</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">mapRawPlansToLocationPlans</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'../lib/plans.mappers'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">PLAN_REQUEST_TYPE</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'../lib/plans.constants'</span><span class="p">;</span>
+<span class="k">import type</span> <span class="p">{</span>
+  <span class="t">RawGetLocationPlanResponse</span><span class="p">,</span>
+  <span class="t">GetLocationPlansResult</span><span class="p">,</span>
+<span class="p">}</span> <span class="k">from</span> <span class="s">'../types/plans.types'</span><span class="p">;</span>
+
+<span class="c">// ─── Response shape from GraphQL ─────────────────────────</span>
+<span class="k">interface</span> <span class="t">GetLocationPlanGQLResponse</span> <span class="p">{</span>
+  <span class="i">getLocationPlan</span><span class="p">:</span> <span class="t">RawGetLocationPlanResponse</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">/**
+ * Fetches all plans for a given location.
+ *
+ * React.cache() deduplicates calls within a single render pass —
+ * if two server components call this with the same locationId,
+ * only one network request is made. ✅ Keep this pattern.
+ *
+ * @param locationId - numeric ID from the location tree node
+ */</span>
+<span class="k">export const</span> <span class="i">getLocationPlans</span> <span class="p">=</span> <span class="f">cache</span><span class="p">(</span>
+  <span class="k">async</span> <span class="p">(</span><span class="i">locationId</span><span class="p">:</span> <span class="t">number</span><span class="p">):</span> <span class="t">Promise</span><span class="p">&lt;</span><span class="t">GetLocationPlansResult</span><span class="p">&gt;</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="k">try</span> <span class="p">{</span>
+      <span class="k">const</span> <span class="i">response</span> <span class="p">=</span> <span class="k">await</span> <span class="i">serverGqlFetch</span><span class="p">&lt;</span><span class="t">GetLocationPlanGQLResponse</span><span class="p">&gt;(</span>
+        <span class="i">GET_LOCATION_PLAN_MUTATION</span><span class="p">,</span>
+        <span class="p">{</span>
+          <span class="i">type</span><span class="p">:</span> <span class="i">PLAN_REQUEST_TYPE</span><span class="p">,</span>
+          <span class="i">locationId</span><span class="p">,</span>
+        <span class="p">},</span>
+      <span class="p">);</span>
+
+      <span class="k">const</span> <span class="i">result</span> <span class="p">=</span> <span class="i">response</span><span class="p">.</span><span class="i">getLocationPlan</span><span class="p">;</span>
+
+      <span class="k">if</span> <span class="p">(!</span><span class="i">result</span><span class="p">?.</span><span class="i">success</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="p">{</span>
+          <span class="i">plans</span><span class="p">:</span> <span class="p">[],</span>
+          <span class="i">success</span><span class="p">:</span> <span class="k">false</span><span class="p">,</span>
+          <span class="i">message</span><span class="p">:</span> <span class="i">result</span><span class="p">?.</span><span class="i">message</span> <span class="p">??</span> <span class="s">'Failed to fetch plans'</span><span class="p">,</span>
+          <span class="i">error</span><span class="p">:</span> <span class="i">result</span><span class="p">?.</span><span class="i">message</span><span class="p">,</span>
+        <span class="p">};</span>
+      <span class="p">}</span>
+
+      <span class="c">// ✅ Normalize here — snake_case never reaches components</span>
+      <span class="k">return</span> <span class="p">{</span>
+        <span class="i">plans</span><span class="p">:</span> <span class="f">mapRawPlansToLocationPlans</span><span class="p">(</span><span class="i">result</span><span class="p">.</span><span class="i">data</span><span class="p">),</span>
+        <span class="i">success</span><span class="p">:</span> <span class="k">true</span><span class="p">,</span>
+        <span class="i">message</span><span class="p">:</span> <span class="i">result</span><span class="p">.</span><span class="i">message</span><span class="p">,</span>
+      <span class="p">};</span>
+    <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="i">error</span><span class="p">)</span> <span class="p">{</span>
+      <span class="i">console</span><span class="p">.</span><span class="f">error</span><span class="p">(</span><span class="s">'[getLocationPlans]'</span><span class="p">,</span> <span class="i">error</span><span class="p">);</span>
+      <span class="k">return</span> <span class="p">{</span>
+        <span class="i">plans</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="i">success</span><span class="p">:</span> <span class="k">false</span><span class="p">,</span>
+        <span class="i">message</span><span class="p">:</span> <span class="s">'Failed to fetch location plans'</span><span class="p">,</span>
+        <span class="i">error</span><span class="p">:</span> <span class="s">'Failed to fetch location plans'</span><span class="p">,</span>
+      <span class="p">};</span>
+    <span class="p">}</span>
+  <span class="p">},</span>
+<span class="p">);</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 02 PLAN SHELL ══ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="step">2</div>
+    <div class="step-meta">
+      <h2>PlanShell.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-cli">Client</span><span class="tag tag-new">New</span></h2>
+      <p>The top-level client shell. Receives server-fetched data as props. Owns client state like selected plan. Use this as the pattern for all future function shells (TicketsShell, EventsShell etc.)</p>
+    </div>
+  </div>
+
+  <div class="alert alert-tip" style="max-width:980px;margin:0 auto 12px;">
+    <span class="alert-icon">💡</span>
+    <div><strong>Shell pattern rule:</strong> Server page fetches → passes to Shell as props → Shell manages client state + renders child components. Never fetch in the shell itself. This is the pattern to reuse for every function page.</div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/components/</span>PlanShell.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use client'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">useState</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'react'</span><span class="p">;</span>
+<span class="k">import type</span> <span class="p">{</span> <span class="t">PlanShellProps</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../types/plans.types'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">ActivePlanBanner</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'./ActivePlanBanner'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">PlanGrid</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'./PlanGrid'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">PlanEmptyState</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'./PlanEmptyState'</span><span class="p">;</span>
+
+<span class="c">/**
+ * PlanShell — Client shell for the plan-selection function page.
+ *
+ * PATTERN TO REUSE:
+ *   Server page (async, fetches data)
+ *     → passes data as props to Shell (client, manages state)
+ *       → Shell renders child components
+ *
+ *   For the next function (e.g. tickets):
+ *   Create TicketsShell with the same structure.
+ */</span>
+<span class="k">export function</span> <span class="f">PlanShell</span><span class="p">({</span> <span class="i">plans</span><span class="p">,</span> <span class="i">locationId</span><span class="p">,</span> <span class="i">message</span> <span class="p">}:</span> <span class="t">PlanShellProps</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c">// Client state — selected plan for highlight / action</span>
+  <span class="k">const</span> <span class="p">[</span><span class="i">selectedPlanId</span><span class="p">,</span> <span class="i">setSelectedPlanId</span><span class="p">]</span> <span class="p">=</span> <span class="f">useState</span><span class="p">&lt;</span><span class="t">number</span> <span class="p">|</span> <span class="k">null</span><span class="p">&gt;(</span><span class="k">null</span><span class="p">);</span>
+
+  <span class="c">// Find the active plan (first one for now — adjust when BE adds active flag)</span>
+  <span class="k">const</span> <span class="i">activePlan</span> <span class="p">=</span> <span class="i">plans</span><span class="p">.</span><span class="f">length</span> <span class="p">&gt;</span> <span class="n">0</span> <span class="p">?</span> <span class="i">plans</span><span class="p">[</span><span class="n">0</span><span class="p">]</span> <span class="p">:</span> <span class="k">null</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="i">plans</span><span class="p">.</span><span class="i">length</span> <span class="p">===</span> <span class="n">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">&lt;</span><span class="jsx">PlanEmptyState</span> <span class="i">locationId</span><span class="p">={</span><span class="i">locationId</span><span class="p">}</span> <span class="p">/&gt;;</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex flex-col gap-6 p-6"</span><span class="p">&gt;</span>
+      <span class="c">{/* Page title */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">h2</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-lg font-semibold text-gray-900"</span><span class="p">&gt;</span>
+          Plan Selection
+        <span class="p">&lt;/</span><span class="jsx">h2</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-sm text-gray-500 mt-1"</span><span class="p">&gt;</span>
+          Manage the plan assigned to this location.
+        <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+
+      <span class="c">{/* Active plan highlight */}</span>
+      <span class="p">{</span><span class="i">activePlan</span> <span class="p">&amp;&amp;</span> <span class="p">(</span>
+        <span class="p">&lt;</span><span class="jsx">ActivePlanBanner</span> <span class="i">plan</span><span class="p">={</span><span class="i">activePlan</span><span class="p">}</span> <span class="p">/&gt;</span>
+      <span class="p">)}</span>
+
+      <span class="c">{/* All available plans */}</span>
+      <span class="p">&lt;</span><span class="jsx">PlanGrid</span>
+        <span class="i">plans</span><span class="p">={</span><span class="i">plans</span><span class="p">}</span>
+        <span class="i">selectedPlanId</span><span class="p">={</span><span class="i">selectedPlanId</span><span class="p">}</span>
+        <span class="i">onSelect</span><span class="p">={</span><span class="i">setSelectedPlanId</span><span class="p">}</span>
+        <span class="i">locationId</span><span class="p">={</span><span class="i">locationId</span><span class="p">}</span>
+      <span class="p">/&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 03 ACTIVE PLAN BANNER ══ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="step">3</div>
+    <div class="step-meta">
+      <h2>ActivePlanBanner.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-new">New</span></h2>
+      <p>Highlights the currently active plan at the top of the page. Pure display — no state or side effects.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/components/</span>ActivePlanBanner.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import type</span> <span class="p">{</span> <span class="t">LocationPlan</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../types/plans.types'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">ActivePlanBannerProps</span> <span class="p">{</span>
+  <span class="i">plan</span><span class="p">:</span> <span class="t">LocationPlan</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">/**
+ * Displays the currently active plan in a highlighted banner.
+ * No 'use client' needed — pure display component, no interactivity.
+ * Can be a server component if lifted out of PlanShell in future.
+ */</span>
+<span class="k">export function</span> <span class="f">ActivePlanBanner</span><span class="p">({</span> <span class="i">plan</span> <span class="p">}:</span> <span class="t">ActivePlanBannerProps</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex items-center justify-between
+      rounded-lg border border-blue-200 bg-blue-50 px-5 py-4"</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex items-center gap-3"</span><span class="p">&gt;</span>
+        <span class="c">{/* Active indicator dot */}</span>
+        <span class="p">&lt;</span><span class="jsx">span</span> <span class="i">className</span><span class="p">=</span><span class="s">"inline-flex h-2.5 w-2.5 rounded-full
+          bg-blue-500 ring-2 ring-blue-200"</span> <span class="p">/&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">div</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-xs font-medium uppercase tracking-wide
+            text-blue-600"</span><span class="p">&gt;</span>
+            Current Plan
+          <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-sm font-semibold text-gray-900 mt-0.5"</span><span class="p">&gt;</span>
+            <span class="p">{</span><span class="i">plan</span><span class="p">.</span><span class="i">name</span><span class="p">}</span>
+          <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="jsx">span</span> <span class="i">className</span><span class="p">=</span><span class="s">"inline-flex items-center rounded-full
+        bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700"</span><span class="p">&gt;</span>
+        Active
+      <span class="p">&lt;/</span><span class="jsx">span</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 04 PLAN CARD ══ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="step">4</div>
+    <div class="step-meta">
+      <h2>PlanCard.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-cli">Client</span><span class="tag tag-new">New</span></h2>
+      <p>Individual plan card. Handles selected state visually. Calls onSelect when clicked. No direct API calls.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/components/</span>PlanCard.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use client'</span><span class="p">;</span>
+
+<span class="k">import type</span> <span class="p">{</span> <span class="t">LocationPlan</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../types/plans.types'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">PlanCardProps</span> <span class="p">{</span>
+  <span class="i">plan</span><span class="p">:</span> <span class="t">LocationPlan</span><span class="p">;</span>
+  <span class="i">isSelected</span><span class="p">:</span> <span class="t">boolean</span><span class="p">;</span>
+  <span class="i">onSelect</span><span class="p">:</span> <span class="p">(</span><span class="i">planId</span><span class="p">:</span> <span class="t">number</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="k">void</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">/**
+ * PlanCard — Displays a single plan option.
+ *
+ * Responsibilities:
+ *   ✅ Show plan name and id
+ *   ✅ Reflect selected state visually
+ *   ✅ Fire onSelect when clicked
+ *   ❌ Does NOT fetch data
+ *   ❌ Does NOT manage its own selected state
+ *
+ * As BE provides more fields (price, features etc.),
+ * extend the LocationPlan type and update only this component.
+ */</span>
+<span class="k">export function</span> <span class="f">PlanCard</span><span class="p">({</span> <span class="i">plan</span><span class="p">,</span> <span class="i">isSelected</span><span class="p">,</span> <span class="i">onSelect</span> <span class="p">}:</span> <span class="t">PlanCardProps</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">button</span>
+      <span class="i">type</span><span class="p">=</span><span class="s">"button"</span>
+      <span class="i">onClick</span><span class="p">={</span><span class="p">()</span> <span class="p">=&gt;</span> <span class="f">onSelect</span><span class="p">(</span><span class="i">plan</span><span class="p">.</span><span class="i">id</span><span class="p">)}</span>
+      <span class="i">className</span><span class="p">={</span><span class="p">[</span>
+        <span class="s">'w-full rounded-lg border-2 p-5 text-left transition-all'</span><span class="p">,</span>
+        <span class="s">'focus:outline-none focus:ring-2 focus:ring-blue-500'</span><span class="p">,</span>
+        <span class="i">isSelected</span>
+          <span class="p">?</span> <span class="s">'border-blue-500 bg-blue-50 shadow-sm'</span>
+          <span class="p">:</span> <span class="s">'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'</span><span class="p">,</span>
+      <span class="p">].</span><span class="f">join</span><span class="p">(</span><span class="s">' '</span><span class="p">)}</span>
+      <span class="i">aria-pressed</span><span class="p">={</span><span class="i">isSelected</span><span class="p">}</span>
+    <span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex items-start justify-between"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">div</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-sm font-semibold text-gray-900"</span><span class="p">&gt;</span>
+            <span class="p">{</span><span class="i">plan</span><span class="p">.</span><span class="i">name</span><span class="p">}</span>
+          <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-xs text-gray-400 mt-1"</span><span class="p">&gt;</span>
+            Plan ID: <span class="p">{</span><span class="i">plan</span><span class="p">.</span><span class="i">id</span><span class="p">}</span>
+          <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+
+        <span class="c">{/* Selection indicator */}</span>
+        <span class="p">{</span><span class="i">isSelected</span> <span class="p">&amp;&amp;</span> <span class="p">(</span>
+          <span class="p">&lt;</span><span class="jsx">span</span> <span class="i">className</span><span class="p">=</span><span class="s">"inline-flex items-center justify-center
+            h-5 w-5 rounded-full bg-blue-500"</span><span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="jsx">svg</span>
+              <span class="i">className</span><span class="p">=</span><span class="s">"h-3 w-3 text-white"</span>
+              <span class="i">viewBox</span><span class="p">=</span><span class="s">"0 0 12 12"</span>
+              <span class="i">fill</span><span class="p">=</span><span class="s">"currentColor"</span>
+            <span class="p">&gt;</span>
+              <span class="p">&lt;</span><span class="jsx">path</span> <span class="i">d</span><span class="p">=</span><span class="s">"M3.5 6.5L5.5 8.5L8.5 4"</span>
+                <span class="i">stroke</span><span class="p">=</span><span class="s">"currentColor"</span>
+                <span class="i">strokeWidth</span><span class="p">=</span><span class="s">"1.5"</span>
+                <span class="i">strokeLinecap</span><span class="p">=</span><span class="s">"round"</span>
+                <span class="i">fill</span><span class="p">=</span><span class="s">"none"</span>
+              <span class="p">/&gt;</span>
+            <span class="p">&lt;/</span><span class="jsx">svg</span><span class="p">&gt;</span>
+          <span class="p">&lt;/</span><span class="jsx">span</span><span class="p">&gt;</span>
+        <span class="p">)}</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">button</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 05 PLAN GRID ══ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="step">5</div>
+    <div class="step-meta">
+      <h2>PlanGrid.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-cli">Client</span><span class="tag tag-new">New</span></h2>
+      <p>Renders the grid of PlanCards. Also owns the confirm/apply button that triggers the mutation.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/components/</span>PlanGrid.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use client'</span><span class="p">;</span>
+
+<span class="k">import type</span> <span class="p">{</span> <span class="t">LocationPlan</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../types/plans.types'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">PlanCard</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'./PlanCard'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">PlanGridProps</span> <span class="p">{</span>
+  <span class="i">plans</span><span class="p">:</span> <span class="t">LocationPlan</span><span class="p">[];</span>
+  <span class="i">selectedPlanId</span><span class="p">:</span> <span class="t">number</span> <span class="p">|</span> <span class="k">null</span><span class="p">;</span>
+  <span class="i">onSelect</span><span class="p">:</span> <span class="p">(</span><span class="i">planId</span><span class="p">:</span> <span class="t">number</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="k">void</span><span class="p">;</span>
+  <span class="i">locationId</span><span class="p">:</span> <span class="t">number</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export function</span> <span class="f">PlanGrid</span><span class="p">({</span>
+  <span class="i">plans</span><span class="p">,</span>
+  <span class="i">selectedPlanId</span><span class="p">,</span>
+  <span class="i">onSelect</span><span class="p">,</span>
+  <span class="i">locationId</span><span class="p">,</span>
+<span class="p">}:</span> <span class="t">PlanGridProps</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="i">hasSelection</span> <span class="p">=</span> <span class="i">selectedPlanId</span> <span class="p">!==</span> <span class="k">null</span><span class="p">;</span>
+
+  <span class="c">// TODO: wire useLocationPlan hook here when assign-plan
+  // mutation is available from BE</span>
+  <span class="k">function</span> <span class="f">handleApply</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(!</span><span class="i">selectedPlanId</span><span class="p">)</span> <span class="k">return</span><span class="p">;</span>
+    <span class="i">console</span><span class="p">.</span><span class="f">log</span><span class="p">(</span><span class="s">'Apply plan'</span><span class="p">,</span> <span class="i">selectedPlanId</span><span class="p">,</span> <span class="s">'to location'</span><span class="p">,</span> <span class="i">locationId</span><span class="p">);</span>
+    <span class="c">// useLocationPlan().fetchPlans({ clientPlanId: selectedPlanId })</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex flex-col gap-4"</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex items-center justify-between"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">h3</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-sm font-semibold text-gray-700"</span><span class="p">&gt;</span>
+          Available Plans
+          <span class="p">&lt;</span><span class="jsx">span</span> <span class="i">className</span><span class="p">=</span><span class="s">"ml-2 text-xs font-normal text-gray-400"</span><span class="p">&gt;</span>
+            (<span class="p">{</span><span class="i">plans</span><span class="p">.</span><span class="i">length</span><span class="p">}</span>)
+          <span class="p">&lt;/</span><span class="jsx">span</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">h3</span><span class="p">&gt;</span>
+
+        <span class="p">{</span><span class="i">hasSelection</span> <span class="p">&amp;&amp;</span> <span class="p">(</span>
+          <span class="p">&lt;</span><span class="jsx">button</span>
+            <span class="i">type</span><span class="p">=</span><span class="s">"button"</span>
+            <span class="i">onClick</span><span class="p">={</span><span class="i">handleApply</span><span class="p">}</span>
+            <span class="i">className</span><span class="p">=</span><span class="s">"rounded-md bg-blue-600 px-4 py-2
+              text-sm font-medium text-white
+              hover:bg-blue-700 transition-colors
+              focus:outline-none focus:ring-2 focus:ring-blue-500"</span>
+          <span class="p">&gt;</span>
+            Apply Plan
+          <span class="p">&lt;/</span><span class="jsx">button</span><span class="p">&gt;</span>
+        <span class="p">)}</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+
+      <span class="c">{/* Plan cards grid */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"</span><span class="p">&gt;</span>
+        <span class="p">{</span><span class="i">plans</span><span class="p">.</span><span class="f">map</span><span class="p">((</span><span class="i">plan</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">(</span>
+          <span class="p">&lt;</span><span class="jsx">PlanCard</span>
+            <span class="i">key</span><span class="p">={</span><span class="i">plan</span><span class="p">.</span><span class="i">id</span><span class="p">}</span>
+            <span class="i">plan</span><span class="p">={</span><span class="i">plan</span><span class="p">}</span>
+            <span class="i">isSelected</span><span class="p">={</span><span class="i">selectedPlanId</span> <span class="p">===</span> <span class="i">plan</span><span class="p">.</span><span class="i">id</span><span class="p">}</span>
+            <span class="i">onSelect</span><span class="p">={</span><span class="i">onSelect</span><span class="p">}</span>
+          <span class="p">/&gt;</span>
+        <span class="p">))}</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 06 EMPTY STATE ══ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="step">6</div>
+    <div class="step-meta">
+      <h2>PlanEmptyState.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-new">New</span></h2>
+      <p>Shown when BE returns an empty plans array. Always build empty states — never leave a blank screen.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/components/</span>PlanEmptyState.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">interface</span> <span class="t">PlanEmptyStateProps</span> <span class="p">{</span>
+  <span class="i">locationId</span><span class="p">:</span> <span class="t">number</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">/**
+ * Empty state — shown when no plans are available for this location.
+ * No 'use client' needed — pure display.
+ * Pattern: always build empty states for every list/grid component.
+ */</span>
+<span class="k">export function</span> <span class="f">PlanEmptyState</span><span class="p">({</span> <span class="i">locationId</span> <span class="p">}:</span> <span class="t">PlanEmptyStateProps</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex flex-col items-center justify-center
+      rounded-lg border-2 border-dashed border-gray-200
+      bg-gray-50 p-12 text-center"</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"mb-4 flex h-12 w-12 items-center justify-center
+        rounded-full bg-gray-100"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">svg</span>
+          <span class="i">className</span><span class="p">=</span><span class="s">"h-6 w-6 text-gray-400"</span>
+          <span class="i">fill</span><span class="p">=</span><span class="s">"none"</span> <span class="i">viewBox</span><span class="p">=</span><span class="s">"0 0 24 24"</span>
+          <span class="i">stroke</span><span class="p">=</span><span class="s">"currentColor"</span>
+        <span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">path</span>
+            <span class="i">strokeLinecap</span><span class="p">=</span><span class="s">"round"</span> <span class="i">strokeLinejoin</span><span class="p">=</span><span class="s">"round"</span>
+            <span class="i">strokeWidth</span><span class="p">={</span><span class="n">1.5</span><span class="p">}</span>
+            <span class="i">d</span><span class="p">=</span><span class="s">"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5
+               a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414
+               5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"</span>
+          <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">svg</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">h3</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-sm font-semibold text-gray-900"</span><span class="p">&gt;</span>
+        No plans available
+      <span class="p">&lt;/</span><span class="jsx">h3</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">p</span> <span class="i">className</span><span class="p">=</span><span class="s">"mt-1 text-sm text-gray-500"</span><span class="p">&gt;</span>
+        No plans are currently assigned to location{<span class="s">' '</span>}
+        <span class="p">&lt;</span><span class="jsx">span</span> <span class="i">className</span><span class="p">=</span><span class="s">"font-medium text-gray-700"</span><span class="p">&gt;</span>
+          #{<span class="i">locationId</span>}
+        <span class="p">&lt;/</span><span class="jsx">span</span><span class="p">&gt;</span>.
+      <span class="p">&lt;/</span><span class="jsx">p</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 07 BARREL EXPORT ══ -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <div class="step">7</div>
+    <div class="step-meta">
+      <h2>index.ts — Barrel Export <span class="tag tag-ts">TypeScript</span><span class="tag tag-new">New</span></h2>
+      <p>Single entry point for all plan components. Import from the folder, not individual files. Use this pattern for every module's components folder.</p>
+    </div>
+  </div>
+  <div class="alert alert-tip" style="max-width:980px;margin:0 auto 12px;">
+    <span class="alert-icon">💡</span>
+    <div><strong>Barrel export pattern:</strong> Always create an <code>index.ts</code> in each components folder. Callers import from <code>'@/modules/plans/components'</code> — internal file moves never break imports. Apply this to every module.</div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/modules/plans/components/</span>index.ts</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">export</span> <span class="p">{</span> <span class="i">PlanShell</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'./PlanShell'</span><span class="p">;</span>
+<span class="k">export</span> <span class="p">{</span> <span class="i">PlanCard</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'./PlanCard'</span><span class="p">;</span>
+<span class="k">export</span> <span class="p">{</span> <span class="i">PlanGrid</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'./PlanGrid'</span><span class="p">;</span>
+<span class="k">export</span> <span class="p">{</span> <span class="i">ActivePlanBanner</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'./ActivePlanBanner'</span><span class="p">;</span>
+<span class="k">export</span> <span class="p">{</span> <span class="i">PlanEmptyState</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'./PlanEmptyState'</span><span class="p">;</span>
+
+<span class="c">// Usage in page.tsx:
+// import { PlanShell } from '@/modules/plans/components';</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 08 PAGE ══ -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="step">8</div>
+    <div class="step-meta">
+      <h2>plan-selection/page.tsx <span class="tag tag-srv">Server</span><span class="tag tag-new">Updated</span></h2>
+      <p>Uses the barrel import. Node id fed directly as locationId — no string conversion needed if tree already provides number.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/app/(protected)/location/[slug]/[fn]/plan-selection/</span>page.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import</span> <span class="p">{</span> <span class="i">notFound</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'next/navigation'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getLocationsTree</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/actions/server-locations'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getNodeAndPathBySlug</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/lib/slug'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getLocationPlans</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/plans/actions/server-location-plans'</span><span class="p">;</span>
+
+<span class="c">// ✅ Barrel import — clean, future-proof</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">PlanShell</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/modules/plans/components'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">Props</span> <span class="p">{</span>
+  <span class="i">params</span><span class="p">:</span> <span class="t">Promise</span><span class="p">&lt;{</span> <span class="i">slug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span> <span class="i">fn</span><span class="p">:</span> <span class="t">string</span> <span class="p">}&gt;;</span>
+<span class="p">}</span>
+
+<span class="k">export default async function</span> <span class="f">PlanSelectionPage</span><span class="p">({</span> <span class="i">params</span> <span class="p">}:</span> <span class="t">Props</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="p">{</span> <span class="i">slug</span> <span class="p">}</span> <span class="p">=</span> <span class="k">await</span> <span class="i">params</span><span class="p">;</span>
+
+  <span class="c">// Resolve numeric locationId from slug</span>
+  <span class="k">const</span> <span class="i">tree</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getLocationsTree</span><span class="p">();</span>
+  <span class="k">const</span> <span class="i">found</span> <span class="p">=</span> <span class="f">getNodeAndPathBySlug</span><span class="p">(</span><span class="i">tree</span><span class="p">,</span> <span class="i">slug</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">found</span><span class="p">)</span> <span class="f">notFound</span><span class="p">();</span>
+
+  <span class="k">const</span> <span class="i">locationId</span><span class="p">:</span> <span class="t">number</span> <span class="p">=</span> <span class="i">found</span><span class="p">.</span><span class="i">node</span><span class="p">.</span><span class="i">id</span><span class="p">;</span>
+
+  <span class="c">// React.cache() in server action deduplicates this call
+  // if getLocationsTree already called it above ✅</span>
+  <span class="k">const</span> <span class="i">result</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getLocationPlans</span><span class="p">(</span><span class="i">locationId</span><span class="p">);</span>
+
+  <span class="c">// Graceful: show empty state instead of crashing on error</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">PlanShell</span>
+      <span class="i">plans</span><span class="p">={</span><span class="i">result</span><span class="p">.</span><span class="i">plans</span><span class="p">}</span>
+      <span class="i">locationId</span><span class="p">={</span><span class="i">locationId</span><span class="p">}</span>
+      <span class="i">message</span><span class="p">={</span><span class="i">result</span><span class="p">.</span><span class="i">message</span><span class="p">}</span>
+    <span class="p">/&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<footer style="padding-bottom:40px;">
+  Plans Module v3 · PlanShell + Corrected Server Action · Barrel exports · snake_case normalized at data layer
+</footer>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.file-card').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = '✓ Copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2200);
+    });
+  }
+</script>
+</body>
+</html>
