@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LocationShell Loading States</title>
+  <style>
+    :root {
+      --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3250;
+      --accent:#6c8ef5;--accent2:#4ade80;--warn:#f59e42;--danger:#f87171;
+      --text:#e2e8f0;--muted:#7c87a6;--radius:10px;
+      --mono:'Fira Code','Consolas',monospace;--ui:'Inter',system-ui,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:var(--ui);padding:32px 20px 60px;}
+    .header{max-width:980px;margin:0 auto 28px;}
+    .header-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+    .badge{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:3px 10px;border-radius:20px;}
+    .badge-blue{background:var(--accent);color:#fff;}
+    .badge-green{background:#16a34a;color:#fff;}
+    .badge-orange{background:#ea580c;color:#fff;}
+    h1{font-size:22px;font-weight:700;color:#fff;}
+    .header p{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.6;}
+
+    .alert{max-width:980px;margin:0 auto 14px;display:flex;gap:12px;padding:13px 17px;border-radius:8px;font-size:13px;line-height:1.6;}
+    .alert-warn{background:rgba(245,158,66,.1);border-left:3px solid var(--warn);color:#fcd34d;}
+    .alert-tip{background:rgba(74,222,128,.08);border-left:3px solid var(--accent2);color:#86efac;}
+    .alert-danger{background:rgba(248,113,113,.1);border-left:3px solid var(--danger);color:#fca5a5;}
+    .alert-info{background:rgba(108,142,245,.1);border-left:3px solid var(--accent);color:#a5b4fc;}
+    .alert-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+    .alert strong{color:#fff;}
+    .alert code{background:rgba(255,255,255,.1);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:11px;}
+
+    /* architecture diagram */
+    .arch{max-width:980px;margin:0 auto 24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;}
+    .arch h3{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:14px;}
+    .arch pre{font-family:var(--mono);font-size:12px;color:#cdd6f4;line-height:1.9;background:transparent;padding:0;}
+
+    .toc{max-width:980px;margin:0 auto 28px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;}
+    .toc h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;font-weight:600;}
+    .toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:7px;}
+    .toc-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;background:var(--surface2);text-decoration:none;transition:background .15s;}
+    .toc-item:hover{background:var(--border);}
+    .toc-num{font-size:11px;font-weight:800;color:var(--accent);min-width:20px;}
+    .toc-label{font-size:12px;color:var(--text);line-height:1.3;}
+    .toc-path{font-size:10px;color:var(--muted);}
+    .toc-badge{font-size:9px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:10px;margin-left:4px;}
+    .tb-new{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tb-upd{background:rgba(245,158,66,.15);color:var(--warn);}
+    .tb-key{background:rgba(108,142,245,.2);color:var(--accent);}
+
+    .section{max-width:980px;margin:0 auto 22px;}
+    .section-header{display:flex;align-items:flex-start;gap:13px;margin-bottom:12px;}
+    .step{color:#fff;font-size:11px;font-weight:800;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+    .step-blue{background:var(--accent);}
+    .step-green{background:#16a34a;}
+    .step-orange{background:#ea580c;}
+    .step-meta h2{font-size:15px;font-weight:700;color:#fff;margin-bottom:2px;}
+    .step-meta p{font-size:12px;color:var(--muted);}
+
+    .tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:20px;margin-left:5px;vertical-align:middle;}
+    .tag-ts{background:rgba(59,130,246,.18);color:#60a5fa;}
+    .tag-tsx{background:rgba(99,102,241,.2);color:#a5b4fc;}
+    .tag-srv{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tag-cli{background:rgba(245,158,66,.15);color:var(--warn);}
+    .tag-new{background:rgba(74,222,128,.15);color:var(--accent2);}
+    .tag-key{background:rgba(108,142,245,.2);color:var(--accent);}
+
+    .file-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:13px;}
+    .file-card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+    .file-path{font-family:var(--mono);font-size:12px;color:var(--accent);}
+    .file-path .dir{color:var(--muted);}
+    .copy-btn{background:var(--border);border:none;color:var(--muted);font-size:11px;font-family:var(--ui);padding:4px 12px;border-radius:5px;cursor:pointer;transition:background .15s,color .15s;}
+    .copy-btn:hover{background:var(--accent);color:#fff;}
+    .copy-btn.copied{background:#166534;color:var(--accent2);}
+    pre{margin:0;padding:20px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.75;color:#cdd6f4;}
+
+    .k{color:#cba6f7;} .s{color:#a6e3a1;} .c{color:#585b70;font-style:italic;}
+    .t{color:#89dceb;} .f{color:#89b4fa;} .p{color:#f38ba8;}
+    .n{color:#fab387;} .i{color:#cdd6f4;} .jsx{color:#f9e2af;}
+
+    hr.div{max-width:980px;margin:6px auto 22px;border:none;border-top:1px solid var(--border);}
+    footer{max-width:980px;margin:48px auto 0;text-align:center;font-size:12px;color:var(--muted);}
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <span class="badge badge-blue">Non-Breaking</span>
+    <span class="badge badge-green">Suspense Loading</span>
+    <span class="badge badge-orange">LocationShell</span>
+  </div>
+  <h1>LocationShell — Scoped Loading States</h1>
+  <p>Works with your existing architecture. No restructuring needed.<br/>
+  Suspense boundaries inside LocationShell give each section its own skeleton independently.</p>
+</div>
+
+<!-- ARCHITECTURE -->
+<div class="arch">
+  <h3>Your Architecture + Where Loading Goes</h3>
+  <pre><span class="s">LocationShell</span> (server component — re-renders on every nav)
+  │
+  ├── <span class="t">&lt;Suspense fallback=&lt;BreadcrumbSkeleton/&gt;&gt;</span>
+  │     └── <span class="f">Breadcrumbs</span>          ← shows skeleton while resolving path
+  │
+  ├── <span class="t">&lt;Suspense fallback=&lt;FunctionsNavSkeleton/&gt;&gt;</span>
+  │     └── <span class="f">FunctionsNav</span>         ← shows skeleton while fetching functions
+  │
+  └── <span class="t">&lt;Suspense fallback=&lt;ContentSkeleton/&gt;&gt;</span>  ← Col3 only
+        └── <span class="f">children</span>             ← page content (plans, tickets etc.)
+
+<span class="c">Each section loads independently — breadcrumbs can resolve
+before functions are ready. Content shows last.</span>
+
+<span class="c">FunctionsNav uses useTransition — spinner on clicked item,
+no full re-render of LocationShell.</span></pre>
+</div>
+
+<div class="alert alert-info">
+  <span class="alert-icon">💡</span>
+  <div><strong>Why Suspense inside LocationShell?</strong> Since LocationShell is a server component that wraps everything, <code>loading.tsx</code> files would replace ALL of it. Suspense lets each child section stream independently — breadcrumbs appear first, then nav, then content. Zero layout shifts.</div>
+</div>
+
+<div class="alert alert-tip">
+  <span class="alert-icon">✅</span>
+  <div><strong>Non-breaking changes only.</strong> We add skeleton components + wrap existing renders in Suspense. LocationShell's logic, Shell component, and all imports stay exactly as you have them. Only additions — nothing removed.</div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h2>File Index</h2>
+  <div class="toc-grid">
+    <a class="toc-item" href="#s1"><span class="toc-num">01</span><div><div class="toc-label">LocationShell.tsx <span class="toc-badge tb-key">KEY CHANGE</span></div><div class="toc-path">src/components/layout/ — add Suspense boundaries</div></div></a>
+    <a class="toc-item" href="#s2"><span class="toc-num">02</span><div><div class="toc-label">BreadcrumbSkeleton.tsx <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/components/layout/</div></div></a>
+    <a class="toc-item" href="#s3"><span class="toc-num">03</span><div><div class="toc-label">FunctionsNavSkeleton.tsx <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/components/nav/</div></div></a>
+    <a class="toc-item" href="#s4"><span class="toc-num">04</span><div><div class="toc-label">ContentSkeleton.tsx <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/components/layout/</div></div></a>
+    <a class="toc-item" href="#s5"><span class="toc-num">05</span><div><div class="toc-label">FunctionsNav.tsx <span class="toc-badge tb-upd">updated</span></div><div class="toc-path">src/components/nav/ — useTransition on click</div></div></a>
+    <a class="toc-item" href="#s6"><span class="toc-num">06</span><div><div class="toc-label">[fn]/loading.tsx <span class="toc-badge tb-new">new</span></div><div class="toc-path">src/app/(protected)/location/[slug]/[fn]/</div></div></a>
+  </div>
+</div>
+
+<!-- ══ 01 LOCATION SHELL ══ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="step step-blue">1</div>
+    <div class="step-meta">
+      <h2>LocationShell.tsx — Add Suspense Boundaries <span class="tag tag-key">Key Change</span><span class="tag tag-srv">Server</span></h2>
+      <p>Your existing logic stays 100% intact. Only change: wrap each section in Suspense with skeleton fallback. Split data fetching into separate async components so Suspense can stream them independently.</p>
+    </div>
+  </div>
+
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>Important pattern:</strong> For Suspense to work on server components, the async data fetch must happen <em>inside</em> a child component, not in the parent. We extract <code>FunctionsNavLoader</code> as a separate async component so its Suspense boundary fires correctly.</div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/components/layout/</span>LocationShell.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="k">import</span> <span class="p">{</span> <span class="i">Suspense</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'react'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">notFound</span><span class="p">,</span> <span class="i">redirect</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'next/navigation'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getLocationsTree</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/actions/server-locations'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">getLocationFunctions</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/actions/server-location-functions'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">FunctionsNav</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'../nav/FunctionsNav'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">FUNCTION_LABELS</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/modules/locations/lib/constants'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">Breadcrumbs</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'./Breadcrumbs'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">NoFunctionsAvailable</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'../nav/NoFunctionsAvailable'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span>
+  <span class="i">getNodeAndPathBySlug</span><span class="p">,</span>
+  <span class="i">locationUrl</span><span class="p">,</span>
+<span class="p">}</span> <span class="k">from</span> <span class="s">'@/modules/locations/lib/utils'</span><span class="p">;</span>
+
+<span class="c">// ── NEW skeleton imports ──────────────────────────────</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">BreadcrumbSkeleton</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'./BreadcrumbSkeleton'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">FunctionsNavSkeleton</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'../nav/FunctionsNavSkeleton'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">ContentSkeleton</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'./ContentSkeleton'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">Props</span> <span class="p">{</span>
+  <span class="i">slug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">activeFn</span><span class="p">:</span> <span class="t">string</span> <span class="p">|</span> <span class="k">null</span><span class="p">;</span>
+  <span class="i">breadcrumbs</span><span class="p">:</span> <span class="t">BreadcrumbItem</span><span class="p">[];</span>
+  <span class="i">children</span><span class="p">:</span> <span class="t">React</span><span class="p">.</span><span class="t">ReactNode</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">// ── NEW: Separate async component for functions data ──
+// This allows Suspense to independently stream FunctionsNav
+// while breadcrumbs and content may already be visible.</span>
+<span class="k">async function</span> <span class="f">FunctionsNavLoader</span><span class="p">({</span>
+  <span class="i">locationId</span><span class="p">,</span>
+  <span class="i">locationSlug</span><span class="p">,</span>
+  <span class="i">activeFn</span><span class="p">,</span>
+<span class="p">}: {</span>
+  <span class="i">locationId</span><span class="p">:</span> <span class="t">number</span><span class="p">;</span>
+  <span class="i">locationSlug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">activeFn</span><span class="p">:</span> <span class="t">string</span> <span class="p">|</span> <span class="k">null</span><span class="p">;</span>
+<span class="p">})</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="i">functions</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getLocationFunctions</span><span class="p">(</span><span class="i">locationId</span><span class="p">);</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="i">functions</span><span class="p">.</span><span class="i">length</span> <span class="p">===</span> <span class="n">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">&lt;</span><span class="jsx">NoFunctionsAvailable</span> <span class="p">/&gt;;</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">FunctionsNav</span>
+      <span class="i">locationSlug</span><span class="p">={</span><span class="i">locationSlug</span><span class="p">}</span>
+      <span class="i">activeFn</span><span class="p">={</span><span class="i">activeFn</span><span class="p">}</span>
+      <span class="i">functions</span><span class="p">={</span><span class="i">functions</span><span class="p">}</span>
+    <span class="p">/&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c">// ── LocationShell — your existing component, Suspense added ──</span>
+<span class="k">export async function</span> <span class="f">LocationShell</span><span class="p">({</span>
+  <span class="i">slug</span><span class="p">,</span>
+  <span class="i">activeFn</span><span class="p">,</span>
+  <span class="i">children</span><span class="p">,</span>
+<span class="p">}: {</span>
+  <span class="i">slug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">activeFn</span><span class="p">:</span> <span class="t">string</span> <span class="p">|</span> <span class="k">null</span><span class="p">;</span>
+  <span class="i">children</span><span class="p">:</span> <span class="t">React</span><span class="p">.</span><span class="t">ReactNode</span><span class="p">;</span>
+<span class="p">})</span> <span class="p">{</span>
+  <span class="c">// ── YOUR EXISTING LOGIC — completely unchanged ────────</span>
+  <span class="k">const</span> <span class="i">tree</span> <span class="p">=</span> <span class="k">await</span> <span class="f">getLocationsTree</span><span class="p">();</span>
+  <span class="k">const</span> <span class="i">found</span> <span class="p">=</span> <span class="f">getNodeAndPathBySlug</span><span class="p">(</span><span class="i">tree</span><span class="p">,</span> <span class="i">slug</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">found</span><span class="p">)</span> <span class="f">notFound</span><span class="p">();</span>
+
+  <span class="k">const</span> <span class="p">{</span> <span class="i">node</span><span class="p">,</span> <span class="i">path</span> <span class="p">}</span> <span class="p">=</span> <span class="i">found</span><span class="p">;</span>
+  <span class="k">const</span> <span class="i">breadcrumbs</span> <span class="p">=</span> <span class="f">buildBreadcrumbs</span><span class="p">(</span><span class="i">node</span><span class="p">,</span> <span class="i">path</span><span class="p">,</span> <span class="i">activeFn</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="c">{/* YOUR existing Shell wrapper — unchanged */}</span>
+    <span class="p">&lt;</span><span class="jsx">Shell</span>
+      <span class="i">slug</span><span class="p">={</span><span class="i">slug</span><span class="p">}</span>
+      <span class="i">activeFn</span><span class="p">={</span><span class="i">activeFn</span><span class="p">}</span>
+      <span class="i">breadcrumbs</span><span class="p">={</span><span class="i">breadcrumbs</span><span class="p">}</span>
+    <span class="p">&gt;</span>
+      <span class="c">{/* ── NEW: Suspense around FunctionsNavLoader ── */}</span>
+      <span class="p">&lt;</span><span class="jsx">Shell</span><span class="p">.</span><span class="jsx">Nav</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">Suspense</span> <span class="i">fallback</span><span class="p">={&lt;</span><span class="jsx">FunctionsNavSkeleton</span> <span class="p">/&gt;}&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">FunctionsNavLoader</span>
+            <span class="i">locationId</span><span class="p">={</span><span class="i">node</span><span class="p">.</span><span class="i">id</span><span class="p">}</span>
+            <span class="i">locationSlug</span><span class="p">={</span><span class="i">slug</span><span class="p">}</span>
+            <span class="i">activeFn</span><span class="p">={</span><span class="i">activeFn</span><span class="p">}</span>
+          <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">Suspense</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">Shell</span><span class="p">.</span><span class="jsx">Nav</span><span class="p">&gt;</span>
+
+      <span class="c">{/* ── NEW: Suspense around Col3 content ── */}</span>
+      <span class="p">&lt;</span><span class="jsx">Shell</span><span class="p">.</span><span class="jsx">Content</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">Suspense</span> <span class="i">fallback</span><span class="p">={&lt;</span><span class="jsx">ContentSkeleton</span> <span class="p">/&gt;}&gt;</span>
+          <span class="p">{</span><span class="i">children</span><span class="p">}</span>
+        <span class="p">&lt;/</span><span class="jsx">Suspense</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">Shell</span><span class="p">.</span><span class="jsx">Content</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">Shell</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c">// ── Shell layout — your existing component below ──────
+// Updated to accept Nav and Content as named slots
+// so Suspense boundaries stay clean</span>
+<span class="k">function</span> <span class="f">Shell</span><span class="p">({</span>
+  <span class="i">slug</span><span class="p">,</span>
+  <span class="i">activeFn</span><span class="p">,</span>
+  <span class="i">breadcrumbs</span><span class="p">,</span>
+  <span class="i">children</span><span class="p">,</span>
+<span class="p">}: {</span>
+  <span class="i">slug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">activeFn</span><span class="p">:</span> <span class="t">string</span> <span class="p">|</span> <span class="k">null</span><span class="p">;</span>
+  <span class="i">breadcrumbs</span><span class="p">:</span> <span class="t">BreadcrumbItem</span><span class="p">[];</span>
+  <span class="i">children</span><span class="p">:</span> <span class="t">React</span><span class="p">.</span><span class="t">ReactNode</span><span class="p">;</span>
+<span class="p">})</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex flex-col h-full"</span><span class="p">&gt;</span>
+      <span class="c">{/* Breadcrumbs row — always resolves fast (from tree) */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"px-6 py-1 border-b border-gray-100
+        bg-white shrink-0"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">Suspense</span> <span class="i">fallback</span><span class="p">={&lt;</span><span class="jsx">BreadcrumbSkeleton</span> <span class="p">/&gt;}&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">Breadcrumbs</span>
+            <span class="i">key</span><span class="p">={</span><span class="s">`<span class="i">${slug}</span>-<span class="i">${activeFn ?? 'none'}</span>`</span><span class="p">}</span>
+            <span class="i">items</span><span class="p">={</span><span class="i">breadcrumbs</span><span class="p">}</span>
+          <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">Suspense</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+
+      <span class="c">{/* Col 2 + Col 3 */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex flex-1 overflow-hidden"</span><span class="p">&gt;</span>
+        <span class="p">{</span><span class="i">children</span><span class="p">}</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c">// Named slot components — used inside LocationShell</span>
+<span class="k">function</span> <span class="i">ShellNav</span><span class="p">({</span> <span class="i">children</span> <span class="p">}: {</span> <span class="i">children</span><span class="p">:</span> <span class="t">React</span><span class="p">.</span><span class="t">ReactNode</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">aside</span> <span class="i">className</span><span class="p">=</span><span class="s">"w-48 border-r border-gray-200
+      bg-white overflow-y-auto shrink-0"</span><span class="p">&gt;</span>
+      <span class="p">{</span><span class="i">children</span><span class="p">}</span>
+    <span class="p">&lt;/</span><span class="jsx">aside</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">function</span> <span class="i">ShellContent</span><span class="p">({</span> <span class="i">children</span> <span class="p">}: {</span> <span class="i">children</span><span class="p">:</span> <span class="t">React</span><span class="p">.</span><span class="t">ReactNode</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">main</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex-1 overflow-y-auto bg-gray-50"</span><span class="p">&gt;</span>
+      <span class="p">{</span><span class="i">children</span><span class="p">}</span>
+    <span class="p">&lt;/</span><span class="jsx">main</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c">// Attach named slots to Shell</span>
+<span class="i">Shell</span><span class="p">.</span><span class="i">Nav</span> <span class="p">=</span> <span class="i">ShellNav</span><span class="p">;</span>
+<span class="i">Shell</span><span class="p">.</span><span class="i">Content</span> <span class="p">=</span> <span class="i">ShellContent</span><span class="p">;</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 02 BREADCRUMB SKELETON ══ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="step step-green">2</div>
+    <div class="step-meta">
+      <h2>BreadcrumbSkeleton.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-new">New</span></h2>
+      <p>Shown while breadcrumbs resolve. Very fast — just matches the height of your real Breadcrumbs.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/components/layout/</span>BreadcrumbSkeleton.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">// Matches exact height of your Breadcrumbs component.
+// Shown for milliseconds — just prevents layout shift.</span>
+<span class="k">export function</span> <span class="f">BreadcrumbSkeleton</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"flex animate-pulse items-center gap-2 py-1"</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-3.5 w-16 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">span</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-gray-300"</span><span class="p">&gt;</span>›<span class="p">&lt;/</span><span class="jsx">span</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-3.5 w-24 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">span</span> <span class="i">className</span><span class="p">=</span><span class="s">"text-gray-300"</span><span class="p">&gt;</span>›<span class="p">&lt;/</span><span class="jsx">span</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-3.5 w-20 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 03 FUNCTIONS NAV SKELETON ══ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="step step-green">3</div>
+    <div class="step-meta">
+      <h2>FunctionsNavSkeleton.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-new">New</span></h2>
+      <p>Shown in Col 2 while getLocationFunctions is fetching. Mimics your real nav item heights.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/components/nav/</span>FunctionsNavSkeleton.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">// Col 2 skeleton — shown while getLocationFunctions fetches.
+// Mimics the height + spacing of real FunctionsNav items.</span>
+<span class="k">export function</span> <span class="f">FunctionsNavSkeleton</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"animate-pulse py-2 px-3 space-y-1"</span><span class="p">&gt;</span>
+      <span class="p">{</span><span class="c">/* Vary widths to look natural */</span><span class="p">}</span>
+      <span class="p">{[</span><span class="n">70</span><span class="p">,</span> <span class="n">90</span><span class="p">,</span> <span class="n">55</span><span class="p">,</span> <span class="n">80</span><span class="p">,</span> <span class="n">65</span><span class="p">].</span><span class="f">map</span><span class="p">((</span><span class="i">w</span><span class="p">,</span> <span class="i">i</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">(</span>
+        <span class="p">&lt;</span><span class="jsx">div</span>
+          <span class="i">key</span><span class="p">={</span><span class="i">i</span><span class="p">}</span>
+          <span class="i">className</span><span class="p">=</span><span class="s">"flex items-center px-2 py-2.5
+            rounded border-l-2 border-transparent"</span>
+        <span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="jsx">div</span>
+            <span class="i">className</span><span class="p">=</span><span class="s">"h-3.5 rounded bg-gray-200"</span>
+            <span class="i">style</span><span class="p">={{</span> <span class="i">width</span><span class="p">:</span> <span class="s">`<span class="i">${w}</span>%`</span> <span class="p">}}</span>
+          <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+      <span class="p">))}</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 04 CONTENT SKELETON ══ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="step step-green">4</div>
+    <div class="step-meta">
+      <h2>ContentSkeleton.tsx <span class="tag tag-tsx">TSX</span><span class="tag tag-new">New</span></h2>
+      <p>Col 3 content skeleton. Generic enough to work for any function page — plans, tickets, events etc.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/components/layout/</span>ContentSkeleton.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">// Generic Col 3 content skeleton.
+// Works for any function page — no page-specific logic needed.</span>
+<span class="k">export function</span> <span class="f">ContentSkeleton</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"animate-pulse p-6 space-y-5"</span><span class="p">&gt;</span>
+
+      <span class="c">{/* Page title + subtitle */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"space-y-2"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-5 w-44 rounded-md bg-gray-200"</span> <span class="p">/&gt;</span>
+        <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-3 w-64 rounded-md bg-gray-100"</span> <span class="p">/&gt;</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+
+      <span class="c">{/* Banner row */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-14 w-full rounded-lg
+        border border-gray-200 bg-gray-100"</span> <span class="p">/&gt;</span>
+
+      <span class="c">{/* Section label */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-3.5 w-28 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+
+      <span class="c">{/* Cards row */}</span>
+      <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"grid grid-cols-1 gap-3
+        sm:grid-cols-2 lg:grid-cols-3"</span><span class="p">&gt;</span>
+        <span class="p">{[</span><span class="n">1</span><span class="p">,</span> <span class="n">2</span><span class="p">,</span> <span class="n">3</span><span class="p">].</span><span class="f">map</span><span class="p">((</span><span class="i">i</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">(</span>
+          <span class="p">&lt;</span><span class="jsx">div</span>
+            <span class="i">key</span><span class="p">={</span><span class="i">i</span><span class="p">}</span>
+            <span class="i">className</span><span class="p">=</span><span class="s">"h-24 rounded-lg border-2
+              border-gray-200 bg-white p-4 space-y-2"</span>
+          <span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-4 w-3/4 rounded bg-gray-200"</span> <span class="p">/&gt;</span>
+            <span class="p">&lt;</span><span class="jsx">div</span> <span class="i">className</span><span class="p">=</span><span class="s">"h-3 w-1/2 rounded bg-gray-100"</span> <span class="p">/&gt;</span>
+          <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+        <span class="p">))}</span>
+      <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="jsx">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 05 FUNCTIONS NAV ══ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="step step-orange">5</div>
+    <div class="step-meta">
+      <h2>FunctionsNav.tsx — useTransition on click <span class="tag tag-cli">Client</span><span class="tag tag-new">Updated</span></h2>
+      <p>Spinner on clicked item during transition. Prevents double-click. Dims all items while navigating.</p>
+    </div>
+  </div>
+
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>Replace your existing <code>&lt;Link&gt;</code> with this button pattern.</strong> Your current code uses <code>Link</code> — this triggers LocationShell to re-render fully. <code>useTransition + router.push</code> only re-renders the <code>[fn]</code> page segment, leaving breadcrumbs and nav visible.</div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/components/nav/</span>FunctionsNav.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="s">'use client'</span><span class="p">;</span>
+
+<span class="k">import</span> <span class="p">{</span> <span class="i">useState</span><span class="p">,</span> <span class="i">useTransition</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'react'</span><span class="p">;</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">useRouter</span><span class="p">,</span> <span class="i">usePathname</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'next/navigation'</span><span class="p">;</span>
+<span class="k">import type</span> <span class="p">{</span> <span class="t">LocationFunction</span> <span class="p">}</span> <span class="k">from</span> <span class="s">'@/types/locations'</span><span class="p">;</span>
+
+<span class="k">interface</span> <span class="t">Props</span> <span class="p">{</span>
+  <span class="i">locationSlug</span><span class="p">:</span> <span class="t">string</span><span class="p">;</span>
+  <span class="i">activeFn</span><span class="p">:</span> <span class="t">string</span> <span class="p">|</span> <span class="k">null</span><span class="p">;</span>
+  <span class="i">functions</span><span class="p">:</span> <span class="t">LocationFunction</span><span class="p">[];</span>
+<span class="p">}</span>
+
+<span class="k">export function</span> <span class="f">FunctionsNav</span><span class="p">({</span>
+  <span class="i">locationSlug</span><span class="p">,</span>
+  <span class="i">activeFn</span><span class="p">,</span>
+  <span class="i">functions</span><span class="p">,</span>
+<span class="p">}:</span> <span class="t">Props</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="i">router</span> <span class="p">=</span> <span class="f">useRouter</span><span class="p">();</span>
+  <span class="k">const</span> <span class="i">pathname</span> <span class="p">=</span> <span class="f">usePathname</span><span class="p">();</span>
+  <span class="k">const</span> <span class="p">[</span><span class="i">isPending</span><span class="p">,</span> <span class="i">startTransition</span><span class="p">]</span> <span class="p">=</span> <span class="f">useTransition</span><span class="p">();</span>
+  <span class="k">const</span> <span class="p">[</span><span class="i">pendingSlug</span><span class="p">,</span> <span class="i">setPendingSlug</span><span class="p">]</span> <span class="p">=</span>
+    <span class="f">useState</span><span class="p">&lt;</span><span class="t">string</span> <span class="p">|</span> <span class="k">null</span><span class="p">&gt;(</span><span class="k">null</span><span class="p">);</span>
+
+  <span class="c">// Clear pending when transition completes</span>
+  <span class="k">if</span> <span class="p">(!</span><span class="i">isPending</span> <span class="p">&amp;&amp;</span> <span class="i">pendingSlug</span><span class="p">)</span> <span class="f">setPendingSlug</span><span class="p">(</span><span class="k">null</span><span class="p">);</span>
+
+  <span class="k">function</span> <span class="f">handleClick</span><span class="p">(</span><span class="i">fnSlug</span><span class="p">:</span> <span class="t">string</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">const</span> <span class="i">href</span> <span class="p">=</span> <span class="s">`/location/<span class="i">${locationSlug}</span>/<span class="i">${fnSlug}</span>`</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="i">pathname</span> <span class="p">===</span> <span class="i">href</span> <span class="p">||</span> <span class="i">isPending</span><span class="p">)</span> <span class="k">return</span><span class="p">;</span>
+    <span class="f">setPendingSlug</span><span class="p">(</span><span class="i">fnSlug</span><span class="p">);</span>
+    <span class="f">startTransition</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="i">router</span><span class="p">.</span><span class="f">push</span><span class="p">(</span><span class="i">href</span><span class="p">));</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="jsx">nav</span> <span class="i">className</span><span class="p">=</span><span class="s">"py-2"</span><span class="p">&gt;</span>
+      <span class="p">{</span><span class="i">functions</span><span class="p">.</span><span class="f">map</span><span class="p">((</span><span class="i">fn</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+        <span class="k">const</span> <span class="i">href</span> <span class="p">=</span> <span class="s">`/location/<span class="i">${locationSlug}</span>/<span class="i">${fn.slug}</span>`</span><span class="p">;</span>
+        <span class="k">const</span> <span class="i">isActive</span> <span class="p">=</span> <span class="i">pathname</span> <span class="p">===</span> <span class="i">href</span><span class="p">;</span>
+        <span class="k">const</span> <span class="i">isThisPending</span> <span class="p">=</span>
+          <span class="i">isPending</span> <span class="p">&amp;&amp;</span> <span class="i">pendingSlug</span> <span class="p">===</span> <span class="i">fn</span><span class="p">.</span><span class="i">slug</span><span class="p">;</span>
+
+        <span class="k">return</span> <span class="p">(</span>
+          <span class="p">&lt;</span><span class="jsx">button</span>
+            <span class="i">key</span><span class="p">={</span><span class="i">fn</span><span class="p">.</span><span class="i">slug</span><span class="p">}</span>
+            <span class="i">type</span><span class="p">=</span><span class="s">"button"</span>
+            <span class="i">onClick</span><span class="p">={()</span> <span class="p">=&gt;</span> <span class="f">handleClick</span><span class="p">(</span><span class="i">fn</span><span class="p">.</span><span class="i">slug</span><span class="p">)}</span>
+            <span class="i">disabled</span><span class="p">={</span><span class="i">isPending</span><span class="p">}</span>
+            <span class="i">aria-current</span><span class="p">={</span><span class="i">isActive</span> <span class="p">?</span> <span class="s">'page'</span> <span class="p">:</span> <span class="k">undefined</span><span class="p">}</span>
+            <span class="i">className</span><span class="p">={[</span>
+              <span class="s">'flex w-full items-center justify-between'</span><span class="p">,</span>
+              <span class="s">'px-4 py-2.5 text-sm text-left'</span><span class="p">,</span>
+              <span class="s">'border-l-2 transition-colors'</span><span class="p">,</span>
+              <span class="i">isActive</span>
+                <span class="p">?</span> <span class="s">'border-blue-600 bg-blue-50 font-medium text-blue-700'</span>
+                <span class="p">:</span> <span class="s">'border-transparent text-gray-600'</span>
+                  <span class="p">+</span> <span class="s">' hover:bg-gray-50 hover:text-gray-900'</span><span class="p">,</span>
+              <span class="i">isPending</span>
+                <span class="p">?</span> <span class="s">'opacity-50 cursor-not-allowed'</span>
+                <span class="p">:</span> <span class="s">'cursor-pointer'</span><span class="p">,</span>
+            <span class="p">].</span><span class="f">join</span><span class="p">(</span><span class="s">' '</span><span class="p">)}</span>
+          <span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="jsx">span</span><span class="p">&gt;</span><span class="p">{</span><span class="i">fn</span><span class="p">.</span><span class="i">label</span><span class="p">}</span><span class="p">&lt;/</span><span class="jsx">span</span><span class="p">&gt;</span>
+            <span class="p">{</span><span class="i">isThisPending</span> <span class="p">&amp;&amp;</span> <span class="p">(</span>
+              <span class="p">&lt;</span><span class="jsx">svg</span>
+                <span class="i">className</span><span class="p">=</span><span class="s">"h-3.5 w-3.5 animate-spin text-blue-500"</span>
+                <span class="i">viewBox</span><span class="p">=</span><span class="s">"0 0 24 24"</span> <span class="i">fill</span><span class="p">=</span><span class="s">"none"</span>
+              <span class="p">&gt;</span>
+                <span class="p">&lt;</span><span class="jsx">circle</span> <span class="i">cx</span><span class="p">=</span><span class="s">"12"</span> <span class="i">cy</span><span class="p">=</span><span class="s">"12"</span> <span class="i">r</span><span class="p">=</span><span class="s">"10"</span>
+                  <span class="i">stroke</span><span class="p">=</span><span class="s">"currentColor"</span> <span class="i">strokeWidth</span><span class="p">=</span><span class="s">"4"</span>
+                  <span class="i">className</span><span class="p">=</span><span class="s">"opacity-25"</span><span class="p">/&gt;</span>
+                <span class="p">&lt;</span><span class="jsx">path</span> <span class="i">fill</span><span class="p">=</span><span class="s">"currentColor"</span>
+                  <span class="i">className</span><span class="p">=</span><span class="s">"opacity-75"</span>
+                  <span class="i">d</span><span class="p">=</span><span class="s">"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"</span><span class="p">/&gt;</span>
+              <span class="p">&lt;/</span><span class="jsx">svg</span><span class="p">&gt;</span>
+            <span class="p">)}</span>
+          <span class="p">&lt;/</span><span class="jsx">button</span><span class="p">&gt;</span>
+        <span class="p">);</span>
+      <span class="p">})}</span>
+    <span class="p">&lt;/</span><span class="jsx">nav</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<hr class="div"/>
+
+<!-- ══ 06 FN LOADING ══ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="step step-blue">6</div>
+    <div class="step-meta">
+      <h2>[fn]/loading.tsx — Keep For Direct URL Access <span class="tag tag-tsx">TSX</span></h2>
+      <p>Keep this for when user directly navigates to a URL like /location/motb/plan-selection — Suspense inside LocationShell handles in-app clicks, loading.tsx handles direct URL hits.</p>
+    </div>
+  </div>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-path"><span class="dir">src/app/(protected)/location/[slug]/[fn]/</span>loading.tsx</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code><span class="c">// Fires on direct URL access to /location/motb/plan-selection
+// In-app clicks are handled by Suspense in LocationShell.
+// This prevents flash on hard refresh / direct link.</span>
+<span class="k">import</span> <span class="p">{</span> <span class="i">ContentSkeleton</span> <span class="p">}</span> <span class="k">from</span>
+  <span class="s">'@/components/layout/ContentSkeleton'</span><span class="p">;</span>
+
+<span class="k">export default function</span> <span class="f">FunctionPageLoading</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">&lt;</span><span class="jsx">ContentSkeleton</span> <span class="p">/&gt;;</span>
+<span class="p">}</span></code></pre>
+  </div>
+</div>
+
+<footer style="padding-bottom:40px;">
+  LocationShell Suspense Loading · Non-Breaking · Next.js 15 Streaming · useTransition Nav
+</footer>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.file-card').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = '✓ Copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2200);
+    });
+  }
+</script>
+</body>
+</html>
