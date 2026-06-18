@@ -1,59 +1,72 @@
-export async function serverGqlFetch
-  TData,
-  TVars extends Record<string, unknown> = Record<string, unknown>,
->(query: string, variables?: TVars): Promise<TData> {
-  
-  const token = await getAccessToken();
-  
-  // ── ADD: Debug logging ──────────────────────────
-  console.log('[serverGqlFetch] token exists:', Boolean(token));
-  console.log('[serverGqlFetch] token prefix:', token?.slice(0, 20));
-  console.log('[serverGqlFetch] endpoint:', process.env.NEXT_PUBLIC_GRAPHQL_URL);
-  console.log('[serverGqlFetch] tenant:', process.env.TENANT_ID);
-  console.log('[serverGqlFetch] variables:', JSON.stringify(variables));
-  // ────────────────────────────────────────────────
+// lib/utils.ts
 
-  let alreadyRefreshed = false;
-  
-  if (!token) {
-    // ... rest of function
-  }
-  
-  try {
-    const result = await buildClient(token!).request<TData>(query, variables);
-    
-    // ── ADD: Log what actually came back ────────────
-    console.log('[serverGqlFetch] raw result:', JSON.stringify(result));
-    // ────────────────────────────────────────────────
-    
-    return result;
-  } catch (error) {
-    // ... existing catch
-  }
+import { FUNCTION_MAPPING_BY_ID } from './constants';
+
+// 1. Filter only enabled functions
+export function filterEnabledFunctions(data: LocationFunction[]) {
+  return data.filter((fn) => fn.Is_Enabled === 1);
+}
+
+// 2. Map raw data to enriched with slug + label
+export function mapFunctionsWithConfig(data: LocationFunction[]) {
+  return data.map((item) => {
+    const config = FUNCTION_MAPPING_BY_ID[item.Function_Type_Id];
+    return {
+      ...item,
+      label: config?.label ?? item.Function_Type_name,
+      slug:  config?.slug  ?? item.Function_Type_name
+               .toLowerCase()
+               .replace(/\s+/g, '-'),
+    };
+  });
+}
+
+// 3. Combined — filter enabled + enrich with slug/label
+export function mapRawFunctionsToLocationFunctions(
+  data: LocationFunction[]
+) {
+  return filterEnabledFunctions(data)
+    .map((item) => {
+      const config = FUNCTION_MAPPING_BY_ID[item.Function_Type_Id];
+      return {
+        ...item,
+        label: config?.label ?? item.Function_Type_name,
+        slug:  config?.slug  ?? item.Function_Type_name
+                 .toLowerCase()
+                 .replace(/\s+/g, '-'),
+      };
+    });
+}
+
+// 4. Find single function by id
+export function getFunctionById(
+  data: LocationFunction[],
+  id: number
+) {
+  return data.find((fn) => fn.Function_Type_Id === id) ?? null;
+}
+
+// 5. Get slug for a given function type id
+export function getSlugById(id: number): string {
+  return FUNCTION_MAPPING_BY_ID[id]?.slug ?? '';
+}
+
+// 6. Get function by slug (for routing)
+export function getFunctionBySlug(
+  data: LocationFunction[],
+  slug: string
+) {
+  return mapFunctionsWithConfig(data).find(
+    (fn) => fn.slug === slug
+  ) ?? null;
 }
 
 
-// ── TEMPORARY DEBUG — replace serverGqlFetch call ──
-      const debugResponse = await fetch(
-        process.env.NEXT_PUBLIC_GRAPHQL_URL!,
-        {
-          method:  'POST',
-          headers: {
-            'Authorization':  `Bearer ${token}`,
-            'Content-Type':   'application/json',
-            'x-tenant-id':    process.env.TENANT_ID ?? 'client1',
-          },
-          body: JSON.stringify({
-            query: GET_LOCATION_DESCENDENTS,
-            variables: {
-              type:       'client',
-              locationId: clientLocationId,
-            },
-          }),
-        }
-      );
 
-      console.log('[DEBUG] HTTP Status:', debugResponse.status);
-      const rawText = await debugResponse.text();
-      console.log('[DEBUG] Raw response:', rawText);
-      // ── END DEBUG ──────────────────────────────────────
+
+
+// server-location-functions.ts
+const functionsData = response.getLocationFunctions.data ?? [];
+
+return mapRawFunctionsToLocationFunctions(functionsData);
+// Already filtered (Is_Enabled=1) + enriched (slug, label)
