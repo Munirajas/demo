@@ -1,133 +1,163 @@
-// src/lib/graphql/server-gql-fetcher.ts
-'use server';
+// src/components/layout/LocationShell.tsx
+import { Suspense } from 'react';
+import { notFound } from 'next/navigation';
+import { getLocationsTree } from '@/modules/locations/actions/server-locations';
+import { getLocationFunctions } from '@/modules/locations/actions/server-location-functions';
+import { getNodeAndPathBySlug, locationUrl } from '@/modules/locations/lib/utils';
+import { FunctionsNav } from '../nav/FunctionsNav';
+import { Breadcrumbs } from './Breadcrumbs';
+import { NoFunctionsAvailable } from '../nav/NoFunctionsAvailable';
+import { FunctionsNavSkeleton } from '../nav/FunctionsNavSkeleton';
+import { ContentSkeleton } from './ContentSkeleton';
 
-import { GraphQLClient, ClientError } from 'graphql-request';
-import { GQL_ENDPOINT } from '@/lib/constants';
-import { getAccessToken } from '@/modules/auth/lib/cookies';
-import { refreshAccessToken } from '@/modules/auth/lib/refresh';
-import { RateLimitError } from './gql-errors'; // only this new import
+// ─────────────────────────────────────────────────────────
+// KEY FIX: FunctionsNavLoader fetches its OWN data
+// Do NOT pass functions as prop — fetch inside so Suspense fires
+// ─────────────────────────────────────────────────────────
+async function FunctionsNavLoader({
+  locationId,
+  locationSlug,
+  activeFn,
+}: {
+  locationId: number;
+  locationSlug: string;
+  activeFn: string | null;
+}) {
+  // Fetch happens HERE — inside Suspense child
+  const functions = await getLocationFunctions(locationId);
 
-function buildClient(token: string): GraphQLClient {
-  return new GraphQLClient(GQL_ENDPOINT, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  if (functions.length === 0) {
+    return <NoFunctionsAvailable locationLabel={locationSlug} />;
+  }
+
+  return (
+    <FunctionsNav
+      locationSlug={locationSlug}
+      activeFn={activeFn}
+      functions={functions}
+    />
+  );
 }
 
-function isAuthError(error: unknown): boolean {
-  if (error instanceof ClientError) {
-    return error.response.status === 401;
-  }
-  return false;
+// ─────────────────────────────────────────────────────────
+// FullWidthLoader — shown as SINGLE panel while loading
+// Replaces both Col2 and Col3 — matches your Image 2 goal
+// ─────────────────────────────────────────────────────────
+function FullWidthLoader() {
+  return (
+    <div className="flex flex-1 items-center justify-center
+      animate-pulse">
+      <div className="text-center space-y-3">
+        <div className="mx-auto h-8 w-8 rounded-full
+          bg-gray-200" />
+        <div className="h-3 w-40 rounded bg-gray-200 mx-auto" />
+        <div className="h-2.5 w-56 rounded bg-gray-100 mx-auto" />
+      </div>
+    </div>
+  );
 }
 
-// ✅ ONLY new function — narrow and safe
-function isRateLimitError(error: unknown): boolean {
-  if (error instanceof ClientError) {
-    // BE returns 429 HTTP status
-    return error.response.status === 429;
-  }
-  if (error instanceof SyntaxError) {
-    // BE returns plain text "Too many requests" 
-    // which fails JSON parse — very specific check
-    const msg = error.message.toLowerCase();
-    return msg.includes('too many') || msg.includes('rate limit');
-  }
-  return false;
-}
+// ─────────────────────────────────────────────────────────
+// FunctionsSection — decides Col2+Col3 vs single panel
+// Fetches functions ITSELF so Suspense boundary works
+// ─────────────────────────────────────────────────────────
+async function FunctionsSection({
+  locationId,
+  locationSlug,
+  activeFn,
+  children,
+}: {
+  locationId: number;
+  locationSlug: string;
+  activeFn: string | null;
+  children: React.ReactNode;
+}) {
+  const functions = await getLocationFunctions(locationId);
 
-const MAX_RETRIES = 2;
-const BASE_DELAY_MS = 400;
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-export async function serverGqlFetch
-  TData,
-  TVars extends Record<string, unknown> = Record<string, unknown>
->(
-  query: string,
-  variables?: TVars,
-  retryCount = 0,
-): Promise<TData> {
-  let token: string | undefined = await getAccessToken();
-  let alreadyRefreshed = false;
-
-  if (!token) {
-    token = (await refreshAccessToken()) ?? undefined;
-    alreadyRefreshed = true;
-    if (!token) throw new Error('SESSION_EXPIRED');
-  }
-
-  try {
-    // ✅ Your original working request — unchanged
-    const result = await buildClient(token).request<TData>(
-      query,
-      variables,
+  // No functions — show single full-width panel (Image 2 goal)
+  if (functions.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <NoFunctionsAvailable locationLabel={locationSlug} />
+      </div>
     );
-    return result;
-
-  } catch (error) {
-
-    // ── Rate limit: retry with backoff ──────────────────
-    // Check this BEFORE auth check — order matters
-    if (isRateLimitError(error)) {
-      if (retryCount < MAX_RETRIES) {
-        const delay = BASE_DELAY_MS * Math.pow(2, retryCount);
-        console.warn(
-          `[serverGqlFetch] Rate limited. ` +
-          `Retry ${retryCount + 1}/${MAX_RETRIES} in ${delay}ms`
-        );
-        await wait(delay);
-        return serverGqlFetch<TData, TVars>(query, variables, retryCount + 1);
-      }
-      // All retries exhausted — throw typed RateLimitError
-      // Actions catch this and return [] gracefully
-      throw new RateLimitError();
-    }
-
-    // ── Auth error: try token refresh once ──────────────
-    // ✅ YOUR ORIGINAL LOGIC — completely unchanged
-    if (isAuthError(error)) {
-      if (alreadyRefreshed) throw new Error('SESSION_EXPIRED');
-      const newToken = (await refreshAccessToken()) ?? undefined;
-      if (!newToken) throw new Error('SESSION_EXPIRED');
-      return buildClient(newToken).request<TData>(query, variables);
-    }
-
-    // ── Everything else: re-throw as-is ─────────────────
-    // ✅ CRITICAL — don't wrap in GqlFetchError
-    // Let original ClientError bubble up to actions
-    // This is what was breaking — I was wrapping this before
-    throw error;
   }
+
+  // Has functions — show Col2 + Col3 split
+  return (
+    <>
+      {/* Col 2 — Function Nav */}
+      <aside className="w-48 flex-shrink-0 border-r
+        border-gray-200 bg-white overflow-y-auto">
+        <FunctionsNav
+          locationSlug={locationSlug}
+          activeFn={activeFn}
+          functions={functions}
+        />
+      </aside>
+
+      {/* Col 3 — Page content */}
+      <main className="flex-1 overflow-y-auto bg-gray-50">
+        <Suspense fallback={<ContentSkeleton />}>
+          {children}
+        </Suspense>
+      </main>
+    </>
+  );
 }
 
-===================
+// ─────────────────────────────────────────────────────────
+// LocationShell — clean, minimal, Suspense at right level
+// ─────────────────────────────────────────────────────────
+export async function LocationShell({
+  slug,
+  activeFn,
+  children,
+}: {
+  slug: string;
+  activeFn: string | null;
+  children: React.ReactNode;
+}) {
+  // Only fetch tree here — fast, cached
+  const tree = await getLocationsTree();
+  const found = getNodeAndPathBySlug(tree, slug);
+  if (!found) notFound();
 
-  // src/lib/graphql/gql-errors.ts
-// Only RateLimitError needed — remove the rest
+  const { node, path } = found;
+  const breadcrumbs = buildBreadcrumbs(node, path, activeFn);
 
-export class RateLimitError extends Error {
-  readonly statusCode = 429;
-  constructor(message = 'Too many requests') {
-    super(message);
-    this.name = 'RateLimitError';
-  }
-}
+  return (
+    <div className="flex flex-col h-full">
 
-export function isRateLimitError(e: unknown): e is RateLimitError {
-  return e instanceof RateLimitError;
-}
+      {/* Breadcrumbs — resolves instantly from tree */}
+      <div className="px-6 py-1 border-b border-gray-100
+        bg-white shrink-0">
+        <Breadcrumbs
+          key={`${slug}-${activeFn ?? 'none'}`}
+          items={breadcrumbs}
+        />
+      </div>
 
-============
-  // src/modules/locations/actions/server-location-functions.ts
-// REVERT catch block to near-original — only add rate limit check
-
-} catch (error) {
-  // Only handle rate limit — let everything else be original
-  if (error instanceof RateLimitError) {
-    console.warn('[getLocationFunctions] Rate limited — returning []');
-    return [];
-  }
-  // ✅ Original behavior — log and return fallback
-  console.error('[getLocationFunctions]', error);
-  return [];
+      {/* Col 2 + Col 3 area */}
+      <div className="flex flex-1 overflow-hidden">
+        {/*
+          Suspense here wraps FunctionsSection entirely.
+          While getLocationFunctions is pending:
+            → Shows FullWidthLoader (single panel — your Image 2 goal)
+          When resolved:
+            → If no functions: single NoFunctionsAvailable panel
+            → If has functions: Col2 nav + Col3 content split
+        */}
+        <Suspense fallback={<FullWidthLoader />}>
+          <FunctionsSection
+            locationId={node.id}
+            locationSlug={slug}
+            activeFn={activeFn}
+          >
+            {children}
+          </FunctionsSection>
+        </Suspense>
+      </div>
+    </div>
+  );
 }
