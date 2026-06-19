@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Direction 3 — Editorial Clarity</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:#F7F7FB;
+  --surface:#FFFFFF;
+  --ink:#23263B;
+  --ink-soft:#5A5F7A;
+  --indigo:#4A5AE8;
+  --indigo-soft:#EEF0FE;
+  --coral:#FF7A59;
+  --coral-soft:#FFF1ED;
+  --mint:#2BB6A3;
+  --mint-soft:#E9F8F5;
+  --border:#E6E7EE;
+  --muted:#9396AB;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  font-size:14px;
+  -webkit-font-smoothing:antialiased;
+}
+
+.topbar{
+  height:60px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;
+  border-bottom:1px solid var(--border);
+  background:var(--surface);
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{
+  width:32px;height:32px;border-radius:9px;
+  background:var(--indigo);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Sora',sans-serif;font-weight:700;font-size:14px;color:#fff;
+}
+.brand-text{font-family:'Sora',sans-serif;font-size:15px;font-weight:600}
+
+.topbar-right{display:flex;align-items:center;gap:12px}
+.icon-btn{
+  width:34px;height:34px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--muted);cursor:pointer;
+  transition:background .15s;
+}
+.icon-btn:hover{background:var(--bg)}
+.avatar{
+  width:34px;height:34px;border-radius:50%;
+  background:var(--indigo-soft);color:var(--indigo);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;font-family:'Sora',sans-serif;
+}
+
+.shell{display:flex;height:calc(100vh - 60px)}
+
+.sidebar{
+  width:272px;
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  background:var(--surface);
+}
+.sidebar-head{padding:16px 16px 10px}
+.search{
+  display:flex;align-items:center;gap:8px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:9px 12px;
+  background:var(--bg);
+}
+.search input{
+  border:none;outline:none;background:none;
+  font-size:13px;color:var(--ink);width:100%;
+  font-family:'Inter',sans-serif;
+}
+.search input::placeholder{color:var(--muted)}
+.search svg{flex-shrink:0;color:var(--muted)}
+
+.tree{padding:8px 12px 16px;overflow-y:auto;flex:1}
+.tnode{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 10px;
+  border-radius:9px;
+  cursor:pointer;
+  font-size:13.5px;
+  color:var(--ink-soft);
+  transition:all .15s;
+}
+.tnode:hover{background:var(--bg)}
+.tnode.active{
+  background:var(--indigo);
+  color:#fff;font-weight:600;
+}
+.tnode .caret{
+  width:14px;height:14px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--muted);
+}
+.tnode.active .caret{color:rgba(255,255,255,.7)}
+.tnode .icon-tile{
+  width:24px;height:24px;border-radius:6px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--indigo-soft);color:var(--indigo);
+}
+.tnode.active .icon-tile{background:rgba(255,255,255,.18);color:#fff}
+.tnode .label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l1{padding-left:10px}
+.l2{padding-left:24px}
+.l3{padding-left:38px}
+.l4{padding-left:52px}
+
+.sidebar-foot{padding:14px 16px;border-top:1px solid var(--border)}
+.btn-create{
+  width:100%;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px;
+  background:var(--indigo);
+  color:#fff;
+  border:none;border-radius:10px;
+  font-size:13px;font-weight:600;
+  font-family:'Inter',sans-serif;
+  cursor:pointer;
+  box-shadow:0 1px 2px rgba(74,90,232,.2);
+}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+.breadcrumb-bar{
+  padding:16px 32px;
+  border-bottom:1px solid var(--border);
+}
+.crumbs{
+  display:flex;align-items:center;gap:6px;
+  font-size:12.5px;
+}
+.crumb-pill{
+  padding:5px 12px;border-radius:999px;
+  background:var(--bg);color:var(--ink-soft);
+  text-decoration:none;
+  transition:background .15s;
+}
+.crumb-pill:hover{background:var(--indigo-soft);color:var(--indigo)}
+.crumb-pill.current{background:var(--indigo-soft);color:var(--indigo);font-weight:600}
+.crumb-pill.dots{padding:5px 8px;color:var(--muted)}
+.crumbs-sep{color:var(--muted);font-size:11px}
+
+.content{flex:1;display:flex;overflow:hidden}
+
+.fnav{
+  width:212px;
+  border-right:1px solid var(--border);
+  padding:20px 16px;
+  flex-shrink:0;
+}
+.profile-card{
+  background:var(--bg);
+  border-radius:12px;
+  padding:14px;
+  margin-bottom:16px;
+}
+.profile-card .name{
+  font-family:'Sora',sans-serif;
+  font-size:14px;font-weight:600;margin-bottom:4px;
+}
+.profile-card .path{
+  font-size:11px;color:var(--muted);
+}
+.fitem{
+  padding:10px 12px;
+  font-size:13px;color:var(--ink-soft);
+  cursor:pointer;
+  border-radius:9px;
+  margin-bottom:2px;
+  display:flex;align-items:center;gap:10px;
+  transition:all .15s;
+}
+.fitem:hover{background:var(--bg)}
+.fitem.active{
+  color:var(--indigo);font-weight:600;
+  background:var(--indigo-soft);
+}
+.fitem .ficon{
+  width:18px;height:18px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+}
+
+.page{flex:1;overflow-y:auto;padding:28px 36px}
+.page-title{
+  font-family:'Sora',sans-serif;
+  font-size:20px;font-weight:600;margin-bottom:6px;
+}
+.page-desc{
+  font-size:13px;color:var(--ink-soft);
+  max-width:580px;line-height:1.65;
+  margin-bottom:28px;
+}
+
+.section{margin-bottom:28px}
+.section-head{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:14px;
+}
+.section-tile{
+  width:28px;height:28px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.section-title{font-family:'Sora',sans-serif;font-size:14px;font-weight:600}
+.section-count{
+  font-size:11.5px;color:var(--muted);
+  margin-left:auto;
+}
+
+.toggle-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+}
+.toggle-row{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:12px;
+  transition:box-shadow .15s, border-color .15s;
+}
+.toggle-row:hover{box-shadow:0 2px 8px rgba(35,38,59,.05)}
+.toggle-row.on{border-color:rgba(43,182,163,.3)}
+.toggle-info .t-label{
+  font-size:13px;font-weight:600;color:var(--ink);
+  margin-bottom:3px;
+}
+.toggle-info .t-desc{
+  font-size:11.5px;color:var(--muted);line-height:1.5;
+}
+.switch{
+  width:38px;height:22px;border-radius:11px;
+  background:var(--border);
+  position:relative;flex-shrink:0;
+  cursor:pointer;transition:background .2s;
+}
+.switch::after{
+  content:'';
+  position:absolute;top:2px;left:2px;
+  width:18px;height:18px;border-radius:50%;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(0,0,0,.15);
+  transition:left .2s;
+}
+.switch.on{background:var(--mint)}
+.switch.on::after{left:18px}
+
+.note{
+  margin-top:20px;
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;
+  background:var(--coral-soft);
+  border-radius:10px;
+  font-size:12px;color:#B8492F;
+}
+.note svg{flex-shrink:0}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">B</div>
+    <div class="brand-text">Museum of the Bible · Admin</div>
+  </div>
+  <div class="topbar-right">
+    <div class="icon-btn">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+    </div>
+    <div class="avatar">MU</div>
+  </div>
+</div>
+
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input placeholder="Search locations" />
+      </div>
+    </div>
+    <nav class="tree">
+      <div class="tnode l1">
+        <div class="caret"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div class="icon-tile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4 8 4v14"/></svg></div>
+        <div class="label">Museum of the Bible</div>
+      </div>
+      <div class="tnode l2">
+        <div class="caret"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div class="icon-tile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4 8 4v14"/></svg></div>
+        <div class="label">MOTB D.C.</div>
+      </div>
+      <div class="tnode l3">
+        <div class="caret" style="visibility:hidden"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div class="icon-tile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div>
+        <div class="label">MOTB OKC</div>
+      </div>
+      <div class="tnode l3">
+        <div class="caret"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div class="icon-tile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div>
+        <div class="label">MOTB OKC 2</div>
+      </div>
+      <div class="tnode l4 active">
+        <div class="caret" style="visibility:hidden"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div class="icon-tile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div>
+        <div class="label">MOTB OKC 222</div>
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      <button class="btn-create">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add Location
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="breadcrumb-bar">
+      <div class="crumbs">
+        <a href="#" class="crumb-pill">MOTB</a>
+        <span class="crumbs-sep">→</span>
+        <span class="crumb-pill dots">···</span>
+        <span class="crumbs-sep">→</span>
+        <a href="#" class="crumb-pill">MOTB OKC 2</a>
+        <span class="crumbs-sep">→</span>
+        <a href="#" class="crumb-pill">MOTB OKC 222</a>
+        <span class="crumbs-sep">→</span>
+        <span class="crumb-pill current">Configuration</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <aside class="fnav">
+        <div class="profile-card">
+          <div class="name">MOTB OKC 222</div>
+          <div class="path">Museum of the Bible → MOTB D.C. → MOTB OKC 2</div>
+        </div>
+        <div class="fitem active">
+          <div class="ficon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+          Configuration
+        </div>
+        <div class="fitem">
+          <div class="ficon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+          Memberships
+        </div>
+      </aside>
+
+      <div class="page">
+        <div class="page-title">Location features</div>
+        <div class="page-desc">
+          Choose which features show up for MOTB OKC 222. Staff at this
+          location will only see the sections you turn on here.
+        </div>
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-tile" style="background:var(--indigo-soft);color:var(--indigo)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div class="section-title">Visitor information</div>
+            <div class="section-count">2 of 4 on</div>
+          </div>
+          <div class="toggle-grid">
+            <div class="toggle-row on">
+              <div class="toggle-info">
+                <div class="t-label">Physical address</div>
+                <div class="t-desc">Show street address and map pin</div>
+              </div>
+              <div class="switch on"></div>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="t-label">Mappable location</div>
+                <div class="t-desc">Appear on the campus map</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+            <div class="toggle-row on">
+              <div class="toggle-info">
+                <div class="t-label">Contact information</div>
+                <div class="t-desc">Phone, email, front desk</div>
+              </div>
+              <div class="switch on"></div>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="t-label">Open hours</div>
+                <div class="t-desc">Daily and seasonal hours</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-tile" style="background:var(--mint-soft);color:var(--mint)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1"/></svg>
+            </div>
+            <div class="section-title">Programs &amp; access</div>
+            <div class="section-count">2 of 4 on</div>
+          </div>
+          <div class="toggle-grid">
+            <div class="toggle-row on">
+              <div class="toggle-info">
+                <div class="t-label">Memberships</div>
+                <div class="t-desc">Member check-in and benefits</div>
+              </div>
+              <div class="switch on"></div>
+            </div>
+            <div class="toggle-row on">
+              <div class="toggle-info">
+                <div class="t-label">Tours</div>
+                <div class="t-desc">Guided and self-guided booking</div>
+              </div>
+              <div class="switch on"></div>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="t-label">Discounts</div>
+                <div class="t-desc">Group, student, and promo pricing</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="t-label">Gift certificates</div>
+                <div class="t-desc">Sale and redemption</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-tile" style="background:var(--coral-soft);color:var(--coral)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+            </div>
+            <div class="section-title">Operations</div>
+            <div class="section-count">1 of 3 on</div>
+          </div>
+          <div class="toggle-grid">
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="t-label">Amenities</div>
+                <div class="t-desc">Dining, restrooms, accessibility</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="t-label">Production host</div>
+                <div class="t-desc">Event and production scheduling</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+            <div class="toggle-row on">
+              <div class="toggle-info">
+                <div class="t-label">Waivers</div>
+                <div class="t-desc">Liability and consent forms</div>
+              </div>
+              <div class="switch on"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          These settings apply only to MOTB OKC 222 — sub-locations are not affected.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
