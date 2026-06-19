@@ -1,3 +1,105 @@
+// hooks/useLocationFunctions.ts
+'use client';
+
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { mapRawFunctionsToLocationFunctions } from '../lib/utils';
+
+export const functionKeys = {
+  byLocation: (locationId: number) =>
+    ['locationFunctions', locationId] as const,
+};
+
+export function useLocationFunctionsQuery(
+  locationId: number,
+  initialData: LocationFunction[]
+) {
+  return useQuery({
+    queryKey: functionKeys.byLocation(locationId),
+    queryFn: async () => initialData, // no real fetch — already have it from server
+    initialData: mapRawFunctionsToLocationFunctions(initialData),
+    staleTime: Infinity, // this is client-only toggle state, not server-refetched
+  });
+}
+
+-------------------
+
+  // hooks/useToggleFunction.ts
+'use client';
+
+import { useQueryClient } from '@tanstack/react-query';
+import { functionKeys } from './useLocationFunctions';
+
+export function useToggleFunction(locationId: number) {
+  const queryClient = useQueryClient();
+
+  return (slug: string) => {
+    queryClient.setQueryData<ConfigFunction[]>(
+      functionKeys.byLocation(locationId),
+      (old) =>
+        old?.map((fn) =>
+          fn.slug === slug ? { ...fn, enabled: !fn.enabled } : fn
+        ) ?? []
+    );
+  };
+}
+
+------------
+
+  // LocationFunctionsShell.tsx
+'use client';
+
+import { useLocationFunctionsQuery } from '../hooks/useLocationFunctions';
+import { useToggleFunction } from '../hooks/useToggleFunction';
+
+export function LocationFunctionsShell({
+  locationId,
+  initialFunctions,
+}: {
+  locationId: number;
+  initialFunctions: LocationFunction[];
+}) {
+  const { data: functions } = useLocationFunctionsQuery(locationId, initialFunctions);
+  const toggleFunction = useToggleFunction(locationId);
+
+  const navItems = functions.filter(
+    (fn) => fn.enabled || fn.label.toLowerCase().includes('config')
+  );
+
+  return (
+    <div className="flex">
+      <nav>
+        {navItems.map((fn) => (
+          <NavLink key={fn.slug} href={`#${fn.slug}`}>
+            {fn.label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <ConfigPage functions={functions} onToggle={toggleFunction} />
+    </div>
+  );
+}
+
+  ----------------------
+
+    // AnywhereElse.tsx
+'use client';
+
+import { useLocationFunctionsQuery } from '../hooks/useLocationFunctions';
+
+export function Breadcrumb({ locationId, initialFunctions }: Props) {
+  const { data: functions } = useLocationFunctionsQuery(locationId, initialFunctions);
+  // same shared cache, no extra fetch, no server action call
+}
+
+
+
+
+
+
+
+=================================================================================
+
 // lib/utils.ts
 
 export function sortConfigFirst(
