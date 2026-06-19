@@ -1,72 +1,146 @@
 // lib/utils.ts
 
-import { FUNCTION_MAPPING_BY_ID } from './constants';
+export function sortConfigFirst(
+  data: LocationFunction[]
+): LocationFunction[] {
+  const configIndex = data.findIndex((fn) =>
+    fn.Function_Type_name.toLowerCase().includes('config')
+  );
 
-// 1. Filter only enabled functions
-export function filterEnabledFunctions(data: LocationFunction[]) {
-  return data.filter((fn) => fn.Is_Enabled === 1);
+  if (configIndex <= 0) return data; // already first, or not found
+
+  const configItem = data[configIndex];
+  const rest = data.filter((_, i) => i !== configIndex);
+
+  return [configItem, ...rest];
 }
 
-// 2. Map raw data to enriched with slug + label
-export function mapFunctionsWithConfig(data: LocationFunction[]) {
-  return data.map((item) => {
+============
+
+  export function mapRawFunctionsToLocationFunctions(
+  data: LocationFunction[]
+) {
+  const enriched = filterEnabledFunctions(data).map((item) => {
     const config = FUNCTION_MAPPING_BY_ID[item.Function_Type_Id];
     return {
       ...item,
       label: config?.label ?? item.Function_Type_name,
-      slug:  config?.slug  ?? item.Function_Type_name
-               .toLowerCase()
-               .replace(/\s+/g, '-'),
+      slug:  config?.slug  ?? item.Function_Type_name.toLowerCase().replace(/\s+/g, '-'),
     };
   });
+
+  return sortConfigFirst(enriched);
 }
 
-// 3. Combined — filter enabled + enrich with slug/label
-export function mapRawFunctionsToLocationFunctions(
-  data: LocationFunction[]
-) {
-  return filterEnabledFunctions(data)
-    .map((item) => {
-      const config = FUNCTION_MAPPING_BY_ID[item.Function_Type_Id];
-      return {
-        ...item,
-        label: config?.label ?? item.Function_Type_name,
-        slug:  config?.slug  ?? item.Function_Type_name
-                 .toLowerCase()
-                 .replace(/\s+/g, '-'),
-      };
-    });
+=====================
+
+
+  // components/ConfigPage.tsx
+'use client';
+
+import { useState } from 'react';
+
+interface ConfigFunction extends LocationFunction {
+  label: string;
+  slug: string;
+  enabled: boolean;
 }
 
-// 4. Find single function by id
-export function getFunctionById(
-  data: LocationFunction[],
-  id: number
-) {
-  return data.find((fn) => fn.Function_Type_Id === id) ?? null;
+export function ConfigPage({
+  initialFunctions,
+  onToggle,
+}: {
+  initialFunctions: LocationFunction[];
+  onToggle?: (slug: string, enabled: boolean) => void;
+}) {
+  const [functions, setFunctions] = useState<ConfigFunction[]>(() =>
+    initialFunctions.map((fn) => ({
+      ...fn,
+      enabled: fn.Is_Enabled === 1,
+    }))
+  );
+
+  const handleToggle = (slug: string) => {
+    setFunctions((prev) =>
+      prev.map((fn) =>
+        fn.slug === slug ? { ...fn, enabled: !fn.enabled } : fn
+      )
+    );
+
+    const updated = functions.find((fn) => fn.slug === slug);
+    if (updated) {
+      onToggle?.(slug, !updated.enabled);
+    }
+  };
+
+  // Skip rendering "Configuration" itself in the toggle list
+  const toggleable = functions.filter(
+    (fn) => !fn.label.toLowerCase().includes('config')
+  );
+
+  return (
+    <div>
+      <h3>This configuration enables the location features.</h3>
+      <div className="grid grid-cols-2 gap-4">
+        {toggleable.map((fn) => (
+          <label key={fn.slug} className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={fn.enabled}
+              onChange={() => handleToggle(fn.slug)}
+              className="toggle"
+            />
+            {fn.label}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-// 5. Get slug for a given function type id
-export function getSlugById(id: number): string {
-  return FUNCTION_MAPPING_BY_ID[id]?.slug ?? '';
+=========
+
+    // LocationFunctionsShell.tsx
+'use client';
+
+import { useState } from 'react';
+
+export function LocationFunctionsShell({
+  initialFunctions,
+}: {
+  initialFunctions: LocationFunction[];
+}) {
+  const [functions, setFunctions] = useState<ConfigFunction[]>(() =>
+    initialFunctions.map((fn) => ({ ...fn, enabled: fn.Is_Enabled === 1 }))
+  );
+
+  const handleToggle = (slug: string) => {
+    setFunctions((prev) =>
+      prev.map((fn) =>
+        fn.slug === slug ? { ...fn, enabled: !fn.enabled } : fn
+      )
+    );
+  };
+
+  // Nav only shows enabled tabs + Config always visible
+  const navItems = functions.filter(
+    (fn) => fn.enabled || fn.label.toLowerCase().includes('config')
+  );
+
+  return (
+    <div className="flex">
+      <nav>
+        {navItems.map((fn) => (
+          <NavLink key={fn.slug} href={`#${fn.slug}`}>
+            {fn.label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <ConfigPage
+        initialFunctions={functions}
+        onToggle={handleToggle}
+      />
+    </div>
+  );
 }
-
-// 6. Get function by slug (for routing)
-export function getFunctionBySlug(
-  data: LocationFunction[],
-  slug: string
-) {
-  return mapFunctionsWithConfig(data).find(
-    (fn) => fn.slug === slug
-  ) ?? null;
-}
-
-
-
-
-
-// server-location-functions.ts
-const functionsData = response.getLocationFunctions.data ?? [];
-
-return mapRawFunctionsToLocationFunctions(functionsData);
-// Already filtered (Is_Enabled=1) + enriched (slug, label)
