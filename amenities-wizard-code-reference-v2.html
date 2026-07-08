@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Amenities Wizard — Code Reference (v2)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #12181f;
+    --border: #232b34;
+    --text: #d7dde4;
+    --text-dim: #8b95a1;
+    --accent: #4f8cff;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    display: flex;
+    min-height: 100vh;
+  }
+  nav {
+    width: 270px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  nav .brand {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    padding: 0 20px 4px;
+  }
+  nav .brand .ver { color: var(--accent); }
+  nav .brand-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 0 20px 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  nav a {
+    display: block;
+    padding: 8px 20px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 13px;
+    font-family: var(--mono);
+    border-left: 2px solid transparent;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  nav a:hover { background: rgba(255,255,255,0.04); }
+  nav a.active { border-left-color: var(--accent); color: var(--accent); background: rgba(79,140,255,0.08); }
+  main {
+    flex: 1;
+    padding: 40px 48px 120px;
+    max-width: 900px;
+  }
+  header.page-head {
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  header.page-head h1 { font-size: 22px; margin: 0 0 8px; font-weight: 600; }
+  header.page-head p { color: var(--text-dim); font-size: 14px; margin: 0; line-height: 1.6; }
+  .change-list {
+    font-size: 13.5px;
+    color: var(--text);
+    background: rgba(79,140,255,0.06);
+    border: 1px solid rgba(79,140,255,0.2);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 20px 0 0;
+    line-height: 1.7;
+  }
+  .change-list li { margin-bottom: 4px; }
+  .file-block {
+    margin-bottom: 48px;
+    scroll-margin-top: 24px;
+  }
+  .file-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .file-path {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: #fff;
+    background: rgba(79,140,255,0.12);
+    padding: 4px 10px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .tag {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(74, 222, 128, 0.12);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+  }
+  .tag.changed { background: rgba(255, 176, 32, 0.1); color: #ffb020; border-color: rgba(255, 176, 32, 0.3); }
+  .file-summary {
+    font-size: 13.5px;
+    color: var(--text-dim);
+    margin: 8px 0 12px;
+    line-height: 1.6;
+  }
+  .flag {
+    font-size: 13px;
+    background: rgba(255, 176, 32, 0.1);
+    border: 1px solid rgba(255, 176, 32, 0.3);
+    color: #ffb020;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 10px 0 14px;
+    line-height: 1.5;
+  }
+  pre {
+    margin: 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    overflow-x: auto;
+    position: relative;
+  }
+  pre code.hljs { padding: 16px 18px !important; font-size: 12.5px; line-height: 1.6; background: #0b0f14 !important; }
+  .copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .copy-btn:hover { color: var(--text); background: rgba(255,255,255,0.1); }
+  .copy-btn.copied { color: #4ade80; border-color: #4ade80; }
+  .todo-note { font-size: 12.5px; color: var(--text-dim); margin-top: 10px; }
+  .section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin: 40px 0 6px;
+  }
+  .toc-group-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    padding: 14px 20px 6px;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">Amenities wizard <span class="ver">v2</span></div>
+  <div class="brand-sub">Self-contained per-type controls, registry-driven</div>
+  <div class="toc-group-label">Overview</div>
+  <a href="#overview">Summary &amp; what changed</a>
+  <div class="toc-group-label">Types &amp; logic</div>
+  <a href="#f1">types/wizard-types.ts</a>
+  <a href="#f2">lib/schedule-timestamp-generator.ts</a>
+  <div class="toc-group-label">Shared components</div>
+  <a href="#f3">components/GeneralInfoFields.tsx</a>
+  <a href="#f4">components/ScheduleBuilder.tsx</a>
+  <a href="#f5">components/StepIndicator.tsx</a>
+  <div class="toc-group-label">Type-form contract &amp; registry</div>
+  <a href="#f6">components/forms/types.ts</a>
+  <a href="#f7">components/forms/amenity-form-registry.ts</a>
+  <div class="toc-group-label">Type-specific forms</div>
+  <a href="#f8">components/forms/GeneralAdmissionForm.tsx</a>
+  <a href="#f9">components/forms/ScheduledAdmissionForm.tsx</a>
+  <div class="toc-group-label">Main entry point</div>
+  <a href="#f10">components/AmenityFormDrawer.tsx</a>
+  <a href="#f11">AmenityList.tsx (edits)</a>
+</nav>
+
+<main>
+  <header class="page-head" id="overview">
+    <h1>Amenities creation/edit wizard — component reference (v2)</h1>
+    <p>
+      Step 1: the drawer's amenity-type dropdown decides what's being created/edited. Step 2: the matching
+      type component mounts — General Admission (single step: name + description) or Scheduled Admission
+      (two internal steps: shared General Info, then Scheduling). Each type component owns its own
+      Save/Cancel/Next/Back controls and fires its own mutation, so adding a third amenity type later is
+      additive, not a rewrite.
+    </p>
+    <ul class="change-list">
+      <li><strong>Fixed:</strong> type dropdown now lives only in the shell — switching type reliably swaps the whole child component instead of getting trapped in stale child state.</li>
+      <li><strong>Fixed:</strong> footer Save/Cancel/Next/Back logic moved out of the shell entirely and into each type component, which now also owns its own <code>insert.mutate</code> / <code>update.mutate</code> call.</li>
+      <li><strong>Added:</strong> a form registry (<code>AMENITY_FORM_REGISTRY</code>) mapping type → component — the single switch point for future amenity types.</li>
+      <li><strong>Added:</strong> a shared <code>AmenityTypeFormProps</code> contract every type form implements, so the shell never needs type-specific logic.</li>
+      <li><strong>Added:</strong> a downgrade warning when switching an existing Scheduled Admission back to General, since that discards the schedule.</li>
+    </ul>
+  </header>
+
+  <div class="flag">
+    <strong>Still open with BE:</strong> confirm whether the original recurrence rule (not just expanded
+    timestamps) is persisted and returned, so an existing schedule can be prefilled on edit rather than
+    starting blank. Marked with <code>TODO</code> in <code>ScheduledAdmissionForm.tsx</code>.
+  </div>
+
+  <div class="file-block" id="f1">
+    <div class="file-head">
+      <span class="file-path">types/wizard-types.ts</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Shared types. Dropdown-specific pieces removed (dropdown now lives directly in
+      the shell) — this file is purely shared shape + the type-resolution heuristic.</p>
+    <pre><code class="language-typescript">import type { AmenityType } from '@/types/amenities';
+
+export const GENERAL_ADMISSION_KEY = 'GENERAL_ADMISSION' as const;
+export const SCHEDULED_ADMISSION_KEY = 'SCHEDULED_ADMISSION' as const;
+
+export type AmenityTypeKey =
+  | typeof GENERAL_ADMISSION_KEY
+  | typeof SCHEDULED_ADMISSION_KEY;
+
+export interface GeneralInfoValues {
+  amenityTypeId: number | '';
+  amenityName: string;
+  amenityDescription: string;
+}
+
+export const EMPTY_GENERAL_INFO: GeneralInfoValues = {
+  amenityTypeId: '',
+  amenityName: '',
+  amenityDescription: '',
+};
+
+export type RecurrenceFrequency = 'NONE' | 'DAILY' | 'WEEKLY';
+export type WeekDay = 'SUN' | 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT';
+
+export interface ScheduleRuleValues {
+  startTime: string; // "HH:mm"
+  endTime: string; // "HH:mm"
+  frequency: RecurrenceFrequency;
+  interval: number;
+  daysOfWeek: WeekDay[];
+  startDate: string; // "YYYY-MM-DD"
+  endMode: 'ON_DATE' | 'AFTER_OCCURRENCES';
+  endDate?: string;
+  occurrences?: number;
+}
+
+export const EMPTY_SCHEDULE_RULE: ScheduleRuleValues = {
+  startTime: '15:00',
+  endTime: '15:30',
+  frequency: 'WEEKLY',
+  interval: 1,
+  daysOfWeek: ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'],
+  startDate: '',
+  endMode: 'ON_DATE',
+  endDate: '',
+  occurrences: undefined,
+};
+
+export interface GeneratedTimestamp {
+  startDateTime: string;
+  endDateTime: string;
+}
+
+// TEMPORARY heuristic. Replace with a stable discriminant from BE
+// (e.g. amenityType.category === 'SCHEDULED') as soon as it's available --
+// matching on display name breaks the moment someone renames a type in admin.
+export function resolveWizardKind(
+  amenityTypeId: number | '',
+  amenityTypes: AmenityType[],
+): AmenityTypeKey {
+  const match = amenityTypes.find((t) =&gt; t.amenityTypeId === amenityTypeId);
+  const name = match?.amenityTypeName?.toLowerCase() ?? '';
+  if (name.includes('schedul') || name.includes('slot')) {
+    return SCHEDULED_ADMISSION_KEY;
+  }
+  return GENERAL_ADMISSION_KEY;
+}
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f2">
+    <div class="file-head">
+      <span class="file-path">lib/schedule-timestamp-generator.ts</span>
+      <span class="tag">unchanged</span>
+    </div>
+    <p class="file-summary">Expands a recurrence rule into concrete ISO start/end timestamps using
+      moment.js, per requirement #4. Includes a hard safety cap so a bad end-date input can't generate an
+      unbounded list. Consumed by <code>ScheduledAdmissionForm.tsx</code> on save.</p>
+    <pre><code class="language-typescript">import moment from 'moment';
+import type { ScheduleRuleValues, GeneratedTimestamp, WeekDay } from '../types/wizard-types';
+
+const DAY_INDEX: Record&lt;WeekDay, number&gt; = {
+  SUN: 0, MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6,
+};
+
+// Hard safety cap so a mistyped end date (e.g. year 2099) can't hang the tab
+// generating tens of thousands of rows client-side.
+const MAX_OCCURRENCES_SAFEGUARD = 366;
+
+function dayKeyFromIndex(index: number): WeekDay {
+  return (Object.keys(DAY_INDEX) as WeekDay[]).find((k) =&gt; DAY_INDEX[k] === index) ?? 'SUN';
+}
+
+/**
+ * Expands a recurrence rule into concrete start/end ISO timestamps.
+ * This is a first-pass implementation -- the "every N weeks" interval jump
+ * logic especially needs unit tests against real calendar edge cases
+ * (month/year boundaries, DST) before shipping.
+ */
+export function generateScheduleTimestamps(rule: ScheduleRuleValues): GeneratedTimestamp[] {
+  if (!rule.startDate) return [];
+
+  const [startHour, startMinute] = rule.startTime.split(':').map(Number);
+  const [endHour, endMinute] = rule.endTime.split(':').map(Number);
+
+  const results: GeneratedTimestamp[] = [];
+  const rangeStart = moment(rule.startDate, 'YYYY-MM-DD');
+  const rangeEnd = rule.endMode === 'ON_DATE' &amp;&amp; rule.endDate
+    ? moment(rule.endDate, 'YYYY-MM-DD')
+    : null;
+
+  function pushOccurrence(day: moment.Moment) {
+    const start = day.clone().hour(startHour).minute(startMinute).second(0).millisecond(0);
+    const end = day.clone().hour(endHour).minute(endMinute).second(0).millisecond(0);
+    results.push({ startDateTime: start.toISOString(), endDateTime: end.toISOString() });
+  }
+
+  if (rule.frequency === 'NONE') {
+    pushOccurrence(rangeStart);
+    return results;
+  }
+
+  let cursor = rangeStart.clone();
+  let count = 0;
+  const anchorWeekday = rangeStart.day();
+
+  while (count &lt; MAX_OCCURRENCES_SAFEGUARD) {
+    if (rangeEnd &amp;&amp; cursor.isAfter(rangeEnd, 'day')) break;
+    if (rule.endMode === 'AFTER_OCCURRENCES' &amp;&amp; rule.occurrences &amp;&amp; count &gt;= rule.occurrences) break;
+
+    if (rule.frequency === 'DAILY') {
+      pushOccurrence(cursor);
+      count += 1;
+      cursor = cursor.clone().add(rule.interval, 'days');
+      continue;
+    }
+
+    // WEEKLY
+    if (rule.daysOfWeek.includes(dayKeyFromIndex(cursor.day()))) {
+      pushOccurrence(cursor);
+      count += 1;
+      if (rule.endMode === 'AFTER_OCCURRENCES' &amp;&amp; rule.occurrences &amp;&amp; count &gt;= rule.occurrences) break;
+    }
+
+    cursor = cursor.clone().add(1, 'day');
+
+    // Once we've scanned a full week, skip ahead (interval - 1) more weeks
+    // to honor "recur every N weeks".
+    if (cursor.day() === anchorWeekday &amp;&amp; rule.interval &gt; 1) {
+      cursor = cursor.clone().add((rule.interval - 1) * 7, 'days');
+    }
+  }
+
+  return results;
+}
+</code></pre>
+    <p class="todo-note">Requires: <code>npm install moment</code></p>
+  </div>
+
+  <div class="section-label">Shared components</div>
+
+  <div class="file-block" id="f3">
+    <div class="file-head">
+      <span class="file-path">components/GeneralInfoFields.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Now just the Name + Description fields — the amenity type dropdown was pulled
+      out into the shell (see <code>AmenityFormDrawer.tsx</code>). This is the piece reused as-is by both
+      General Admission's single step and Scheduled Admission's first step.</p>
+    <pre><code class="language-typescript">'use client';
+
+import type { GeneralInfoValues } from '../types/wizard-types';
+
+interface Props {
+  values: GeneralInfoValues;
+  onChange: (values: GeneralInfoValues) =&gt; void;
+  error?: string | null;
+}
+
+export function GeneralInfoFields({ values, onChange, error }: Props) {
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      {error &amp;&amp; &lt;p className="text-sm text-red-600"&gt;{error}&lt;/p&gt;}
+
+      &lt;div className="flex flex-col gap-1"&gt;
+        &lt;label className="text-sm font-medium text-gray-700"&gt;Name&lt;/label&gt;
+        &lt;input
+          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="e.g. General Admission"
+          value={values.amenityName}
+          onChange={(e) =&gt; onChange({ ...values, amenityName: e.target.value })}
+        /&gt;
+      &lt;/div&gt;
+
+      &lt;div className="flex flex-col gap-1"&gt;
+        &lt;label className="text-sm font-medium text-gray-700"&gt;Description&lt;/label&gt;
+        &lt;textarea
+          rows={3}
+          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Short description (optional)"
+          value={values.amenityDescription}
+          onChange={(e) =&gt; onChange({ ...values, amenityDescription: e.target.value })}
+        /&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f4">
+    <div class="file-head">
+      <span class="file-path">components/ScheduleBuilder.tsx</span>
+      <span class="tag">unchanged</span>
+    </div>
+    <p class="file-summary">The recurrence UI: start/end date, start/end time, daily/weekly frequency,
+      interval, day-of-week chips, and end condition (on date vs after N occurrences). Purely a controlled
+      fields component — no buttons, no mutation logic, so it stays reusable regardless of who wraps it.</p>
+    <pre><code class="language-typescript">'use client';
+
+import type { ScheduleRuleValues, WeekDay } from '../types/wizard-types';
+
+const ALL_DAYS: { key: WeekDay; label: string }[] = [
+  { key: 'SUN', label: 'Sun' }, { key: 'MON', label: 'Mon' },
+  { key: 'TUE', label: 'Tue' }, { key: 'WED', label: 'Wed' },
+  { key: 'THU', label: 'Thu' }, { key: 'FRI', label: 'Fri' },
+  { key: 'SAT', label: 'Sat' },
+];
+
+interface Props {
+  values: ScheduleRuleValues;
+  onChange: (values: ScheduleRuleValues) =&gt; void;
+  error?: string | null;
+}
+
+export function ScheduleBuilder({ values, onChange, error }: Props) {
+  function toggleDay(day: WeekDay) {
+    const has = values.daysOfWeek.includes(day);
+    onChange({
+      ...values,
+      daysOfWeek: has ? values.daysOfWeek.filter((d) =&gt; d !== day) : [...values.daysOfWeek, day],
+    });
+  }
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      {error &amp;&amp; &lt;p className="text-sm text-red-600"&gt;{error}&lt;/p&gt;}
+
+      &lt;div className="grid grid-cols-2 gap-3"&gt;
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Start date&lt;/label&gt;
+          &lt;input
+            type="date"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            value={values.startDate}
+            onChange={(e) =&gt; onChange({ ...values, startDate: e.target.value })}
+          /&gt;
+        &lt;/div&gt;
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Recurrence&lt;/label&gt;
+          &lt;select
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            value={values.frequency}
+            onChange={(e) =&gt; onChange({ ...values, frequency: e.target.value as ScheduleRuleValues['frequency'] })}
+          &gt;
+            &lt;option value="NONE"&gt;Does not repeat&lt;/option&gt;
+            &lt;option value="DAILY"&gt;Daily&lt;/option&gt;
+            &lt;option value="WEEKLY"&gt;Weekly&lt;/option&gt;
+          &lt;/select&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+
+      &lt;div className="grid grid-cols-2 gap-3"&gt;
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Start time&lt;/label&gt;
+          &lt;input
+            type="time"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            value={values.startTime}
+            onChange={(e) =&gt; onChange({ ...values, startTime: e.target.value })}
+          /&gt;
+        &lt;/div&gt;
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;End time&lt;/label&gt;
+          &lt;input
+            type="time"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            value={values.endTime}
+            onChange={(e) =&gt; onChange({ ...values, endTime: e.target.value })}
+          /&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+
+      {values.frequency !== 'NONE' &amp;&amp; (
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Recur every&lt;/label&gt;
+          &lt;div className="flex items-center gap-2"&gt;
+            &lt;input
+              type="number"
+              min={1}
+              className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              value={values.interval}
+              onChange={(e) =&gt; onChange({ ...values, interval: Number(e.target.value) || 1 })}
+            /&gt;
+            &lt;span className="text-sm text-gray-600"&gt;{values.frequency === 'DAILY' ? 'day(s)' : 'week(s)'}&lt;/span&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      )}
+
+      {values.frequency === 'WEEKLY' &amp;&amp; (
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Repeat on&lt;/label&gt;
+          &lt;div className="flex flex-wrap gap-2"&gt;
+            {ALL_DAYS.map((day) =&gt; {
+              const active = values.daysOfWeek.includes(day.key);
+              return (
+                &lt;button
+                  key={day.key}
+                  type="button"
+                  onClick={() =&gt; toggleDay(day.key)}
+                  className={`text-xs px-3 py-1.5 rounded-full border ${
+                    active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'
+                  }`}
+                &gt;
+                  {day.label}
+                &lt;/button&gt;
+              );
+            })}
+          &lt;/div&gt;
+        &lt;/div&gt;
+      )}
+
+      {values.frequency !== 'NONE' &amp;&amp; (
+        &lt;div className="flex flex-col gap-2"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Ends&lt;/label&gt;
+          &lt;div className="flex items-center gap-2"&gt;
+            &lt;input
+              type="radio"
+              id="endOnDate"
+              checked={values.endMode === 'ON_DATE'}
+              onChange={() =&gt; onChange({ ...values, endMode: 'ON_DATE' })}
+            /&gt;
+            &lt;label htmlFor="endOnDate" className="text-sm text-gray-700 w-16"&gt;On date&lt;/label&gt;
+            &lt;input
+              type="date"
+              disabled={values.endMode !== 'ON_DATE'}
+              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
+              value={values.endDate ?? ''}
+              onChange={(e) =&gt; onChange({ ...values, endDate: e.target.value })}
+            /&gt;
+          &lt;/div&gt;
+          &lt;div className="flex items-center gap-2"&gt;
+            &lt;input
+              type="radio"
+              id="endAfter"
+              checked={values.endMode === 'AFTER_OCCURRENCES'}
+              onChange={() =&gt; onChange({ ...values, endMode: 'AFTER_OCCURRENCES' })}
+            /&gt;
+            &lt;label htmlFor="endAfter" className="text-sm text-gray-700 w-16"&gt;After&lt;/label&gt;
+            &lt;input
+              type="number"
+              min={1}
+              disabled={values.endMode !== 'AFTER_OCCURRENCES'}
+              className="w-24 rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
+              value={values.occurrences ?? ''}
+              onChange={(e) =&gt; onChange({ ...values, occurrences: Number(e.target.value) || undefined })}
+            /&gt;
+            &lt;span className="text-sm text-gray-600"&gt;occurrences&lt;/span&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      )}
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f5">
+    <div class="file-head">
+      <span class="file-path">components/StepIndicator.tsx</span>
+      <span class="tag changed">renamed / simplified</span>
+    </div>
+    <p class="file-summary">Renamed from <code>StepperHeader</code>. Now purely presentational — "Step X of
+      Y", progress bar, and clickable chips for already-visited steps. No footer, no button logic; the
+      owning type component decides what "Back"/"Next" actually do.</p>
+    <pre><code class="language-typescript">'use client';
+
+export interface StepIndicatorStep {
+  id: string;
+  label: string;
+  status: 'done' | 'active' | 'pending';
+}
+
+interface Props {
+  steps: StepIndicatorStep[];
+  onStepClick?: (index: number) =&gt; void;
+}
+
+export function StepIndicator({ steps, onStepClick }: Props) {
+  if (steps.length &lt;= 1) return null;
+  const activeIndex = steps.findIndex((s) =&gt; s.status === 'active');
+
+  return (
+    &lt;div className="mb-2"&gt;
+      &lt;div className="flex items-center justify-between mb-1"&gt;
+        &lt;span className="text-sm font-medium text-gray-900"&gt;
+          Step {activeIndex + 1} of {steps.length}
+        &lt;/span&gt;
+        &lt;span className="text-sm text-gray-500"&gt;{steps[activeIndex]?.label}&lt;/span&gt;
+      &lt;/div&gt;
+      &lt;div className="h-1 w-full rounded bg-gray-100 overflow-hidden mb-2"&gt;
+        &lt;div
+          className="h-full bg-blue-600 transition-all"
+          style={{ width: `${((activeIndex + 1) / steps.length) * 100}%` }}
+        /&gt;
+      &lt;/div&gt;
+      &lt;div className="flex items-center gap-2"&gt;
+        {steps.map((step, index) =&gt; {
+          const clickable = step.status !== 'pending' &amp;&amp; !!onStepClick;
+          return (
+            &lt;button
+              key={step.id}
+              type="button"
+              disabled={!clickable}
+              onClick={() =&gt; clickable &amp;&amp; onStepClick!(index)}
+              className={`text-xs px-2 py-1 rounded ${
+                step.status === 'active'
+                  ? 'bg-blue-50 text-blue-700 font-medium'
+                  : clickable
+                  ? 'text-gray-600 hover:bg-gray-50'
+                  : 'text-gray-300 cursor-not-allowed'
+              }`}
+            &gt;
+              {step.status === 'done' ? '\u2713 ' : ''}
+              {step.label}
+            &lt;/button&gt;
+          );
+        })}
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  </div>
+
+  <div class="section-label">Type-form contract &amp; registry</div>
+
+  <div class="file-block" id="f6">
+    <div class="file-head">
+      <span class="file-path">components/forms/types.ts</span>
+      <span class="tag changed">new</span>
+    </div>
+    <p class="file-summary">The contract every amenity-type form must implement. This is what makes the
+      shell type-agnostic: it never needs to know what a "Scheduled Admission" is, only that whatever
+      component the registry hands it accepts these props.</p>
+    <pre><code class="language-typescript">import type { Amenity } from '@/types/amenities';
+import type { GeneralInfoValues } from '../../types/wizard-types';
+
+// Every amenity type's form component implements this contract. Adding a new
+// amenity type later means: create a component matching this interface,
+// add it to amenity-form-registry.ts. Nothing else changes.
+export interface AmenityTypeFormProps {
+  generalInfo: GeneralInfoValues;
+  onGeneralInfoChange: (values: GeneralInfoValues) =&gt; void;
+  isEditing: boolean;
+  amenity?: Amenity | null;
+  locationFunctionId: number;
+  locationSlug: string;
+  onClose: () =&gt; void;
+}
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f7">
+    <div class="file-head">
+      <span class="file-path">components/forms/amenity-form-registry.ts</span>
+      <span class="tag changed">new</span>
+    </div>
+    <p class="file-summary">The single switch point. Adding a new amenity type in the future is: create its
+      form component, add one line here. The shell (<code>AmenityFormDrawer.tsx</code>) never changes.</p>
+    <pre><code class="language-typescript">import type { ComponentType } from 'react';
+import { GENERAL_ADMISSION_KEY, SCHEDULED_ADMISSION_KEY, type AmenityTypeKey } from '../../types/wizard-types';
+import { GeneralAdmissionForm } from './GeneralAdmissionForm';
+import { ScheduledAdmissionForm } from './ScheduledAdmissionForm';
+import type { AmenityTypeFormProps } from './types';
+
+// Single source of truth for "which component renders for which type".
+// Add a new amenity type: import its form, add one line here.
+export const AMENITY_FORM_REGISTRY: Record&lt;AmenityTypeKey, ComponentType&lt;AmenityTypeFormProps&gt;&gt; = {
+  [GENERAL_ADMISSION_KEY]: GeneralAdmissionForm,
+  [SCHEDULED_ADMISSION_KEY]: ScheduledAdmissionForm,
+};
+</code></pre>
+  </div>
+
+  <div class="section-label">Type-specific forms</div>
+
+  <div class="file-block" id="f8">
+    <div class="file-head">
+      <span class="file-path">components/forms/GeneralAdmissionForm.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Single-step form. Owns its own Save/Cancel buttons and fires
+      <code>insert.mutate</code> / <code>update.mutate</code> directly based on <code>isEditing</code>.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { useState } from 'react';
+import { useInsertAmenity } from '../../hooks/useInsertAmenity';
+import { useUpdateAmenity } from '../../hooks/useUpdateAmenity';
+import { GeneralInfoFields } from '../GeneralInfoFields';
+import type { AmenityTypeFormProps } from './types';
+
+export function GeneralAdmissionForm({
+  generalInfo,
+  onGeneralInfoChange,
+  isEditing,
+  amenity,
+  locationFunctionId,
+  locationSlug,
+  onClose,
+}: AmenityTypeFormProps) {
+  const [error, setError] = useState&lt;string | null&gt;(null);
+
+  const insert = useInsertAmenity(locationFunctionId, locationSlug);
+  const update = useUpdateAmenity(locationFunctionId, locationSlug);
+  const isSaving = insert.isPending || update.isPending;
+
+  function validate(): boolean {
+    if (!generalInfo.amenityTypeId) {
+      setError('Please select an amenity type.');
+      return false;
+    }
+    if (!generalInfo.amenityName.trim()) {
+      setError('Name is required.');
+      return false;
+    }
+    setError(null);
+    return true;
+  }
+
+  function handleSave() {
+    if (!validate()) return;
+
+    const payload = {
+      amenityTypeId: Number(generalInfo.amenityTypeId),
+      amenityName: generalInfo.amenityName.trim(),
+      amenityDescription: generalInfo.amenityDescription.trim(),
+    };
+
+    // NOTE: confirm exact field names against InsertAmenityInput /
+    // UpdateAmenityInput -- placeholders until BE schema is finalized.
+    if (isEditing &amp;&amp; amenity) {
+      update.mutate(
+        { amenityId: amenity.amenityId, locationFunctionId, ...payload },
+        { onSuccess: onClose },
+      );
+    } else {
+      insert.mutate(
+        { locationFunctionId, ...payload },
+        { onSuccess: onClose },
+      );
+    }
+  }
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      &lt;GeneralInfoFields values={generalInfo} onChange={onGeneralInfoChange} error={error} /&gt;
+
+      &lt;div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1"&gt;
+        &lt;button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700"
+        &gt;
+          Cancel
+        &lt;/button&gt;
+        &lt;button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving}
+          className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white disabled:opacity-60"
+        &gt;
+          {isSaving ? 'Saving...' : 'Save'}
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f9">
+    <div class="file-head">
+      <span class="file-path">components/forms/ScheduledAdmissionForm.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Two-step form. Owns Next/Back/Save/Cancel across both internal steps, generates
+      timestamps via moment.js on save, and fires its own mutation with the schedule payload attached.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { useState } from 'react';
+import { useInsertAmenity } from '../../hooks/useInsertAmenity';
+import { useUpdateAmenity } from '../../hooks/useUpdateAmenity';
+import { GeneralInfoFields } from '../GeneralInfoFields';
+import { ScheduleBuilder } from '../ScheduleBuilder';
+import { StepIndicator, type StepIndicatorStep } from '../StepIndicator';
+import { generateScheduleTimestamps } from '../../lib/schedule-timestamp-generator';
+import { EMPTY_SCHEDULE_RULE, type ScheduleRuleValues } from '../../types/wizard-types';
+import type { AmenityTypeFormProps } from './types';
+
+type Step = 'general' | 'scheduler';
+
+export function ScheduledAdmissionForm({
+  generalInfo,
+  onGeneralInfoChange,
+  isEditing,
+  amenity,
+  locationFunctionId,
+  locationSlug,
+  onClose,
+}: AmenityTypeFormProps) {
+  const [step, setStep] = useState&lt;Step&gt;('general');
+  const [scheduleRule, setScheduleRule] = useState&lt;ScheduleRuleValues&gt;(EMPTY_SCHEDULE_RULE);
+  // TODO: prefill from `amenity` once BE returns the persisted recurrence
+  // rule (not just the expanded timestamps) -- see open item at the top.
+  const [error, setError] = useState&lt;string | null&gt;(null);
+
+  const insert = useInsertAmenity(locationFunctionId, locationSlug);
+  const update = useUpdateAmenity(locationFunctionId, locationSlug);
+  const isSaving = insert.isPending || update.isPending;
+
+  const steps: StepIndicatorStep[] = [
+    { id: 'general', label: 'General info', status: step === 'general' ? 'active' : 'done' },
+    { id: 'scheduler', label: 'Scheduling', status: step === 'scheduler' ? 'active' : 'pending' },
+  ];
+
+  function validateGeneralInfo(): boolean {
+    if (!generalInfo.amenityTypeId) {
+      setError('Please select an amenity type.');
+      return false;
+    }
+    if (!generalInfo.amenityName.trim()) {
+      setError('Name is required.');
+      return false;
+    }
+    setError(null);
+    return true;
+  }
+
+  function validateSchedule(): boolean {
+    if (!scheduleRule.startDate) {
+      setError('Start date is required.');
+      return false;
+    }
+    if (scheduleRule.frequency === 'WEEKLY' &amp;&amp; scheduleRule.daysOfWeek.length === 0) {
+      setError('Select at least one day.');
+      return false;
+    }
+    setError(null);
+    return true;
+  }
+
+  function handleNext() {
+    if (!validateGeneralInfo()) return;
+    setStep('scheduler');
+  }
+
+  function handleSave() {
+    if (!validateSchedule()) return;
+
+    const payload = {
+      amenityTypeId: Number(generalInfo.amenityTypeId),
+      amenityName: generalInfo.amenityName.trim(),
+      amenityDescription: generalInfo.amenityDescription.trim(),
+      schedule: {
+        rule: scheduleRule,
+        timestamps: generateScheduleTimestamps(scheduleRule),
+      },
+    };
+
+    // NOTE: confirm exact field names/shape for `schedule` against BE's
+    // InsertAmenityInput / UpdateAmenityInput once finalized.
+    if (isEditing &amp;&amp; amenity) {
+      update.mutate(
+        { amenityId: amenity.amenityId, locationFunctionId, ...payload },
+        { onSuccess: onClose },
+      );
+    } else {
+      insert.mutate(
+        { locationFunctionId, ...payload },
+        { onSuccess: onClose },
+      );
+    }
+  }
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      &lt;StepIndicator steps={steps} onStepClick={(i) =&gt; setStep(i === 0 ? 'general' : 'scheduler')} /&gt;
+
+      {step === 'general' ? (
+        &lt;&gt;
+          &lt;GeneralInfoFields values={generalInfo} onChange={onGeneralInfoChange} error={error} /&gt;
+          &lt;div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1"&gt;
+            &lt;button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700"
+            &gt;
+              Cancel
+            &lt;/button&gt;
+            &lt;button
+              type="button"
+              onClick={handleNext}
+              className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white"
+            &gt;
+              Next
+            &lt;/button&gt;
+          &lt;/div&gt;
+        &lt;/&gt;
+      ) : (
+        &lt;&gt;
+          {error &amp;&amp; &lt;p className="text-sm text-red-600"&gt;{error}&lt;/p&gt;}
+          &lt;ScheduleBuilder values={scheduleRule} onChange={setScheduleRule} /&gt;
+          &lt;div className="flex justify-between gap-2 pt-3 border-t border-gray-100 mt-1"&gt;
+            &lt;button
+              type="button"
+              onClick={() =&gt; setStep('general')}
+              className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700"
+            &gt;
+              Back
+            &lt;/button&gt;
+            &lt;div className="flex gap-2"&gt;
+              &lt;button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700"
+              &gt;
+                Cancel
+              &lt;/button&gt;
+              &lt;button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white disabled:opacity-60"
+              &gt;
+                {isSaving ? 'Saving...' : 'Save'}
+              &lt;/button&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/&gt;
+      )}
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+    <p class="todo-note">Requires: <code>npm install moment</code></p>
+  </div>
+
+  <div class="section-label">Main entry point</div>
+
+  <div class="file-block" id="f10">
+    <div class="file-head">
+      <span class="file-path">components/AmenityFormDrawer.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">The single component to import for both create and edit. Owns only the amenity
+      type dropdown and looks up the matching form from the registry — no footer, no mutation logic, no
+      step logic. <code>key={wizardKind}</code> on the mounted form ensures switching type cleanly resets
+      type-specific state.</p>
+    <div class="flag">
+      Assumes <code>Drawer</code> renders plain <code>children</code> when no <code>tabs</code>/<code>footerActions</code>
+      props are passed. If your <code>@hlt/react-component-library</code> version requires one of those, this
+      needs a small wrapper adjustment.
+    </div>
+    <pre><code class="language-typescript">'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { Drawer } from '@hlt/react-component-library';
+import { Amenity, AmenityType } from '@/types/amenities';
+import { AMENITY_FORM_REGISTRY } from './forms/amenity-form-registry';
+import {
+  EMPTY_GENERAL_INFO,
+  GENERAL_ADMISSION_KEY,
+  SCHEDULED_ADMISSION_KEY,
+  resolveWizardKind,
+  type GeneralInfoValues,
+} from '../types/wizard-types';
+
+interface Props {
+  isOpen: boolean;
+  onClose: () =&gt; void;
+  locationFunctionId: number;
+  locationSlug: string;
+  amenityTypes: AmenityType[];
+  amenity?: Amenity | null;
+}
+
+export function AmenityFormDrawer({
+  isOpen,
+  onClose,
+  locationFunctionId,
+  locationSlug,
+  amenityTypes,
+  amenity = null,
+}: Props) {
+  const isEditing = amenity !== null;
+
+  const [generalInfo, setGeneralInfo] = useState&lt;GeneralInfoValues&gt;(EMPTY_GENERAL_INFO);
+
+  // Capture the type this amenity started as, so we can warn on downgrade.
+  const originalWizardKind = useMemo(
+    () =&gt; (amenity ? resolveWizardKind(amenity.amenityTypeId, amenityTypes) : null),
+    [amenity, amenityTypes],
+  );
+
+  useEffect(() =&gt; {
+    if (!isOpen) return;
+    setGeneralInfo(
+      amenity
+        ? {
+            amenityTypeId: amenity.amenityTypeId,
+            amenityName: amenity.amenityName,
+            amenityDescription: amenity.amenityDescription ?? '',
+          }
+        : EMPTY_GENERAL_INFO,
+    );
+  }, [isOpen, amenity]);
+
+  const wizardKind = resolveWizardKind(generalInfo.amenityTypeId, amenityTypes);
+  const ActiveForm = AMENITY_FORM_REGISTRY[wizardKind];
+
+  const showDowngradeWarning =
+    isEditing &amp;&amp;
+    originalWizardKind === SCHEDULED_ADMISSION_KEY &amp;&amp;
+    wizardKind === GENERAL_ADMISSION_KEY;
+
+  return (
+    &lt;Drawer
+      title={isEditing ? 'Edit amenity' : 'Add amenity'}
+      width="sm"
+      isOpen={isOpen}
+      onClose={onClose}
+    &gt;
+      &lt;div className="flex flex-col gap-4"&gt;
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Amenity type&lt;/label&gt;
+          &lt;select
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={generalInfo.amenityTypeId}
+            onChange={(e) =&gt;
+              setGeneralInfo((prev) =&gt; ({
+                ...prev,
+                amenityTypeId: e.target.value ? Number(e.target.value) : '',
+              }))
+            }
+          &gt;
+            &lt;option value=""&gt;Select...&lt;/option&gt;
+            {amenityTypes.map((t) =&gt; (
+              &lt;option key={t.amenityTypeId} value={t.amenityTypeId}&gt;
+                {t.amenityTypeName}
+              &lt;/option&gt;
+            ))}
+          &lt;/select&gt;
+          &lt;p className="text-xs text-gray-500"&gt;
+            Changing this switches the form below between General and Scheduled admission.
+          &lt;/p&gt;
+        &lt;/div&gt;
+
+        {showDowngradeWarning &amp;&amp; (
+          &lt;p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2"&gt;
+            Switching back to General Admission will remove the existing schedule for this amenity.
+          &lt;/p&gt;
+        )}
+
+        {generalInfo.amenityTypeId !== '' &amp;&amp; ActiveForm &amp;&amp; (
+          &lt;ActiveForm
+            key={wizardKind}
+            generalInfo={generalInfo}
+            onGeneralInfoChange={setGeneralInfo}
+            isEditing={isEditing}
+            amenity={amenity}
+            locationFunctionId={locationFunctionId}
+            locationSlug={locationSlug}
+            onClose={onClose}
+          /&gt;
+        )}
+      &lt;/div&gt;
+    &lt;/Drawer&gt;
+  );
+}
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f11">
+    <div class="file-head">
+      <span class="file-path">AmenityList.tsx (edits only)</span>
+      <span class="tag changed">simplified</span>
+    </div>
+    <p class="file-summary"><code>insert</code>, <code>update</code>, <code>isSaving</code>, and
+      <code>handleSave</code> are no longer needed at the list level — mutations now live inside each type
+      form. <code>remove</code> stays as-is since Delete is still a list-level row action.</p>
+    <pre><code class="language-typescript">// Remove: insert, update, isSaving, handleSave -- no longer needed here.
+// Keep: remove (Delete is still a list-level row action).
+
+import { AmenityFormDrawer } from './AmenityFormDrawer';
+
+// ... in JSX:
+&lt;AmenityFormDrawer
+  isOpen={drawer.mode !== 'closed'}
+  amenity={drawer.mode === 'edit' ? drawer.amenity : null}
+  onClose={() =&gt; setDrawer({ mode: 'closed' })}
+  locationFunctionId={locationFunctionId}
+  locationSlug={locationSlug}
+  amenityTypes={amenityTypes}
+/&gt;
+</code></pre>
+  </div>
+
+</main>
+
+<script>
+  hljs.highlightAll();
+
+  document.querySelectorAll('pre').forEach((pre) => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+
+  const links = document.querySelectorAll('nav a');
+  const sections = Array.from(links).map((a) => document.querySelector(a.getAttribute('href')));
+  window.addEventListener('scroll', () => {
+    let activeIndex = 0;
+    sections.forEach((sec, i) => {
+      if (sec && sec.getBoundingClientRect().top <= 100) activeIndex = i;
+    });
+    links.forEach((a, i) => a.classList.toggle('active', i === activeIndex));
+  });
+</script>
+
+</body>
+</html>
