@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Amenities Wizard — Code Reference (v3, RRULE-based scheduling)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #12181f;
+    --border: #232b34;
+    --text: #d7dde4;
+    --text-dim: #8b95a1;
+    --accent: #4f8cff;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); display: flex; min-height: 100vh; }
+  nav { width: 280px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border); padding: 24px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  nav .brand { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); padding: 0 20px 4px; }
+  nav .brand .ver { color: var(--accent); }
+  nav .brand-sub { font-size: 11px; color: var(--text-dim); padding: 0 20px 16px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  nav a { display: block; padding: 8px 20px; color: var(--text); text-decoration: none; font-size: 13px; font-family: var(--mono); border-left: 2px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  nav a:hover { background: rgba(255,255,255,0.04); }
+  nav a.active { border-left-color: var(--accent); color: var(--accent); background: rgba(79,140,255,0.08); }
+  main { flex: 1; padding: 40px 48px 120px; max-width: 920px; }
+  header.page-head { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  header.page-head h1 { font-size: 22px; margin: 0 0 8px; font-weight: 600; }
+  header.page-head p { color: var(--text-dim); font-size: 14px; margin: 0 0 12px; line-height: 1.6; }
+  .change-list { font-size: 13.5px; color: var(--text); background: rgba(79,140,255,0.06); border: 1px solid rgba(79,140,255,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0; line-height: 1.7; }
+  .change-list li { margin-bottom: 4px; }
+  .file-block { margin-bottom: 48px; scroll-margin-top: 24px; }
+  .file-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px; flex-wrap: wrap; }
+  .file-path { font-family: var(--mono); font-size: 14px; color: #fff; background: rgba(79,140,255,0.12); padding: 4px 10px; border-radius: 4px; display: inline-block; }
+  .tag { font-size: 11px; font-family: var(--mono); padding: 3px 8px; border-radius: 4px; background: rgba(74, 222, 128, 0.12); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
+  .tag.changed { background: rgba(255, 176, 32, 0.1); color: #ffb020; border-color: rgba(255, 176, 32, 0.3); }
+  .tag.removed { background: rgba(248, 113, 113, 0.1); color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
+  .file-summary { font-size: 13.5px; color: var(--text-dim); margin: 8px 0 12px; line-height: 1.6; }
+  .flag { font-size: 13px; background: rgba(255, 176, 32, 0.1); border: 1px solid rgba(255, 176, 32, 0.3); color: #ffb020; padding: 8px 12px; border-radius: 6px; margin: 10px 0 14px; line-height: 1.5; }
+  .info { font-size: 13px; background: rgba(79,140,255,0.08); border: 1px solid rgba(79,140,255,0.25); color: #a7c4ff; padding: 8px 12px; border-radius: 6px; margin: 10px 0 14px; line-height: 1.5; }
+  pre { margin: 0; border-radius: 8px; border: 1px solid var(--border); overflow-x: auto; position: relative; }
+  pre code.hljs { padding: 16px 18px !important; font-size: 12.5px; line-height: 1.6; background: #0b0f14 !important; }
+  .copy-btn { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text-dim); font-size: 12px; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-family: var(--sans); }
+  .copy-btn:hover { color: var(--text); background: rgba(255,255,255,0.1); }
+  .copy-btn.copied { color: #4ade80; border-color: #4ade80; }
+  .todo-note { font-size: 12.5px; color: var(--text-dim); margin-top: 10px; }
+  .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 40px 0 6px; }
+  .toc-group-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); padding: 14px 20px 6px; }
+  table.schema { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 10px 0 4px; }
+  table.schema th, table.schema td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  table.schema th { color: var(--text-dim); font-weight: 500; font-family: var(--mono); font-size: 11.5px; }
+  table.schema td { font-family: var(--mono); font-size: 12px; }
+  table.schema td.desc { font-family: var(--sans); color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">Amenities wizard <span class="ver">v3</span></div>
+  <div class="brand-sub">RRULE-based scheduling (rrule.js)</div>
+  <div class="toc-group-label">Overview</div>
+  <a href="#overview">Summary &amp; what changed</a>
+  <a href="#be-json">JSON payload for BE</a>
+  <a href="#be-schema">Suggested DB schema</a>
+  <div class="toc-group-label">Types &amp; logic</div>
+  <a href="#f1">lib/recurrence-types.ts</a>
+  <a href="#f2">lib/recurrence-engine.ts</a>
+  <div class="toc-group-label">Reusable scheduling UI</div>
+  <a href="#f3">components/schedule/RecurrenceRuleBuilder.tsx</a>
+  <div class="toc-group-label">Amenity-specific form</div>
+  <a href="#f4">components/forms/ScheduledAdmissionForm.tsx</a>
+  <div class="toc-group-label">Unchanged from v2</div>
+  <a href="#unchanged">File tree reference</a>
+  <div class="toc-group-label">Removed</div>
+  <a href="#removed">Superseded files</a>
+</nav>
+
+<main>
+  <header class="page-head" id="overview">
+    <h1>Recurring schedule builder — RRULE-based (v3)</h1>
+    <p>
+      Rebuilt the scheduling piece on <strong>rrule.js</strong>, a JS implementation of the RFC 5545
+      (iCalendar) recurrence standard — the same model Outlook and Google Calendar use, which is why it
+      naturally covers every pattern in your mockup: single occurrence, daily, weekly, "day N of every
+      M months," "the 2nd Thursday of every month," "on a fixed date every year," and "the 2nd Thursday
+      of July every year."
+    </p>
+    <ul class="change-list">
+      <li><strong>Structured rule is the source of truth.</strong> The exact fields the UI captures are what gets sent to BE and should be persisted as-is — this is what makes edit/prepopulate actually work: reopen the drawer, hand the stored rule object back into the form, done.</li>
+      <li><strong>Standard <code>RRULE</code> text is also generated</strong> alongside the structured rule, for portability to anything that wants to consume a standard recurrence string later.</li>
+      <li><strong>Expanded occurrences are still generated and sent</strong> (per requirement #4), but explicitly labeled as a derived cache, not the source of truth.</li>
+      <li><strong>New component is fully generic</strong> — <code>RecurrenceRuleBuilder</code> has zero knowledge of amenities. It's a <code>value</code>/<code>onChange</code> controlled component, reusable for any entity that needs recurring scheduling later.</li>
+      <li><strong>Dropped moment.js</strong> in favor of rrule.js's own date handling — one less aging dependency.</li>
+    </ul>
+  </header>
+
+  <div class="file-block" id="be-json">
+    <div class="file-head"><span class="file-path">Example payload — weekly recurrence</span></div>
+    <p class="file-summary">This is what gets sent to BE on save for a "3:00–3:30 PM, every Sun/Tue–Sat,
+      ending Dec 24" schedule (matches your mockup's weekly example, minus Monday). Share this shape
+      directly with your BE team.</p>
+    <pre><code class="language-json">{
+  "amenityTypeId": 42,
+  "amenityName": "Macropod Experience",
+  "amenityDescription": "Get up close with our resident macropods.",
+  "schedule": {
+    "rule": {
+      "startDate": "2026-07-09",
+      "startTime": "15:00",
+      "endDate": "2026-07-09",
+      "endTime": "15:30",
+      "frequency": "WEEKLY",
+      "interval": 1,
+      "daysOfWeek": ["SUN", "TUE", "WED", "THU", "FRI", "SAT"],
+      "monthlyMode": "DAY_OF_MONTH",
+      "monthlyDayOfMonth": 1,
+      "monthlySetPosition": 1,
+      "monthlyWeekday": "MON",
+      "yearlyMode": "ON_DATE",
+      "yearlyMonth": 1,
+      "yearlyDayOfMonth": 1,
+      "yearlySetPosition": 1,
+      "yearlyWeekday": "MON",
+      "recurrenceEndMode": "ON_DATE",
+      "recurrenceEndDate": "2026-12-24",
+      "occurrenceCount": null
+    },
+    "rruleText": "DTSTART:20260709T150000\nRRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=SU,TU,WE,TH,FR,SA;UNTIL=20261224T235900",
+    "timezone": "America/Chicago",
+    "occurrences": [
+      { "startDateTime": "2026-07-09T15:00:00.000-05:00", "endDateTime": "2026-07-09T15:30:00.000-05:00" },
+      { "startDateTime": "2026-07-11T15:00:00.000-05:00", "endDateTime": "2026-07-11T15:30:00.000-05:00" },
+      { "startDateTime": "2026-07-12T15:00:00.000-05:00", "endDateTime": "2026-07-12T15:30:00.000-05:00" }
+    ]
+  }
+}</code></pre>
+    <p class="file-summary" style="margin-top:14px;">
+      Note the unused monthly/yearly fields stay present with harmless defaults rather than being
+      conditionally omitted — keeps the payload shape stable regardless of frequency, which is simpler for
+      BE to deserialize into one fixed record type instead of a polymorphic one.
+    </p>
+    <p class="file-summary"><strong>Monthly ("2nd Thursday of every month") differs only in:</strong></p>
+    <pre><code class="language-json">"frequency": "MONTHLY",
+"monthlyMode": "WEEKDAY_POSITION",
+"monthlySetPosition": 2,
+"monthlyWeekday": "THU",
+"interval": 1</code></pre>
+    <p class="file-summary"><strong>Yearly ("2nd Thursday of July every year") differs only in:</strong></p>
+    <pre><code class="language-json">"frequency": "YEARLY",
+"yearlyMode": "WEEKDAY_POSITION",
+"yearlyMonth": 7,
+"yearlySetPosition": 2,
+"yearlyWeekday": "THU",
+"interval": 1</code></pre>
+  </div>
+
+  <div class="file-block" id="be-schema">
+    <div class="file-head"><span class="file-path">Suggested DB schema</span></div>
+    <p class="file-summary">Two tables: the rule (source of truth, small, rarely written) and the
+      occurrence cache (derived, safe to regenerate). <code>entity_type</code> / <code>entity_id</code> keep
+      this reusable for anything beyond amenities later, matching the "reusable component" requirement at
+      the data layer too, not just in the UI.</p>
+
+    <p class="file-summary" style="margin-bottom:4px;"><strong>schedule_rule</strong></p>
+    <table class="schema">
+      <tr><th>column</th><th>type</th><th class="desc">notes</th></tr>
+      <tr><td>id</td><td>bigint pk</td><td class="desc">&nbsp;</td></tr>
+      <tr><td>entity_type</td><td>varchar</td><td class="desc">e.g. "AMENITY" — keeps this table reusable beyond amenities</td></tr>
+      <tr><td>entity_id</td><td>bigint</td><td class="desc">FK to the owning record (amenity_id today)</td></tr>
+      <tr><td>start_date / start_time</td><td>date / time</td><td class="desc">&nbsp;</td></tr>
+      <tr><td>end_date / end_time</td><td>date / time</td><td class="desc">defines per-occurrence duration</td></tr>
+      <tr><td>timezone</td><td>varchar</td><td class="desc">IANA name, e.g. "America/Chicago"</td></tr>
+      <tr><td>frequency</td><td>varchar</td><td class="desc">NONE / DAILY / WEEKLY / MONTHLY / YEARLY</td></tr>
+      <tr><td>interval</td><td>int</td><td class="desc">&nbsp;</td></tr>
+      <tr><td>days_of_week</td><td>json / text[]</td><td class="desc">weekly only</td></tr>
+      <tr><td>monthly_mode, monthly_day_of_month, monthly_set_position, monthly_weekday</td><td>mixed</td><td class="desc">monthly only</td></tr>
+      <tr><td>yearly_mode, yearly_month, yearly_day_of_month, yearly_set_position, yearly_weekday</td><td>mixed</td><td class="desc">yearly only</td></tr>
+      <tr><td>recurrence_end_mode</td><td>varchar</td><td class="desc">ON_DATE / AFTER_OCCURRENCES / NEVER</td></tr>
+      <tr><td>recurrence_end_date, occurrence_count</td><td>date, int</td><td class="desc">&nbsp;</td></tr>
+      <tr><td>rrule_text</td><td>text</td><td class="desc">standard RRULE string, for interop</td></tr>
+      <tr><td>created_at, updated_at</td><td>timestamp</td><td class="desc">&nbsp;</td></tr>
+    </table>
+
+    <p class="file-summary" style="margin: 16px 0 4px;"><strong>schedule_occurrence</strong> (derived cache — safe to truncate + regenerate for future dates on rule edit; leave past/booked rows untouched)</p>
+    <table class="schema">
+      <tr><th>column</th><th>type</th><th class="desc">notes</th></tr>
+      <tr><td>id</td><td>bigint pk</td><td class="desc">&nbsp;</td></tr>
+      <tr><td>schedule_rule_id</td><td>bigint fk</td><td class="desc">&nbsp;</td></tr>
+      <tr><td>start_datetime, end_datetime</td><td>timestamptz</td><td class="desc">&nbsp;</td></tr>
+      <tr><td>status</td><td>varchar</td><td class="desc">e.g. ACTIVE / CANCELLED — lets a single occurrence be pulled without touching the rule</td></tr>
+    </table>
+
+    <div class="info">
+      Discuss with BE: for "no end date" schedules, the FE caps generated occurrences to a 2-year rolling
+      horizon (see <code>MAX_HORIZON_YEARS</code> in the engine below) rather than generating forever. BE
+      likely needs the same rolling-horizon regeneration job (e.g. a scheduled task that extends
+      occurrences as the horizon approaches) so open-ended schedules don't silently run out of materialized
+      dates.
+    </div>
+  </div>
+
+  <div class="section-label">Types &amp; logic</div>
+
+  <div class="file-block" id="f1">
+    <div class="file-head">
+      <span class="file-path">lib/recurrence-types.ts</span>
+      <span class="tag">new</span>
+    </div>
+    <p class="file-summary">The structured rule shape — this is exactly what's sent to BE and exactly what
+      should come back on edit. Field names map directly to the RRULE concepts rrule.js expects.</p>
+    <pre><code class="language-typescript">export type Frequency = 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+export type WeekDay = 'SUN' | 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT';
+export type MonthlyMode = 'DAY_OF_MONTH' | 'WEEKDAY_POSITION';
+export type YearlyMode = 'ON_DATE' | 'WEEKDAY_POSITION';
+export type SetPosition = 1 | 2 | 3 | 4 | -1; // 1st..4th, -1 = last
+export type RecurrenceEndMode = 'ON_DATE' | 'AFTER_OCCURRENCES' | 'NEVER';
+
+export interface RecurrenceRuleValues {
+  // Defines the first occurrence AND, via (end - start), the duration
+  // reused for every subsequent occurrence.
+  startDate: string; // "YYYY-MM-DD"
+  startTime: string; // "HH:mm"
+  endDate: string; // "YYYY-MM-DD"
+  endTime: string; // "HH:mm"
+
+  frequency: Frequency;
+  interval: number; // "every N days/weeks/months/years"
+
+  // WEEKLY
+  daysOfWeek: WeekDay[];
+
+  // MONTHLY
+  monthlyMode: MonthlyMode;
+  monthlyDayOfMonth: number; // e.g. 9 -> "Day 9 of every N months"
+  monthlySetPosition: SetPosition; // e.g. 2 -> "second ___ of every N months"
+  monthlyWeekday: WeekDay;
+
+  // YEARLY
+  yearlyMode: YearlyMode;
+  yearlyMonth: number; // 1-12
+  yearlyDayOfMonth: number;
+  yearlySetPosition: SetPosition;
+  yearlyWeekday: WeekDay;
+
+  // Recurrence end condition (irrelevant when frequency === 'NONE')
+  recurrenceEndMode: RecurrenceEndMode;
+  recurrenceEndDate?: string;
+  occurrenceCount?: number;
+}
+
+export const EMPTY_RECURRENCE_RULE: RecurrenceRuleValues = {
+  startDate: '',
+  startTime: '15:00',
+  endDate: '',
+  endTime: '15:30',
+  frequency: 'WEEKLY',
+  interval: 1,
+  daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI'],
+  monthlyMode: 'DAY_OF_MONTH',
+  monthlyDayOfMonth: 1,
+  monthlySetPosition: 1,
+  monthlyWeekday: 'MON',
+  yearlyMode: 'ON_DATE',
+  yearlyMonth: 1,
+  yearlyDayOfMonth: 1,
+  yearlySetPosition: 1,
+  yearlyWeekday: 'MON',
+  recurrenceEndMode: 'ON_DATE',
+  recurrenceEndDate: '',
+  occurrenceCount: undefined,
+};
+
+export interface GeneratedOccurrence {
+  startDateTime: string; // ISO 8601
+  endDateTime: string; // ISO 8601
+}
+
+export interface ScheduleSavePayload {
+  rule: RecurrenceRuleValues;
+  rruleText: string | null;
+  timezone: string;
+  occurrences: GeneratedOccurrence[];
+}
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f2">
+    <div class="file-head">
+      <span class="file-path">lib/recurrence-engine.ts</span>
+      <span class="tag">new</span>
+    </div>
+    <p class="file-summary">Builds an <code>RRule</code> instance from the structured values, expands
+      occurrences (capped for open-ended "no end date" rules), and produces the full save payload.</p>
+    <div class="flag">
+      Timezone/DST handling here is a first pass using native <code>Date</code> — worth a dedicated review
+      with real test cases (DST transitions, multi-timezone locations) before this goes to production,
+      same caution as any recurrence engine.
+    </div>
+    <pre><code class="language-typescript">import { RRule, type Weekday } from 'rrule';
+import type {
+  RecurrenceRuleValues,
+  WeekDay,
+  GeneratedOccurrence,
+  ScheduleSavePayload,
+} from './recurrence-types';
+
+const WEEKDAY_MAP: Record&lt;WeekDay, Weekday&gt; = {
+  SUN: RRule.SU, MON: RRule.MO, TUE: RRule.TU, WED: RRule.WE,
+  THU: RRule.TH, FRI: RRule.FR, SAT: RRule.SA,
+};
+
+// Safety limits for open-ended ("no end date") rules -- without these, a
+// NEVER-ending weekly rule would try to expand indefinitely.
+const MAX_OCCURRENCES_SAFEGUARD = 366;
+const MAX_HORIZON_YEARS = 2;
+
+function combine(dateStr: string, timeStr: string): Date {
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+/** Builds an RRule instance, or null for a one-off (non-recurring) event. */
+export function buildRRule(values: RecurrenceRuleValues): RRule | null {
+  if (values.frequency === 'NONE') return null;
+
+  const dtstart = combine(values.startDate, values.startTime);
+  const options: Partial&lt;RRule.Options&gt; = { dtstart, interval: values.interval || 1 };
+
+  if (values.frequency === 'DAILY') {
+    options.freq = RRule.DAILY;
+  } else if (values.frequency === 'WEEKLY') {
+    options.freq = RRule.WEEKLY;
+    options.byweekday = values.daysOfWeek.map((d) =&gt; WEEKDAY_MAP[d]);
+  } else if (values.frequency === 'MONTHLY') {
+    options.freq = RRule.MONTHLY;
+    if (values.monthlyMode === 'DAY_OF_MONTH') {
+      options.bymonthday = [values.monthlyDayOfMonth];
+    } else {
+      // e.g. "the 2nd Thursday of every month"
+      options.byweekday = [WEEKDAY_MAP[values.monthlyWeekday].nth(values.monthlySetPosition)];
+    }
+  } else if (values.frequency === 'YEARLY') {
+    options.freq = RRule.YEARLY;
+    options.bymonth = [values.yearlyMonth];
+    if (values.yearlyMode === 'ON_DATE') {
+      options.bymonthday = [values.yearlyDayOfMonth];
+    } else {
+      // e.g. "the 2nd Thursday of July every year"
+      options.byweekday = [WEEKDAY_MAP[values.yearlyWeekday].nth(values.yearlySetPosition)];
+    }
+  }
+
+  if (values.recurrenceEndMode === 'ON_DATE' &amp;&amp; values.recurrenceEndDate) {
+    options.until = combine(values.recurrenceEndDate, '23:59');
+  } else if (values.recurrenceEndMode === 'AFTER_OCCURRENCES' &amp;&amp; values.occurrenceCount) {
+    options.count = values.occurrenceCount;
+  }
+  // NEVER -> no until/count; expansion below applies the safety cap instead.
+
+  return new RRule(options as RRule.Options);
+}
+
+/** Standard RRULE text, e.g. "DTSTART:...\nRRULE:FREQ=WEEKLY;...". */
+export function toRRuleString(values: RecurrenceRuleValues): string | null {
+  const rule = buildRRule(values);
+  return rule ? rule.toString() : null;
+}
+
+/** Expands the rule into concrete start/end timestamps. */
+export function generateOccurrences(values: RecurrenceRuleValues): GeneratedOccurrence[] {
+  const seedStart = combine(values.startDate, values.startTime);
+  const seedEnd = combine(values.endDate, values.endTime);
+  const durationMs = Math.max(seedEnd.getTime() - seedStart.getTime(), 0);
+
+  if (values.frequency === 'NONE') {
+    return [{ startDateTime: seedStart.toISOString(), endDateTime: seedEnd.toISOString() }];
+  }
+
+  const rule = buildRRule(values);
+  if (!rule) return [];
+
+  const horizonCutoff = new Date(seedStart);
+  horizonCutoff.setFullYear(horizonCutoff.getFullYear() + MAX_HORIZON_YEARS);
+
+  const starts =
+    values.recurrenceEndMode === 'NEVER'
+      ? rule.all((date, i) =&gt; i &lt; MAX_OCCURRENCES_SAFEGUARD &amp;&amp; date &lt;= horizonCutoff)
+      : rule.all();
+
+  return starts.map((start) =&gt; ({
+    startDateTime: start.toISOString(),
+    endDateTime: new Date(start.getTime() + durationMs).toISOString(),
+  }));
+}
+
+/** Full payload handed to the save mutation. */
+export function buildScheduleSavePayload(values: RecurrenceRuleValues): ScheduleSavePayload {
+  return {
+    rule: values,
+    rruleText: toRRuleString(values),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    occurrences: generateOccurrences(values),
+  };
+}
+</code></pre>
+    <p class="todo-note">Requires: <code>npm install rrule</code> (replaces the earlier <code>moment</code> dependency, which is no longer needed).</p>
+  </div>
+
+  <div class="section-label">Reusable scheduling UI</div>
+
+  <div class="file-block" id="f3">
+    <div class="file-head">
+      <span class="file-path">components/schedule/RecurrenceRuleBuilder.tsx</span>
+      <span class="tag">new</span>
+    </div>
+    <p class="file-summary">The full Outlook-style recurrence UI: start/end date+time, frequency, and the
+      conditional daily/weekly/monthly/yearly sub-patterns, plus the recurrence-end options. Purely a
+      controlled <code>value</code>/<code>onChange</code> component with no amenity-specific logic — this
+      is the piece to reuse for any future entity that needs scheduling.</p>
+    <pre><code class="language-typescript">'use client';
+
+import type {
+  RecurrenceRuleValues, WeekDay, SetPosition, Frequency,
+} from '../../lib/recurrence-types';
+
+const ALL_DAYS: { key: WeekDay; label: string }[] = [
+  { key: 'SUN', label: 'Sun' }, { key: 'MON', label: 'Mon' }, { key: 'TUE', label: 'Tue' },
+  { key: 'WED', label: 'Wed' }, { key: 'THU', label: 'Thu' }, { key: 'FRI', label: 'Fri' },
+  { key: 'SAT', label: 'Sat' },
+];
+
+const SET_POSITIONS: { value: SetPosition; label: string }[] = [
+  { value: 1, label: 'First' }, { value: 2, label: 'Second' }, { value: 3, label: 'Third' },
+  { value: 4, label: 'Fourth' }, { value: -1, label: 'Last' },
+];
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+interface Props {
+  value: RecurrenceRuleValues;
+  onChange: (value: RecurrenceRuleValues) =&gt; void;
+  error?: string | null;
+}
+
+export function RecurrenceRuleBuilder({ value, onChange, error }: Props) {
+  function patch(partial: Partial&lt;RecurrenceRuleValues&gt;) {
+    onChange({ ...value, ...partial });
+  }
+
+  function toggleDay(day: WeekDay) {
+    const has = value.daysOfWeek.includes(day);
+    patch({ daysOfWeek: has ? value.daysOfWeek.filter((d) =&gt; d !== day) : [...value.daysOfWeek, day] });
+  }
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      {error &amp;&amp; &lt;p className="text-sm text-red-600"&gt;{error}&lt;/p&gt;}
+
+      {/* Start / end date-time -- also defines per-occurrence duration */}
+      &lt;div className="grid grid-cols-2 gap-3"&gt;
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Start&lt;/label&gt;
+          &lt;div className="flex gap-2"&gt;
+            &lt;input type="date" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              value={value.startDate} onChange={(e) =&gt; patch({ startDate: e.target.value })} /&gt;
+            &lt;input type="time" className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              value={value.startTime} onChange={(e) =&gt; patch({ startTime: e.target.value })} /&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;End&lt;/label&gt;
+          &lt;div className="flex gap-2"&gt;
+            &lt;input type="date" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              value={value.endDate} onChange={(e) =&gt; patch({ endDate: e.target.value })} /&gt;
+            &lt;input type="time" className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              value={value.endTime} onChange={(e) =&gt; patch({ endTime: e.target.value })} /&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;p className="text-xs text-gray-500 -mt-2"&gt;
+        The gap between start and end is reused as the duration for every generated occurrence.
+      &lt;/p&gt;
+
+      {/* Frequency */}
+      &lt;div className="flex flex-col gap-1"&gt;
+        &lt;label className="text-sm font-medium text-gray-700"&gt;Frequency&lt;/label&gt;
+        &lt;select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          value={value.frequency}
+          onChange={(e) =&gt; patch({ frequency: e.target.value as Frequency })}&gt;
+          &lt;option value="NONE"&gt;Does not repeat&lt;/option&gt;
+          &lt;option value="DAILY"&gt;Daily&lt;/option&gt;
+          &lt;option value="WEEKLY"&gt;Weekly&lt;/option&gt;
+          &lt;option value="MONTHLY"&gt;Monthly&lt;/option&gt;
+          &lt;option value="YEARLY"&gt;Yearly&lt;/option&gt;
+        &lt;/select&gt;
+      &lt;/div&gt;
+
+      {value.frequency === 'DAILY' &amp;&amp; (
+        &lt;div className="flex items-center gap-2"&gt;
+          &lt;span className="text-sm text-gray-700"&gt;Recur every&lt;/span&gt;
+          &lt;input type="number" min={1} className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+            value={value.interval} onChange={(e) =&gt; patch({ interval: Number(e.target.value) || 1 })} /&gt;
+          &lt;span className="text-sm text-gray-600"&gt;day(s)&lt;/span&gt;
+        &lt;/div&gt;
+      )}
+
+      {value.frequency === 'WEEKLY' &amp;&amp; (
+        &lt;&gt;
+          &lt;div className="flex items-center gap-2"&gt;
+            &lt;span className="text-sm text-gray-700"&gt;Recur every&lt;/span&gt;
+            &lt;input type="number" min={1} className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              value={value.interval} onChange={(e) =&gt; patch({ interval: Number(e.target.value) || 1 })} /&gt;
+            &lt;span className="text-sm text-gray-600"&gt;week(s)&lt;/span&gt;
+          &lt;/div&gt;
+          &lt;div className="flex flex-col gap-1"&gt;
+            &lt;label className="text-sm font-medium text-gray-700"&gt;Days of the week&lt;/label&gt;
+            &lt;div className="flex flex-wrap gap-2"&gt;
+              {ALL_DAYS.map((day) =&gt; {
+                const active = value.daysOfWeek.includes(day.key);
+                return (
+                  &lt;button key={day.key} type="button" onClick={() =&gt; toggleDay(day.key)}
+                    className={`text-xs px-3 py-1.5 rounded-full border ${
+                      active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'
+                    }`}&gt;
+                    {day.label}
+                  &lt;/button&gt;
+                );
+              })}
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/&gt;
+      )}
+
+      {value.frequency === 'MONTHLY' &amp;&amp; (
+        &lt;div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Recurrence pattern&lt;/label&gt;
+
+          &lt;div className="flex items-center gap-2 flex-wrap"&gt;
+            &lt;input type="radio" id="monthlyDayMode" checked={value.monthlyMode === 'DAY_OF_MONTH'}
+              onChange={() =&gt; patch({ monthlyMode: 'DAY_OF_MONTH' })} /&gt;
+            &lt;label htmlFor="monthlyDayMode" className="text-sm text-gray-700"&gt;Day&lt;/label&gt;
+            &lt;input type="number" min={1} max={31} disabled={value.monthlyMode !== 'DAY_OF_MONTH'}
+              className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+              value={value.monthlyDayOfMonth}
+              onChange={(e) =&gt; patch({ monthlyDayOfMonth: Number(e.target.value) || 1 })} /&gt;
+            &lt;span className="text-sm text-gray-600"&gt;of every&lt;/span&gt;
+            &lt;input type="number" min={1} disabled={value.monthlyMode !== 'DAY_OF_MONTH'}
+              className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+              value={value.interval} onChange={(e) =&gt; patch({ interval: Number(e.target.value) || 1 })} /&gt;
+            &lt;span className="text-sm text-gray-600"&gt;month(s)&lt;/span&gt;
+          &lt;/div&gt;
+
+          &lt;div className="flex items-center gap-2 flex-wrap"&gt;
+            &lt;input type="radio" id="monthlyPosMode" checked={value.monthlyMode === 'WEEKDAY_POSITION'}
+              onChange={() =&gt; patch({ monthlyMode: 'WEEKDAY_POSITION' })} /&gt;
+            &lt;label htmlFor="monthlyPosMode" className="text-sm text-gray-700"&gt;The&lt;/label&gt;
+            &lt;select disabled={value.monthlyMode !== 'WEEKDAY_POSITION'}
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+              value={value.monthlySetPosition}
+              onChange={(e) =&gt; patch({ monthlySetPosition: Number(e.target.value) as SetPosition })}&gt;
+              {SET_POSITIONS.map((p) =&gt; &lt;option key={p.value} value={p.value}&gt;{p.label}&lt;/option&gt;)}
+            &lt;/select&gt;
+            &lt;select disabled={value.monthlyMode !== 'WEEKDAY_POSITION'}
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+              value={value.monthlyWeekday}
+              onChange={(e) =&gt; patch({ monthlyWeekday: e.target.value as WeekDay })}&gt;
+              {ALL_DAYS.map((d) =&gt; &lt;option key={d.key} value={d.key}&gt;{d.label}&lt;/option&gt;)}
+            &lt;/select&gt;
+            &lt;span className="text-sm text-gray-600"&gt;of every&lt;/span&gt;
+            &lt;input type="number" min={1} disabled={value.monthlyMode !== 'WEEKDAY_POSITION'}
+              className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+              value={value.interval} onChange={(e) =&gt; patch({ interval: Number(e.target.value) || 1 })} /&gt;
+            &lt;span className="text-sm text-gray-600"&gt;month(s)&lt;/span&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      )}
+
+      {value.frequency === 'YEARLY' &amp;&amp; (
+        &lt;div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Recurrence pattern&lt;/label&gt;
+
+          &lt;div className="flex items-center gap-2"&gt;
+            &lt;span className="text-sm text-gray-700"&gt;Recur every&lt;/span&gt;
+            &lt;input type="number" min={1} className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+              value={value.interval} onChange={(e) =&gt; patch({ interval: Number(e.target.value) || 1 })} /&gt;
+            &lt;span className="text-sm text-gray-600"&gt;year(s)&lt;/span&gt;
+          &lt;/div&gt;
+
+          &lt;div className="flex items-center gap-2 flex-wrap"&gt;
+            &lt;input type="radio" id="yearlyOnDate" checked={value.yearlyMode === 'ON_DATE'}
+              onChange={() =&gt; patch({ yearlyMode: 'ON_DATE' })} /&gt;
+            &lt;label htmlFor="yearlyOnDate" className="text-sm text-gray-700 w-12"&gt;On:&lt;/label&gt;
+            &lt;select disabled={value.yearlyMode !== 'ON_DATE'}
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+              value={value.yearlyMonth} onChange={(e) =&gt; patch({ yearlyMonth: Number(e.target.value) })}&gt;
+              {MONTHS.map((m, i) =&gt; &lt;option key={m} value={i + 1}&gt;{m}&lt;/option&gt;)}
+            &lt;/select&gt;
+            &lt;input type="number" min={1} max={31} disabled={value.yearlyMode !== 'ON_DATE'}
+              className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+              value={value.yearlyDayOfMonth}
+              onChange={(e) =&gt; patch({ yearlyDayOfMonth: Number(e.target.value) || 1 })} /&gt;
+          &lt;/div&gt;
+
+          &lt;div className="flex items-center gap-2 flex-wrap"&gt;
+            &lt;input type="radio" id="yearlyPosMode" checked={value.yearlyMode === 'WEEKDAY_POSITION'}
+              onChange={() =&gt; patch({ yearlyMode: 'WEEKDAY_POSITION' })} /&gt;
+            &lt;label htmlFor="yearlyPosMode" className="text-sm text-gray-700 w-12"&gt;On the:&lt;/label&gt;
+            &lt;select disabled={value.yearlyMode !== 'WEEKDAY_POSITION'}
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+              value={value.yearlySetPosition}
+              onChange={(e) =&gt; patch({ yearlySetPosition: Number(e.target.value) as SetPosition })}&gt;
+              {SET_POSITIONS.map((p) =&gt; &lt;option key={p.value} value={p.value}&gt;{p.label}&lt;/option&gt;)}
+            &lt;/select&gt;
+            &lt;select disabled={value.yearlyMode !== 'WEEKDAY_POSITION'}
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+              value={value.yearlyWeekday} onChange={(e) =&gt; patch({ yearlyWeekday: e.target.value as WeekDay })}&gt;
+              {ALL_DAYS.map((d) =&gt; &lt;option key={d.key} value={d.key}&gt;{d.label}&lt;/option&gt;)}
+            &lt;/select&gt;
+            &lt;span className="text-sm text-gray-600"&gt;of&lt;/span&gt;
+            &lt;select disabled={value.yearlyMode !== 'WEEKDAY_POSITION'}
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+              value={value.yearlyMonth} onChange={(e) =&gt; patch({ yearlyMonth: Number(e.target.value) })}&gt;
+              {MONTHS.map((m, i) =&gt; &lt;option key={m} value={i + 1}&gt;{m}&lt;/option&gt;)}
+            &lt;/select&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      )}
+
+      {value.frequency !== 'NONE' &amp;&amp; (
+        &lt;div className="flex flex-col gap-2"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Recurrence ends&lt;/label&gt;
+
+          &lt;div className="flex items-center gap-2"&gt;
+            &lt;input type="radio" id="endOnDate" checked={value.recurrenceEndMode === 'ON_DATE'}
+              onChange={() =&gt; patch({ recurrenceEndMode: 'ON_DATE' })} /&gt;
+            &lt;label htmlFor="endOnDate" className="text-sm text-gray-700 w-20"&gt;End by&lt;/label&gt;
+            &lt;input type="date" disabled={value.recurrenceEndMode !== 'ON_DATE'}
+              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
+              value={value.recurrenceEndDate ?? ''}
+              onChange={(e) =&gt; patch({ recurrenceEndDate: e.target.value })} /&gt;
+          &lt;/div&gt;
+
+          &lt;div className="flex items-center gap-2"&gt;
+            &lt;input type="radio" id="endAfter" checked={value.recurrenceEndMode === 'AFTER_OCCURRENCES'}
+              onChange={() =&gt; patch({ recurrenceEndMode: 'AFTER_OCCURRENCES' })} /&gt;
+            &lt;label htmlFor="endAfter" className="text-sm text-gray-700 w-20"&gt;End after&lt;/label&gt;
+            &lt;input type="number" min={1} disabled={value.recurrenceEndMode !== 'AFTER_OCCURRENCES'}
+              className="w-24 rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
+              value={value.occurrenceCount ?? ''}
+              onChange={(e) =&gt; patch({ occurrenceCount: Number(e.target.value) || undefined })} /&gt;
+            &lt;span className="text-sm text-gray-600"&gt;occurrences&lt;/span&gt;
+          &lt;/div&gt;
+
+          &lt;div className="flex items-center gap-2"&gt;
+            &lt;input type="radio" id="noEndDate" checked={value.recurrenceEndMode === 'NEVER'}
+              onChange={() =&gt; patch({ recurrenceEndMode: 'NEVER' })} /&gt;
+            &lt;label htmlFor="noEndDate" className="text-sm text-gray-700"&gt;No end date&lt;/label&gt;
+          &lt;/div&gt;
+
+          {value.recurrenceEndMode === 'NEVER' &amp;&amp; (
+            &lt;p className="text-xs text-gray-500"&gt;
+              Occurrences are generated up to 2 years out; more are added automatically as that window approaches.
+            &lt;/p&gt;
+          )}
+        &lt;/div&gt;
+      )}
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  </div>
+
+  <div class="section-label">Amenity-specific form</div>
+
+  <div class="file-block" id="f4">
+    <div class="file-head">
+      <span class="file-path">components/forms/ScheduledAdmissionForm.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Same two-step shape as v2 (owns its own Next/Back/Save/Cancel, fires its own
+      mutation), now wired to <code>RecurrenceRuleBuilder</code> and <code>buildScheduleSavePayload</code>.
+      Edit-mode prefill now works cleanly: the initial state reads directly from
+      <code>amenity.schedule.rule</code>.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { useState } from 'react';
+import { useInsertAmenity } from '../../hooks/useInsertAmenity';
+import { useUpdateAmenity } from '../../hooks/useUpdateAmenity';
+import { GeneralInfoFields } from '../GeneralInfoFields';
+import { RecurrenceRuleBuilder } from '../schedule/RecurrenceRuleBuilder';
+import { StepIndicator, type StepIndicatorStep } from '../StepIndicator';
+import { buildScheduleSavePayload } from '../../lib/recurrence-engine';
+import { EMPTY_RECURRENCE_RULE, type RecurrenceRuleValues } from '../../lib/recurrence-types';
+import type { AmenityTypeFormProps } from './types';
+
+type Step = 'general' | 'scheduler';
+
+export function ScheduledAdmissionForm({
+  generalInfo,
+  onGeneralInfoChange,
+  isEditing,
+  amenity,
+  locationFunctionId,
+  locationSlug,
+  onClose,
+}: AmenityTypeFormProps) {
+  const [step, setStep] = useState&lt;Step&gt;('general');
+
+  // Prefill directly from the persisted rule -- this is what the "structured
+  // rule as source of truth" design buys us: no reconstruction needed.
+  const [recurrenceRule, setRecurrenceRule] = useState&lt;RecurrenceRuleValues&gt;(
+    () =&gt; (amenity?.schedule?.rule as RecurrenceRuleValues | undefined) ?? EMPTY_RECURRENCE_RULE,
+  );
+  const [error, setError] = useState&lt;string | null&gt;(null);
+
+  const insert = useInsertAmenity(locationFunctionId, locationSlug);
+  const update = useUpdateAmenity(locationFunctionId, locationSlug);
+  const isSaving = insert.isPending || update.isPending;
+
+  const steps: StepIndicatorStep[] = [
+    { id: 'general', label: 'General info', status: step === 'general' ? 'active' : 'done' },
+    { id: 'scheduler', label: 'Scheduling', status: step === 'scheduler' ? 'active' : 'pending' },
+  ];
+
+  function validateGeneralInfo(): boolean {
+    if (!generalInfo.amenityTypeId) { setError('Please select an amenity type.'); return false; }
+    if (!generalInfo.amenityName.trim()) { setError('Name is required.'); return false; }
+    setError(null);
+    return true;
+  }
+
+  function validateSchedule(): boolean {
+    if (!recurrenceRule.startDate || !recurrenceRule.endDate) {
+      setError('Start and end date are required.');
+      return false;
+    }
+    if (recurrenceRule.frequency === 'WEEKLY' &amp;&amp; recurrenceRule.daysOfWeek.length === 0) {
+      setError('Select at least one day.');
+      return false;
+    }
+    setError(null);
+    return true;
+  }
+
+  function handleNext() {
+    if (!validateGeneralInfo()) return;
+    setStep('scheduler');
+  }
+
+  function handleSave() {
+    if (!validateSchedule()) return;
+
+    const payload = {
+      amenityTypeId: Number(generalInfo.amenityTypeId),
+      amenityName: generalInfo.amenityName.trim(),
+      amenityDescription: generalInfo.amenityDescription.trim(),
+      schedule: buildScheduleSavePayload(recurrenceRule),
+    };
+
+    // NOTE: confirm field names/shape against InsertAmenityInput /
+    // UpdateAmenityInput once BE finalizes the schedule contract -- see the
+    // JSON payload example and suggested schema shared alongside this file.
+    if (isEditing &amp;&amp; amenity) {
+      update.mutate(
+        { amenityId: amenity.amenityId, locationFunctionId, ...payload },
+        { onSuccess: onClose },
+      );
+    } else {
+      insert.mutate(
+        { locationFunctionId, ...payload },
+        { onSuccess: onClose },
+      );
+    }
+  }
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      &lt;StepIndicator steps={steps} onStepClick={(i) =&gt; setStep(i === 0 ? 'general' : 'scheduler')} /&gt;
+
+      {step === 'general' ? (
+        &lt;&gt;
+          &lt;GeneralInfoFields values={generalInfo} onChange={onGeneralInfoChange} error={error} /&gt;
+          &lt;div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1"&gt;
+            &lt;button type="button" onClick={onClose}
+              className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700"&gt;
+              Cancel
+            &lt;/button&gt;
+            &lt;button type="button" onClick={handleNext}
+              className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white"&gt;
+              Next
+            &lt;/button&gt;
+          &lt;/div&gt;
+        &lt;/&gt;
+      ) : (
+        &lt;&gt;
+          &lt;RecurrenceRuleBuilder value={recurrenceRule} onChange={setRecurrenceRule} error={error} /&gt;
+          &lt;div className="flex justify-between gap-2 pt-3 border-t border-gray-100 mt-1"&gt;
+            &lt;button type="button" onClick={() =&gt; setStep('general')}
+              className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700"&gt;
+              Back
+            &lt;/button&gt;
+            &lt;div className="flex gap-2"&gt;
+              &lt;button type="button" onClick={onClose}
+                className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700"&gt;
+                Cancel
+              &lt;/button&gt;
+              &lt;button type="button" onClick={handleSave} disabled={isSaving}
+                className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white disabled:opacity-60"&gt;
+                {isSaving ? 'Saving...' : 'Save'}
+              &lt;/button&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/&gt;
+      )}
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  </div>
+
+  <div class="section-label">Unchanged from v2</div>
+  <div class="file-block" id="unchanged">
+    <p class="file-summary">
+      Everything else from the v2 file is untouched: <code>components/AmenityFormDrawer.tsx</code> (shell +
+      dropdown + registry), <code>components/forms/amenity-form-registry.ts</code>,
+      <code>components/forms/types.ts</code>, <code>components/forms/GeneralAdmissionForm.tsx</code>,
+      <code>components/GeneralInfoFields.tsx</code>, <code>components/StepIndicator.tsx</code>, and the
+      <code>AmenityList.tsx</code> integration. None of them reference scheduling internals directly, which
+      is exactly why swapping the scheduling engine underneath didn't require touching them.
+    </p>
+  </div>
+
+  <div class="section-label">Removed</div>
+  <div class="file-block" id="removed">
+    <div class="file-head">
+      <span class="file-path">lib/schedule-timestamp-generator.ts</span>
+      <span class="tag removed">removed</span>
+    </div>
+    <div class="file-head">
+      <span class="file-path">components/ScheduleBuilder.tsx</span>
+      <span class="tag removed">removed</span>
+    </div>
+    <p class="file-summary">
+      Both superseded by <code>lib/recurrence-engine.ts</code> and
+      <code>components/schedule/RecurrenceRuleBuilder.tsx</code> above — delete these two files from your
+      codebase when you adopt this version.
+    </p>
+  </div>
+
+</main>
+
+<script>
+  hljs.highlightAll();
+
+  document.querySelectorAll('pre').forEach((pre) => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+
+  const links = document.querySelectorAll('nav a');
+  const sections = Array.from(links).map((a) => document.querySelector(a.getAttribute('href')));
+  window.addEventListener('scroll', () => {
+    let activeIndex = 0;
+    sections.forEach((sec, i) => {
+      if (sec && sec.getBoundingClientRect().top <= 100) activeIndex = i;
+    });
+    links.forEach((a, i) => a.classList.toggle('active', i === activeIndex));
+  });
+</script>
+
+</body>
+</html>
