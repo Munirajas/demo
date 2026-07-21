@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Amenities Wizard — Code Reference (v4, RHF + Zod both steps)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #12181f; --border: #232b34; --text: #d7dde4; --text-dim: #8b95a1; --accent: #4f8cff;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); display: flex; min-height: 100vh; }
+  nav { width: 280px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border); padding: 24px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  nav .brand { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); padding: 0 20px 4px; }
+  nav .brand .ver { color: var(--accent); }
+  nav .brand-sub { font-size: 11px; color: var(--text-dim); padding: 0 20px 16px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  nav a { display: block; padding: 8px 20px; color: var(--text); text-decoration: none; font-size: 13px; font-family: var(--mono); border-left: 2px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  nav a:hover { background: rgba(255,255,255,0.04); }
+  nav a.active { border-left-color: var(--accent); color: var(--accent); background: rgba(79,140,255,0.08); }
+  main { flex: 1; padding: 40px 48px 120px; max-width: 920px; }
+  header.page-head { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  header.page-head h1 { font-size: 22px; margin: 0 0 8px; font-weight: 600; }
+  header.page-head p { color: var(--text-dim); font-size: 14px; margin: 0 0 12px; line-height: 1.6; }
+  .change-list { font-size: 13.5px; color: var(--text); background: rgba(79,140,255,0.06); border: 1px solid rgba(79,140,255,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0; line-height: 1.7; }
+  .change-list li { margin-bottom: 4px; }
+  .file-block { margin-bottom: 48px; scroll-margin-top: 24px; }
+  .file-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px; flex-wrap: wrap; }
+  .file-path { font-family: var(--mono); font-size: 14px; color: #fff; background: rgba(79,140,255,0.12); padding: 4px 10px; border-radius: 4px; display: inline-block; }
+  .tag { font-size: 11px; font-family: var(--mono); padding: 3px 8px; border-radius: 4px; background: rgba(74, 222, 128, 0.12); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
+  .tag.changed { background: rgba(255, 176, 32, 0.1); color: #ffb020; border-color: rgba(255, 176, 32, 0.3); }
+  .tag.removed { background: rgba(248, 113, 113, 0.1); color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
+  .tag.unchanged { background: rgba(139,149,161,0.1); color: #8b95a1; border-color: rgba(139,149,161,0.3); }
+  .file-summary { font-size: 13.5px; color: var(--text-dim); margin: 8px 0 12px; line-height: 1.6; }
+  .flag { font-size: 13px; background: rgba(255, 176, 32, 0.1); border: 1px solid rgba(255, 176, 32, 0.3); color: #ffb020; padding: 8px 12px; border-radius: 6px; margin: 10px 0 14px; line-height: 1.5; }
+  pre { margin: 0; border-radius: 8px; border: 1px solid var(--border); overflow-x: auto; position: relative; }
+  pre code.hljs { padding: 16px 18px !important; font-size: 12.5px; line-height: 1.6; background: #0b0f14 !important; }
+  .copy-btn { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text-dim); font-size: 12px; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-family: var(--sans); }
+  .copy-btn:hover { color: var(--text); background: rgba(255,255,255,0.1); }
+  .copy-btn.copied { color: #4ade80; border-color: #4ade80; }
+  .todo-note { font-size: 12.5px; color: var(--text-dim); margin-top: 10px; }
+  .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 40px 0 6px; }
+  .toc-group-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); padding: 14px 20px 6px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">Amenities wizard <span class="ver">v4</span></div>
+  <div class="brand-sub">RHF + Zod on both steps, fixed toggle</div>
+  <div class="toc-group-label">Overview</div>
+  <a href="#overview">Summary &amp; what changed</a>
+  <div class="toc-group-label">Step 1 — General info</div>
+  <a href="#f1">lib/general-info-schema.ts</a>
+  <a href="#f2">components/GeneralInfoFields.tsx</a>
+  <div class="toc-group-label">Step 2 — Scheduling</div>
+  <a href="#f3">lib/recurrence-defaults.ts</a>
+  <a href="#f4">lib/recurrence-schema.ts</a>
+  <a href="#f5">components/schedule/RecurrenceRuleBuilder.tsx</a>
+  <div class="toc-group-label">Shared contract</div>
+  <a href="#f6">components/forms/types.ts</a>
+  <div class="toc-group-label">Amenity type forms</div>
+  <a href="#f7">components/forms/GeneralAdmissionForm.tsx</a>
+  <a href="#f8">components/forms/ScheduledAdmissionForm.tsx</a>
+  <div class="toc-group-label">Shell + integration</div>
+  <a href="#f9">components/AmenityFormDrawer.tsx</a>
+  <a href="#f10">AmenityList.tsx (edits)</a>
+  <div class="toc-group-label">Removed</div>
+  <a href="#removed">Superseded exports</a>
+</nav>
+
+<main>
+  <header class="page-head" id="overview">
+    <h1>Amenity wizard — RHF + Zod on both steps (v4)</h1>
+    <p>
+      Extends last message's React Hook Form + Zod pattern (previously only on the scheduling step) to
+      step 1 as well, fixes a real bug in the recurring toggle, and wires in the date/time defaults you
+      asked for. Both steps now expose the same <code>validate()</code> / <code>getValues()</code> /
+      <code>reset()</code> handle shape via <code>forwardRef</code>, so the parent forms treat them
+      identically regardless of which step they're driving.
+    </p>
+    <ul class="change-list">
+      <li><strong>Fixed the recurring toggle bug:</strong> turning it on now sets <code>frequency: 'WEEKLY'</code> directly instead of tracking a separate <code>enableRecurring</code> boolean that could desync from the real frequency value (the bug: the old version left <code>frequency</code> unset/invalid when toggled on).</li>
+      <li><strong>Step 1 is now RHF + Zod</strong> — same pattern as the scheduler, exposed through a <code>GeneralInfoFieldsHandle</code>.</li>
+      <li><strong>Sensible defaults wired in</strong> — start date/time = now, end date = today, end time = 23:59, recurrence end date defaults to one year out. All are just <em>defaults</em ;— any explicit choice the user makes overrides them.</li>
+      <li><strong>Simplified data flow:</strong> since each step now owns its own RHF instance, the shell no longer carries a <code>GeneralInfoValues</code> object — it only tracks the plain <code>amenityTypeId</code> needed to route to the right form component.</li>
+      <li><strong>All validation messages render under their field</strong> via Zod issues surfaced through RHF's <code>formState.errors</code>.</li>
+    </ul>
+    <div class="flag">
+      "End time is tonight 12am" was implemented as 23:59 the same day. If you meant the literal stroke of
+      midnight starting the <em>next</em> calendar day, that's a one-line change in
+      <code>recurrence-defaults.ts</code> (roll <code>endDate</code> forward one day, set <code>endTime</code>
+      to <code>'00:00'</code>) — flagging it since it changes both fields together.
+    </div>
+  </header>
+
+  <div class="section-label">Step 1 — General info</div>
+
+  <div class="file-block" id="f1">
+    <div class="file-head">
+      <span class="file-path">lib/general-info-schema.ts</span>
+      <span class="tag">new</span>
+    </div>
+    <p class="file-summary">Zod schema for step 1. Only covers name/description — the amenity type
+      dropdown lives in the shell (it decides which whole form mounts), so it isn't part of this
+      per-step form's own validation.</p>
+    <pre><code class="language-typescript">import { z } from 'zod';
+
+export const generalInfoSchema = z.object({
+  amenityName: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(120, 'Keep it under 120 characters'),
+  amenityDescription: z
+    .string()
+    .trim()
+    .max(500, 'Keep it under 500 characters')
+    .optional()
+    .default(''),
+});
+
+export type GeneralInfoFormValues = z.infer&lt;typeof generalInfoSchema&gt;;
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f2">
+    <div class="file-head">
+      <span class="file-path">components/GeneralInfoFields.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Converted from a plain controlled <code>values</code>/<code>onChange</code>
+      component to a <code>forwardRef</code> RHF component -- same shape as
+      <code>RecurrenceRuleBuilder</code>. The parent form calls <code>validate()</code> then
+      <code>getValues()</code> on Next/Save, and <code>reset()</code> once fetched edit data resolves.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { forwardRef, useImperativeHandle } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { generalInfoSchema, type GeneralInfoFormValues } from '../lib/general-info-schema';
+
+export interface GeneralInfoFieldsHandle {
+  validate: () =&gt; Promise&lt;boolean&gt;;
+  getValues: () =&gt; GeneralInfoFormValues;
+  reset: (values: GeneralInfoFormValues) =&gt; void;
+}
+
+interface Props {
+  defaultValues?: Partial&lt;GeneralInfoFormValues&gt;;
+}
+
+export const GeneralInfoFields = forwardRef&lt;GeneralInfoFieldsHandle, Props&gt;(
+  function GeneralInfoFields({ defaultValues }, ref) {
+    const {
+      register,
+      trigger,
+      getValues,
+      reset,
+      formState: { errors },
+    } = useForm&lt;GeneralInfoFormValues&gt;({
+      resolver: zodResolver(generalInfoSchema),
+      defaultValues: { amenityName: '', amenityDescription: '', ...defaultValues },
+      mode: 'onBlur',
+    });
+
+    useImperativeHandle(ref, () =&gt; ({ validate: () =&gt; trigger(), getValues, reset }));
+
+    return (
+      &lt;div className="flex flex-col gap-4"&gt;
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Name&lt;/label&gt;
+          &lt;input
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="e.g. General Admission"
+            {...register('amenityName')}
+          /&gt;
+          {errors.amenityName &amp;&amp; (
+            &lt;p className="text-xs text-red-600 mt-1"&gt;{errors.amenityName.message}&lt;/p&gt;
+          )}
+        &lt;/div&gt;
+
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Description&lt;/label&gt;
+          &lt;textarea
+            rows={3}
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Short description (optional)"
+            {...register('amenityDescription')}
+          /&gt;
+          {errors.amenityDescription &amp;&amp; (
+            &lt;p className="text-xs text-red-600 mt-1"&gt;{errors.amenityDescription.message}&lt;/p&gt;
+          )}
+        &lt;/div&gt;
+      &lt;/div&gt;
+    );
+  },
+);
+</code></pre>
+    <p class="todo-note">
+      Swapping in your Storybook input components later: if they forward refs and accept
+      <code>name</code>/<code>onChange</code>/<code>onBlur</code>/<code>value</code>, just spread
+      <code>{...register('amenityName')}</code> onto them directly. If they don't forward refs, wrap each
+      with RHF's <code>&lt;Controller name="amenityName" control={control} render={({ field }) =&gt; &lt;YourInput {...field} /&gt;} /&gt;</code> instead.
+    </p>
+  </div>
+
+  <div class="section-label">Step 2 — Scheduling</div>
+
+  <div class="file-block" id="f3">
+    <div class="file-head">
+      <span class="file-path">lib/recurrence-defaults.ts</span>
+      <span class="tag">new</span>
+    </div>
+    <p class="file-summary">Builds the default form state: today's date, current time, end time 23:59,
+      and a recurrence end date one year out -- used only if the user never explicitly picks an end
+      condition themselves.</p>
+    <pre><code class="language-typescript">import type { RecurrenceRuleValues } from './recurrence-types';
+
+// Local-date formatting on purpose -- Date.toISOString() is UTC-based and
+// can silently roll to the wrong calendar day near midnight in timezones
+// ahead of/behind UTC. This keeps "today" meaning the user's actual today.
+function toDateInputValue(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function toTimeInputValue(d: Date): string {
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+export function buildDefaultRecurrenceRule(): RecurrenceRuleValues {
+  const now = new Date();
+  const today = toDateInputValue(now);
+
+  const oneYearOut = new Date(now);
+  oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
+
+  return {
+    startDate: today,
+    startTime: toTimeInputValue(now),
+    endDate: today,
+    endTime: '23:59', // "tonight" -- see the flag note above if you meant next-day midnight instead
+    frequency: 'NONE',
+    interval: 1,
+    daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI'],
+    monthlyMode: 'DAY_OF_MONTH',
+    monthlyDayOfMonth: now.getDate(),
+    monthlySetPosition: 1,
+    monthlyWeekday: 'MON',
+    yearlyMode: 'ON_DATE',
+    yearlyMonth: now.getMonth() + 1,
+    yearlyDayOfMonth: now.getDate(),
+    yearlySetPosition: 1,
+    yearlyWeekday: 'MON',
+    recurrenceEndMode: 'ON_DATE',
+    recurrenceEndDate: toDateInputValue(oneYearOut),
+    occurrenceCount: undefined,
+  };
+}
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f4">
+    <div class="file-head">
+      <span class="file-path">lib/recurrence-schema.ts</span>
+      <span class="tag">new</span>
+    </div>
+    <p class="file-summary">Zod schema for the full recurrence rule. Cross-field checks (end-after-start,
+      required day selection for weekly, required end condition once recurring is on) live in
+      <code>superRefine</code> so they attach to the specific field that's actually wrong.</p>
+    <pre><code class="language-typescript">import { z } from 'zod';
+
+const weekDaySchema = z.enum(['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']);
+const setPositionSchema = z.union([
+  z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(-1),
+]);
+
+export const recurrenceRuleSchema = z
+  .object({
+    startDate: z.string().min(1, 'Start date is required'),
+    startTime: z.string().min(1, 'Start time is required'),
+    endDate: z.string().min(1, 'End date is required'),
+    endTime: z.string().min(1, 'End time is required'),
+    frequency: z.enum(['NONE', 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']),
+    interval: z.number({ invalid_type_error: 'Enter a number' }).min(1, 'Must be at least 1'),
+    daysOfWeek: z.array(weekDaySchema),
+    monthlyMode: z.enum(['DAY_OF_MONTH', 'WEEKDAY_POSITION']),
+    monthlyDayOfMonth: z.number().min(1, 'Must be 1-31').max(31, 'Must be 1-31'),
+    monthlySetPosition: setPositionSchema,
+    monthlyWeekday: weekDaySchema,
+    yearlyMode: z.enum(['ON_DATE', 'WEEKDAY_POSITION']),
+    yearlyMonth: z.number().min(1).max(12),
+    yearlyDayOfMonth: z.number().min(1, 'Must be 1-31').max(31, 'Must be 1-31'),
+    yearlySetPosition: setPositionSchema,
+    yearlyWeekday: weekDaySchema,
+    recurrenceEndMode: z.enum(['ON_DATE', 'AFTER_OCCURRENCES', 'NEVER']),
+    recurrenceEndDate: z.string().optional(),
+    occurrenceCount: z.number().optional(),
+  })
+  .superRefine((val, ctx) =&gt; {
+    if (val.endDate &lt; val.startDate) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Cannot be before the start date', path: ['endDate'] });
+    }
+    if (val.endDate === val.startDate &amp;&amp; val.endTime &lt;= val.startTime) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Must be after the start time', path: ['endTime'] });
+    }
+
+    if (val.frequency === 'WEEKLY' &amp;&amp; val.daysOfWeek.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Select at least one day', path: ['daysOfWeek'] });
+    }
+
+    if (val.frequency !== 'NONE') {
+      if (val.recurrenceEndMode === 'ON_DATE') {
+        if (!val.recurrenceEndDate) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Choose an end date', path: ['recurrenceEndDate'] });
+        } else if (val.recurrenceEndDate &lt; val.startDate) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Must be on or after the start date', path: ['recurrenceEndDate'] });
+        }
+      }
+      if (val.recurrenceEndMode === 'AFTER_OCCURRENCES' &amp;&amp; (!val.occurrenceCount || val.occurrenceCount &lt; 1)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Enter a number of occurrences', path: ['occurrenceCount'] });
+      }
+    }
+  });
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f5">
+    <div class="file-head">
+      <span class="file-path">components/schedule/RecurrenceRuleBuilder.tsx</span>
+      <span class="tag changed">changed — toggle bug fixed</span>
+    </div>
+    <p class="file-summary">Same RHF + Zod shell as before, with the recurring toggle rewritten:
+      it now derives <code>isRecurring</code> straight from <code>frequency</code> instead of a parallel
+      boolean, and turning it on sets <code>frequency: 'WEEKLY'</code> directly (a valid, immediately
+      usable state) instead of leaving the dropdown unselected.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { forwardRef, useImperativeHandle } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { recurrenceRuleSchema } from '../../lib/recurrence-schema';
+import { buildDefaultRecurrenceRule } from '../../lib/recurrence-defaults';
+import type { RecurrenceRuleValues, WeekDay, SetPosition } from '../../lib/recurrence-types';
+
+const ALL_DAYS: { key: WeekDay; label: string }[] = [
+  { key: 'SUN', label: 'Sun' }, { key: 'MON', label: 'Mon' }, { key: 'TUE', label: 'Tue' },
+  { key: 'WED', label: 'Wed' }, { key: 'THU', label: 'Thu' }, { key: 'FRI', label: 'Fri' },
+  { key: 'SAT', label: 'Sat' },
+];
+const SET_POSITIONS: { value: SetPosition; label: string }[] = [
+  { value: 1, label: 'First' }, { value: 2, label: 'Second' }, { value: 3, label: 'Third' },
+  { value: 4, label: 'Fourth' }, { value: -1, label: 'Last' },
+];
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+export interface RecurrenceRuleBuilderHandle {
+  validate: () =&gt; Promise&lt;boolean&gt;;
+  getValues: () =&gt; RecurrenceRuleValues;
+  reset: (values: RecurrenceRuleValues) =&gt; void;
+}
+
+interface Props {
+  defaultValues?: Partial&lt;RecurrenceRuleValues&gt;;
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return &lt;p className="text-xs text-red-600 mt-1"&gt;{message}&lt;/p&gt;;
+}
+
+export const RecurrenceRuleBuilder = forwardRef&lt;RecurrenceRuleBuilderHandle, Props&gt;(
+  function RecurrenceRuleBuilder({ defaultValues }, ref) {
+    const {
+      register, control, watch, setValue, trigger, getValues, reset,
+      formState: { errors },
+    } = useForm&lt;RecurrenceRuleValues&gt;({
+      resolver: zodResolver(recurrenceRuleSchema),
+      defaultValues: { ...buildDefaultRecurrenceRule(), ...defaultValues },
+      mode: 'onBlur',
+    });
+
+    useImperativeHandle(ref, () =&gt; ({ validate: () =&gt; trigger(), getValues, reset }));
+
+    const frequency = watch('frequency');
+    const isRecurring = frequency !== 'NONE';
+    const daysOfWeek = watch('daysOfWeek');
+    const monthlyMode = watch('monthlyMode');
+    const yearlyMode = watch('yearlyMode');
+    const recurrenceEndMode = watch('recurrenceEndMode');
+
+    function toggleDay(day: WeekDay) {
+      const has = daysOfWeek.includes(day);
+      setValue('daysOfWeek', has ? daysOfWeek.filter((d) =&gt; d !== day) : [...daysOfWeek, day], { shouldValidate: true });
+    }
+
+    // Fix: previously this only flipped a separate `enableRecurring` boolean,
+    // leaving `frequency` unset/invalid when turned on. Now it directly
+    // drives the field the rest of the form (and the engine) actually reads.
+    function handleRecurringToggle(checked: boolean) {
+      setValue('frequency', checked ? 'WEEKLY' : 'NONE', { shouldValidate: true });
+    }
+
+    return (
+      &lt;div className="flex flex-col gap-4"&gt;
+        &lt;div className="grid grid-cols-2 gap-3"&gt;
+          &lt;div className="flex flex-col gap-1"&gt;
+            &lt;label className="text-sm font-medium text-gray-700"&gt;Start&lt;/label&gt;
+            &lt;div className="flex gap-2"&gt;
+              &lt;input type="date" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" {...register('startDate')} /&gt;
+              &lt;input type="time" className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm" {...register('startTime')} /&gt;
+            &lt;/div&gt;
+            &lt;FieldError message={errors.startDate?.message ?? errors.startTime?.message} /&gt;
+          &lt;/div&gt;
+          &lt;div className="flex flex-col gap-1"&gt;
+            &lt;label className="text-sm font-medium text-gray-700"&gt;End&lt;/label&gt;
+            &lt;div className="flex gap-2"&gt;
+              &lt;input type="date" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" {...register('endDate')} /&gt;
+              &lt;input type="time" className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm" {...register('endTime')} /&gt;
+            &lt;/div&gt;
+            &lt;FieldError message={errors.endDate?.message ?? errors.endTime?.message} /&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;p className="text-xs text-gray-500 -mt-2"&gt;
+          The gap between start and end is reused as the duration for every generated occurrence.
+        &lt;/p&gt;
+
+        &lt;div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"&gt;
+          &lt;span className="text-sm font-medium text-gray-700"&gt;Recurring&lt;/span&gt;
+          &lt;Controller
+            name="frequency"
+            control={control}
+            render={({ field }) =&gt; (
+              &lt;button
+                type="button"
+                role="switch"
+                aria-checked={field.value !== 'NONE'}
+                onClick={() =&gt; handleRecurringToggle(field.value === 'NONE')}
+                className={`relative h-6 w-11 rounded-full transition-colors ${
+                  field.value !== 'NONE' ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              &gt;
+                &lt;span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                    field.value !== 'NONE' ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}
+                /&gt;
+              &lt;/button&gt;
+            )}
+          /&gt;
+        &lt;/div&gt;
+
+        {isRecurring &amp;&amp; (
+          &lt;&gt;
+            &lt;div className="flex flex-col gap-1"&gt;
+              &lt;label className="text-sm font-medium text-gray-700"&gt;Frequency&lt;/label&gt;
+              &lt;select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" {...register('frequency')}&gt;
+                &lt;option value="DAILY"&gt;Daily&lt;/option&gt;
+                &lt;option value="WEEKLY"&gt;Weekly&lt;/option&gt;
+                &lt;option value="MONTHLY"&gt;Monthly&lt;/option&gt;
+                &lt;option value="YEARLY"&gt;Yearly&lt;/option&gt;
+              &lt;/select&gt;
+            &lt;/div&gt;
+
+            {frequency === 'DAILY' &amp;&amp; (
+              &lt;div className="flex items-center gap-2"&gt;
+                &lt;span className="text-sm text-gray-700"&gt;Recur every&lt;/span&gt;
+                &lt;input type="number" min={1} className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm" {...register('interval', { valueAsNumber: true })} /&gt;
+                &lt;span className="text-sm text-gray-600"&gt;day(s)&lt;/span&gt;
+                &lt;FieldError message={errors.interval?.message} /&gt;
+              &lt;/div&gt;
+            )}
+
+            {frequency === 'WEEKLY' &amp;&amp; (
+              &lt;&gt;
+                &lt;div className="flex items-center gap-2"&gt;
+                  &lt;span className="text-sm text-gray-700"&gt;Recur every&lt;/span&gt;
+                  &lt;input type="number" min={1} className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm" {...register('interval', { valueAsNumber: true })} /&gt;
+                  &lt;span className="text-sm text-gray-600"&gt;week(s)&lt;/span&gt;
+                &lt;/div&gt;
+                &lt;div className="flex flex-col gap-1"&gt;
+                  &lt;label className="text-sm font-medium text-gray-700"&gt;Days of the week&lt;/label&gt;
+                  &lt;div className="flex flex-wrap gap-2"&gt;
+                    {ALL_DAYS.map((day) =&gt; {
+                      const active = daysOfWeek.includes(day.key);
+                      return (
+                        &lt;button key={day.key} type="button" onClick={() =&gt; toggleDay(day.key)}
+                          className={`text-xs px-3 py-1.5 rounded-full border ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}&gt;
+                          {day.label}
+                        &lt;/button&gt;
+                      );
+                    })}
+                  &lt;/div&gt;
+                  &lt;FieldError message={errors.daysOfWeek?.message as string | undefined} /&gt;
+                &lt;/div&gt;
+              &lt;/&gt;
+            )}
+
+            {frequency === 'MONTHLY' &amp;&amp; (
+              &lt;div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3"&gt;
+                &lt;label className="text-sm font-medium text-gray-700"&gt;Recurrence pattern&lt;/label&gt;
+                &lt;div className="flex items-center gap-2 flex-wrap"&gt;
+                  &lt;input type="radio" id="monthlyDayMode" checked={monthlyMode === 'DAY_OF_MONTH'}
+                    onChange={() =&gt; setValue('monthlyMode', 'DAY_OF_MONTH', { shouldValidate: true })} /&gt;
+                  &lt;label htmlFor="monthlyDayMode" className="text-sm text-gray-700"&gt;Day&lt;/label&gt;
+                  &lt;input type="number" min={1} max={31} disabled={monthlyMode !== 'DAY_OF_MONTH'}
+                    className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                    {...register('monthlyDayOfMonth', { valueAsNumber: true })} /&gt;
+                  &lt;span className="text-sm text-gray-600"&gt;of every&lt;/span&gt;
+                  &lt;input type="number" min={1} disabled={monthlyMode !== 'DAY_OF_MONTH'}
+                    className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                    {...register('interval', { valueAsNumber: true })} /&gt;
+                  &lt;span className="text-sm text-gray-600"&gt;month(s)&lt;/span&gt;
+                &lt;/div&gt;
+                &lt;FieldError message={errors.monthlyDayOfMonth?.message} /&gt;
+
+                &lt;div className="flex items-center gap-2 flex-wrap"&gt;
+                  &lt;input type="radio" id="monthlyPosMode" checked={monthlyMode === 'WEEKDAY_POSITION'}
+                    onChange={() =&gt; setValue('monthlyMode', 'WEEKDAY_POSITION', { shouldValidate: true })} /&gt;
+                  &lt;label htmlFor="monthlyPosMode" className="text-sm text-gray-700"&gt;The&lt;/label&gt;
+                  &lt;select disabled={monthlyMode !== 'WEEKDAY_POSITION'}
+                    className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                    {...register('monthlySetPosition', { valueAsNumber: true })}&gt;
+                    {SET_POSITIONS.map((p) =&gt; &lt;option key={p.value} value={p.value}&gt;{p.label}&lt;/option&gt;)}
+                  &lt;/select&gt;
+                  &lt;select disabled={monthlyMode !== 'WEEKDAY_POSITION'}
+                    className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                    {...register('monthlyWeekday')}&gt;
+                    {ALL_DAYS.map((d) =&gt; &lt;option key={d.key} value={d.key}&gt;{d.label}&lt;/option&gt;)}
+                  &lt;/select&gt;
+                  &lt;span className="text-sm text-gray-600"&gt;of every&lt;/span&gt;
+                  &lt;input type="number" min={1} disabled={monthlyMode !== 'WEEKDAY_POSITION'}
+                    className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                    {...register('interval', { valueAsNumber: true })} /&gt;
+                  &lt;span className="text-sm text-gray-600"&gt;month(s)&lt;/span&gt;
+                &lt;/div&gt;
+              &lt;/div&gt;
+            )}
+
+            {frequency === 'YEARLY' &amp;&amp; (
+              &lt;div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3"&gt;
+                &lt;label className="text-sm font-medium text-gray-700"&gt;Recurrence pattern&lt;/label&gt;
+                &lt;div className="flex items-center gap-2"&gt;
+                  &lt;span className="text-sm text-gray-700"&gt;Recur every&lt;/span&gt;
+                  &lt;input type="number" min={1} className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm" {...register('interval', { valueAsNumber: true })} /&gt;
+                  &lt;span className="text-sm text-gray-600"&gt;year(s)&lt;/span&gt;
+                &lt;/div&gt;
+                &lt;div className="flex items-center gap-2 flex-wrap"&gt;
+                  &lt;input type="radio" id="yearlyOnDate" checked={yearlyMode === 'ON_DATE'}
+                    onChange={() =&gt; setValue('yearlyMode', 'ON_DATE', { shouldValidate: true })} /&gt;
+                  &lt;label htmlFor="yearlyOnDate" className="text-sm text-gray-700 w-12"&gt;On:&lt;/label&gt;
+                  &lt;select disabled={yearlyMode !== 'ON_DATE'}
+                    className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                    {...register('yearlyMonth', { valueAsNumber: true })}&gt;
+                    {MONTHS.map((m, i) =&gt; &lt;option key={m} value={i + 1}&gt;{m}&lt;/option&gt;)}
+                  &lt;/select&gt;
+                  &lt;input type="number" min={1} max={31} disabled={yearlyMode !== 'ON_DATE'}
+                    className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                    {...register('yearlyDayOfMonth', { valueAsNumber: true })} /&gt;
+                &lt;/div&gt;
+                &lt;FieldError message={errors.yearlyDayOfMonth?.message} /&gt;
+
+                &lt;div className="flex items-center gap-2 flex-wrap"&gt;
+                  &lt;input type="radio" id="yearlyPosMode" checked={yearlyMode === 'WEEKDAY_POSITION'}
+                    onChange={() =&gt; setValue('yearlyMode', 'WEEKDAY_POSITION', { shouldValidate: true })} /&gt;
+                  &lt;label htmlFor="yearlyPosMode" className="text-sm text-gray-700 w-12"&gt;On the:&lt;/label&gt;
+                  &lt;select disabled={yearlyMode !== 'WEEKDAY_POSITION'}
+                    className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                    {...register('yearlySetPosition', { valueAsNumber: true })}&gt;
+                    {SET_POSITIONS.map((p) =&gt; &lt;option key={p.value} value={p.value}&gt;{p.label}&lt;/option&gt;)}
+                  &lt;/select&gt;
+                  &lt;select disabled={yearlyMode !== 'WEEKDAY_POSITION'}
+                    className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                    {...register('yearlyWeekday')}&gt;
+                    {ALL_DAYS.map((d) =&gt; &lt;option key={d.key} value={d.key}&gt;{d.label}&lt;/option&gt;)}
+                  &lt;/select&gt;
+                  &lt;span className="text-sm text-gray-600"&gt;of&lt;/span&gt;
+                  &lt;select disabled={yearlyMode !== 'WEEKDAY_POSITION'}
+                    className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                    {...register('yearlyMonth', { valueAsNumber: true })}&gt;
+                    {MONTHS.map((m, i) =&gt; &lt;option key={m} value={i + 1}&gt;{m}&lt;/option&gt;)}
+                  &lt;/select&gt;
+                &lt;/div&gt;
+              &lt;/div&gt;
+            )}
+
+            &lt;div className="flex flex-col gap-2"&gt;
+              &lt;label className="text-sm font-medium text-gray-700"&gt;Recurrence ends&lt;/label&gt;
+              &lt;div className="flex items-center gap-2"&gt;
+                &lt;input type="radio" id="endOnDate" checked={recurrenceEndMode === 'ON_DATE'}
+                  onChange={() =&gt; setValue('recurrenceEndMode', 'ON_DATE', { shouldValidate: true })} /&gt;
+                &lt;label htmlFor="endOnDate" className="text-sm text-gray-700 w-20"&gt;End by&lt;/label&gt;
+                &lt;input type="date" disabled={recurrenceEndMode !== 'ON_DATE'}
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
+                  {...register('recurrenceEndDate')} /&gt;
+              &lt;/div&gt;
+              &lt;FieldError message={errors.recurrenceEndDate?.message} /&gt;
+
+              &lt;div className="flex items-center gap-2"&gt;
+                &lt;input type="radio" id="endAfter" checked={recurrenceEndMode === 'AFTER_OCCURRENCES'}
+                  onChange={() =&gt; setValue('recurrenceEndMode', 'AFTER_OCCURRENCES', { shouldValidate: true })} /&gt;
+                &lt;label htmlFor="endAfter" className="text-sm text-gray-700 w-20"&gt;End after&lt;/label&gt;
+                &lt;input type="number" min={1} disabled={recurrenceEndMode !== 'AFTER_OCCURRENCES'}
+                  className="w-24 rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
+                  {...register('occurrenceCount', { valueAsNumber: true })} /&gt;
+                &lt;span className="text-sm text-gray-600"&gt;occurrences&lt;/span&gt;
+              &lt;/div&gt;
+              &lt;FieldError message={errors.occurrenceCount?.message} /&gt;
+
+              &lt;div className="flex items-center gap-2"&gt;
+                &lt;input type="radio" id="noEndDate" checked={recurrenceEndMode === 'NEVER'}
+                  onChange={() =&gt; setValue('recurrenceEndMode', 'NEVER', { shouldValidate: true })} /&gt;
+                &lt;label htmlFor="noEndDate" className="text-sm text-gray-700"&gt;No end date&lt;/label&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/&gt;
+        )}
+      &lt;/div&gt;
+    );
+  },
+);
+</code></pre>
+    <p class="todo-note">Requires: <code>npm install react-hook-form zod @hookform/resolvers rrule</code></p>
+  </div>
+
+  <div class="section-label">Shared contract</div>
+
+  <div class="file-block" id="f6">
+    <div class="file-head">
+      <span class="file-path">components/forms/types.ts</span>
+      <span class="tag changed">simplified</span>
+    </div>
+    <p class="file-summary">Dropped <code>generalInfo</code>/<code>onGeneralInfoChange</code> entirely --
+      now that each step owns its own RHF instance, the shell only needs to pass the already-selected
+      <code>amenityTypeId</code> through to build the final save payload.</p>
+    <pre><code class="language-typescript">import type { Amenity } from '@/types/amenities';
+
+export interface AmenityTypeFormProps {
+  amenityTypeId: number;
+  isEditing: boolean;
+  amenityId?: number | null;
+  locationFunctionId: number;
+  locationSlug: string;
+  onClose: () =&gt; void;
+}
+</code></pre>
+  </div>
+
+  <div class="section-label">Amenity type forms</div>
+
+  <div class="file-block" id="f7">
+    <div class="file-head">
+      <span class="file-path">components/forms/GeneralAdmissionForm.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Holds a ref to the RHF-based <code>GeneralInfoFields</code>, validates via
+      the ref on Save, and hydrates it via <code>reset()</code> once the per-step fetch resolves in edit
+      mode.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { useEffect, useRef } from 'react';
+import { useInsertAmenity } from '../../hooks/useInsertAmenity';
+import { useUpdateAmenity } from '../../hooks/useUpdateAmenity';
+import { useAmenityGeneralInfo } from '../../hooks/useAmenityGeneralInfo';
+import { GeneralInfoFields, type GeneralInfoFieldsHandle } from '../GeneralInfoFields';
+import type { AmenityTypeFormProps } from './types';
+
+export function GeneralAdmissionForm({
+  amenityTypeId,
+  isEditing,
+  amenityId,
+  locationFunctionId,
+  locationSlug,
+  onClose,
+}: AmenityTypeFormProps) {
+  const formRef = useRef&lt;GeneralInfoFieldsHandle&gt;(null);
+  const hasHydrated = useRef(false);
+
+  const {
+    data: fetchedGeneralInfo,
+    isLoading,
+    isError,
+    error: fetchError,
+  } = useAmenityGeneralInfo(isEditing ? amenityId ?? null : null);
+
+  useEffect(() =&gt; {
+    if (fetchedGeneralInfo &amp;&amp; !hasHydrated.current) {
+      formRef.current?.reset({
+        amenityName: fetchedGeneralInfo.amenityName,
+        amenityDescription: fetchedGeneralInfo.amenityDescription,
+      });
+      hasHydrated.current = true;
+    }
+  }, [fetchedGeneralInfo]);
+
+  const insert = useInsertAmenity(locationFunctionId, locationSlug);
+  const update = useUpdateAmenity(locationFunctionId, locationSlug);
+  const isSaving = insert.isPending || update.isPending;
+  const isLoadingInitial = isEditing &amp;&amp; isLoading &amp;&amp; !hasHydrated.current;
+
+  async function handleSave() {
+    const isValid = await formRef.current?.validate();
+    if (!isValid) return;
+    const values = formRef.current!.getValues();
+
+    const payload = {
+      amenityTypeId,
+      amenityName: values.amenityName,
+      amenityDescription: values.amenityDescription ?? '',
+    };
+
+    if (isEditing &amp;&amp; amenityId) {
+      update.mutate({ amenityId, locationFunctionId, ...payload }, { onSuccess: onClose });
+    } else {
+      insert.mutate({ locationFunctionId, ...payload }, { onSuccess: onClose });
+    }
+  }
+
+  if (isLoadingInitial) {
+    return (
+      &lt;div className="flex flex-col gap-3 animate-pulse"&gt;
+        &lt;div className="h-9 bg-gray-100 rounded-md" /&gt;
+        &lt;div className="h-24 bg-gray-100 rounded-md" /&gt;
+      &lt;/div&gt;
+    );
+  }
+
+  if (isEditing &amp;&amp; isError) {
+    return &lt;p className="text-sm text-red-600"&gt;Couldn't load this amenity. {fetchError?.message}&lt;/p&gt;;
+  }
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      &lt;GeneralInfoFields ref={formRef} /&gt;
+      &lt;div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1"&gt;
+        &lt;button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700"&gt;Cancel&lt;/button&gt;
+        &lt;button type="button" onClick={handleSave} disabled={isSaving} className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white disabled:opacity-60"&gt;
+          {isSaving ? 'Saving...' : 'Save'}
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f8">
+    <div class="file-head">
+      <span class="file-path">components/forms/ScheduledAdmissionForm.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Two refs now -- one per step, each independently validated and hydrated.
+      Next validates step 1's ref before advancing; Save validates step 2's ref, then reads both refs'
+      values to assemble the final payload.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { useInsertAmenity } from '../../hooks/useInsertAmenity';
+import { useUpdateAmenity } from '../../hooks/useUpdateAmenity';
+import { useAmenityGeneralInfo } from '../../hooks/useAmenityGeneralInfo';
+import { useAmenitySchedule } from '../../hooks/useAmenitySchedule';
+import { GeneralInfoFields, type GeneralInfoFieldsHandle } from '../GeneralInfoFields';
+import { RecurrenceRuleBuilder, type RecurrenceRuleBuilderHandle } from '../schedule/RecurrenceRuleBuilder';
+import { StepIndicator, type StepIndicatorStep } from '../StepIndicator';
+import { buildScheduleSavePayload } from '../../lib/recurrence-engine';
+import type { AmenityTypeFormProps } from './types';
+
+type Step = 'general' | 'scheduler';
+
+export function ScheduledAdmissionForm({
+  amenityTypeId,
+  isEditing,
+  amenityId,
+  locationFunctionId,
+  locationSlug,
+  onClose,
+}: AmenityTypeFormProps) {
+  const [step, setStep] = useState&lt;Step&gt;('general');
+
+  const generalFormRef = useRef&lt;GeneralInfoFieldsHandle&gt;(null);
+  const scheduleFormRef = useRef&lt;RecurrenceRuleBuilderHandle&gt;(null);
+  const hasHydratedGeneral = useRef(false);
+  const hasHydratedSchedule = useRef(false);
+
+  const {
+    data: fetchedGeneralInfo,
+    isLoading: isLoadingGeneral,
+    isError: isGeneralError,
+    error: generalError,
+  } = useAmenityGeneralInfo(isEditing ? amenityId ?? null : null);
+
+  useEffect(() =&gt; {
+    if (fetchedGeneralInfo &amp;&amp; !hasHydratedGeneral.current) {
+      generalFormRef.current?.reset({
+        amenityName: fetchedGeneralInfo.amenityName,
+        amenityDescription: fetchedGeneralInfo.amenityDescription,
+      });
+      hasHydratedGeneral.current = true;
+    }
+  }, [fetchedGeneralInfo]);
+
+  // Only fires once the user actually reaches step 2.
+  const {
+    data: fetchedSchedule,
+    isLoading: isLoadingSchedule,
+    isError: isScheduleError,
+    error: scheduleError,
+  } = useAmenitySchedule(isEditing ? amenityId ?? null : null, step === 'scheduler');
+
+  useEffect(() =&gt; {
+    if (fetchedSchedule?.rule &amp;&amp; !hasHydratedSchedule.current) {
+      scheduleFormRef.current?.reset(fetchedSchedule.rule);
+      hasHydratedSchedule.current = true;
+    }
+  }, [fetchedSchedule]);
+
+  const insert = useInsertAmenity(locationFunctionId, locationSlug);
+  const update = useUpdateAmenity(locationFunctionId, locationSlug);
+  const isSaving = insert.isPending || update.isPending;
+
+  const steps: StepIndicatorStep[] = [
+    { id: 'general', label: 'General info', status: step === 'general' ? 'active' : 'done' },
+    { id: 'scheduler', label: 'Scheduling', status: step === 'scheduler' ? 'active' : 'pending' },
+  ];
+
+  async function handleNext() {
+    const isValid = await generalFormRef.current?.validate();
+    if (!isValid) return;
+    setStep('scheduler');
+  }
+
+  async function handleSave() {
+    const isValid = await scheduleFormRef.current?.validate();
+    if (!isValid) return;
+
+    const generalValues = generalFormRef.current!.getValues();
+    const recurrenceRule = scheduleFormRef.current!.getValues();
+
+    const payload = {
+      amenityTypeId,
+      amenityName: generalValues.amenityName,
+      amenityDescription: generalValues.amenityDescription ?? '',
+      schedule: buildScheduleSavePayload(recurrenceRule),
+    };
+
+    if (isEditing &amp;&amp; amenityId) {
+      update.mutate({ amenityId, locationFunctionId, ...payload }, { onSuccess: onClose });
+    } else {
+      insert.mutate({ locationFunctionId, ...payload }, { onSuccess: onClose });
+    }
+  }
+
+  const isLoadingInitialGeneral = isEditing &amp;&amp; isLoadingGeneral &amp;&amp; !hasHydratedGeneral.current;
+  const isLoadingInitialSchedule = isEditing &amp;&amp; isLoadingSchedule &amp;&amp; !hasHydratedSchedule.current;
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      &lt;StepIndicator steps={steps} onStepClick={(i) =&gt; setStep(i === 0 ? 'general' : 'scheduler')} /&gt;
+
+      {step === 'general' ? (
+        isLoadingInitialGeneral ? (
+          &lt;div className="flex flex-col gap-3 animate-pulse"&gt;
+            &lt;div className="h-9 bg-gray-100 rounded-md" /&gt;
+            &lt;div className="h-24 bg-gray-100 rounded-md" /&gt;
+          &lt;/div&gt;
+        ) : isGeneralError ? (
+          &lt;p className="text-sm text-red-600"&gt;Couldn't load general info. {generalError?.message}&lt;/p&gt;
+        ) : (
+          &lt;&gt;
+            &lt;GeneralInfoFields ref={generalFormRef} /&gt;
+            &lt;div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1"&gt;
+              &lt;button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700"&gt;Cancel&lt;/button&gt;
+              &lt;button type="button" onClick={handleNext} className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white"&gt;Next&lt;/button&gt;
+            &lt;/div&gt;
+          &lt;/&gt;
+        )
+      ) : isLoadingInitialSchedule ? (
+        &lt;div className="flex flex-col gap-3 animate-pulse"&gt;
+          &lt;div className="h-9 bg-gray-100 rounded-md" /&gt;
+          &lt;div className="h-9 bg-gray-100 rounded-md" /&gt;
+          &lt;div className="h-32 bg-gray-100 rounded-md" /&gt;
+        &lt;/div&gt;
+      ) : isScheduleError ? (
+        &lt;p className="text-sm text-red-600"&gt;Couldn't load the schedule. {scheduleError?.message}&lt;/p&gt;
+      ) : (
+        &lt;&gt;
+          &lt;RecurrenceRuleBuilder ref={scheduleFormRef} /&gt;
+          &lt;div className="flex justify-between gap-2 pt-3 border-t border-gray-100 mt-1"&gt;
+            &lt;button type="button" onClick={() =&gt; setStep('general')} className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700"&gt;Back&lt;/button&gt;
+            &lt;div className="flex gap-2"&gt;
+              &lt;button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700"&gt;Cancel&lt;/button&gt;
+              &lt;button type="button" onClick={handleSave} disabled={isSaving} className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white disabled:opacity-60"&gt;
+                {isSaving ? 'Saving...' : 'Save'}
+              &lt;/button&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/&gt;
+      )}
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  </div>
+
+  <div class="section-label">Shell + integration</div>
+
+  <div class="file-block" id="f9">
+    <div class="file-head">
+      <span class="file-path">components/AmenityFormDrawer.tsx</span>
+      <span class="tag changed">simplified</span>
+    </div>
+    <p class="file-summary">No longer tracks a <code>GeneralInfoValues</code> object -- since each step
+      now owns its own RHF instance, the shell only needs the plain <code>amenityTypeId</code> to route
+      to the correct registry component.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { useEffect, useState } from 'react';
+import { Drawer } from '@hlt/react-component-library';
+import { AmenityType } from '@/types/amenities';
+import { AMENITY_FORM_REGISTRY } from './forms/amenity-form-registry';
+import {
+  GENERAL_ADMISSION_KEY,
+  SCHEDULED_ADMISSION_KEY,
+  resolveWizardKind,
+} from '../types/wizard-types';
+
+interface EditingAmenitySummary {
+  amenityId: number;
+  amenityTypeId: number; // already known from the table row -- no extra fetch needed to route
+}
+
+interface Props {
+  isOpen: boolean;
+  onClose: () =&gt; void;
+  locationFunctionId: number;
+  locationSlug: string;
+  amenityTypes: AmenityType[];
+  editingAmenity?: EditingAmenitySummary | null;
+}
+
+export function AmenityFormDrawer({
+  isOpen, onClose, locationFunctionId, locationSlug, amenityTypes, editingAmenity = null,
+}: Props) {
+  const isEditing = editingAmenity !== null;
+  const [amenityTypeId, setAmenityTypeId] = useState&lt;number | ''&gt;('');
+
+  const originalWizardKind = editingAmenity
+    ? resolveWizardKind(editingAmenity.amenityTypeId, amenityTypes)
+    : null;
+
+  useEffect(() =&gt; {
+    if (!isOpen) return;
+    setAmenityTypeId(editingAmenity ? editingAmenity.amenityTypeId : '');
+  }, [isOpen, editingAmenity]);
+
+  const wizardKind = resolveWizardKind(amenityTypeId, amenityTypes);
+  const ActiveForm = AMENITY_FORM_REGISTRY[wizardKind];
+
+  const showDowngradeWarning =
+    isEditing &amp;&amp; originalWizardKind === SCHEDULED_ADMISSION_KEY &amp;&amp; wizardKind === GENERAL_ADMISSION_KEY;
+
+  return (
+    &lt;Drawer title={isEditing ? 'Edit amenity' : 'Add amenity'} width="sm" isOpen={isOpen} onClose={onClose}&gt;
+      &lt;div className="flex flex-col gap-4"&gt;
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Amenity type&lt;/label&gt;
+          &lt;select
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={amenityTypeId}
+            onChange={(e) =&gt; setAmenityTypeId(e.target.value ? Number(e.target.value) : '')}
+          &gt;
+            &lt;option value=""&gt;Select...&lt;/option&gt;
+            {amenityTypes.map((t) =&gt; (
+              &lt;option key={t.amenityTypeId} value={t.amenityTypeId}&gt;{t.amenityTypeName}&lt;/option&gt;
+            ))}
+          &lt;/select&gt;
+        &lt;/div&gt;
+
+        {showDowngradeWarning &amp;&amp; (
+          &lt;p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2"&gt;
+            Switching back to General Admission will remove the existing schedule for this amenity.
+          &lt;/p&gt;
+        )}
+
+        {amenityTypeId !== '' &amp;&amp; ActiveForm &amp;&amp; (
+          &lt;ActiveForm
+            key={wizardKind}
+            amenityTypeId={Number(amenityTypeId)}
+            isEditing={isEditing}
+            amenityId={editingAmenity?.amenityId ?? null}
+            locationFunctionId={locationFunctionId}
+            locationSlug={locationSlug}
+            onClose={onClose}
+          /&gt;
+        )}
+      &lt;/div&gt;
+    &lt;/Drawer&gt;
+  );
+}
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f10">
+    <div class="file-head">
+      <span class="file-path">AmenityList.tsx (edits only)</span>
+      <span class="tag unchanged">unchanged since previous version</span>
+    </div>
+    <p class="file-summary">No changes needed here beyond what you already have -- still passing
+      <code>{ amenityId, amenityTypeId }</code> as <code>editingAmenity</code> for edit mode, unaffected by
+      this pass's internal form changes.</p>
+    <pre><code class="language-typescript">&lt;AmenityFormDrawer
+  isOpen={drawer.mode !== 'closed'}
+  editingAmenity={
+    drawer.mode === 'edit'
+      ? { amenityId: drawer.amenity.amenityId, amenityTypeId: drawer.amenity.amenityTypeId }
+      : null
+  }
+  onClose={() =&gt; setDrawer({ mode: 'closed' })}
+  locationFunctionId={locationFunctionId}
+  locationSlug={locationSlug}
+  amenityTypes={amenityTypes}
+/&gt;
+</code></pre>
+  </div>
+
+  <div class="section-label">Removed</div>
+  <div class="file-block" id="removed">
+    <div class="file-head">
+      <span class="file-path">GeneralInfoValues / EMPTY_GENERAL_INFO exports from types/wizard-types.ts</span>
+      <span class="tag removed">removed</span>
+    </div>
+    <p class="file-summary">
+      Superseded by <code>GeneralInfoFormValues</code> in <code>lib/general-info-schema.ts</code>. Safe to
+      delete these two exports along with any leftover imports of them once you adopt this version.
+      <code>resolveWizardKind</code> and the <code>AmenityTypeKey</code> constants in that same file are
+      unaffected and still used exactly as before.
+    </p>
+  </div>
+
+</main>
+
+<script>
+  hljs.highlightAll();
+
+  document.querySelectorAll('pre').forEach((pre) => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+
+  const links = document.querySelectorAll('nav a');
+  const sections = Array.from(links).map((a) => document.querySelector(a.getAttribute('href')));
+  window.addEventListener('scroll', () => {
+    let activeIndex = 0;
+    sections.forEach((sec, i) => {
+      if (sec && sec.getBoundingClientRect().top <= 100) activeIndex = i;
+    });
+    links.forEach((a, i) => a.classList.toggle('active', i === activeIndex));
+  });
+</script>
+
+</body>
+</html>
