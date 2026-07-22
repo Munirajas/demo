@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Amenities Wizard — Non-Breaking Enhancement (Recurring Toggle + RHF/Zod)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
+<style>
+  :root { --bg:#0d1117; --panel:#12181f; --border:#232b34; --text:#d7dde4; --text-dim:#8b95a1; --accent:#4f8cff;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace; --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--sans); display:flex; min-height:100vh; }
+  nav { width:270px; flex-shrink:0; background:var(--panel); border-right:1px solid var(--border); padding:24px 0; position:sticky; top:0; height:100vh; overflow-y:auto; }
+  nav .brand { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); padding:0 20px 4px; }
+  nav .brand-sub { font-size:11px; color:var(--text-dim); padding:0 20px 16px; border-bottom:1px solid var(--border); margin-bottom:8px; }
+  nav a { display:block; padding:8px 20px; color:var(--text); text-decoration:none; font-size:13px; font-family:var(--mono); border-left:2px solid transparent; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  nav a:hover { background:rgba(255,255,255,.04); }
+  nav a.active { border-left-color:var(--accent); color:var(--accent); background:rgba(79,140,255,.08); }
+  main { flex:1; padding:40px 48px 120px; max-width:920px; }
+  header.page-head { margin-bottom:32px; padding-bottom:24px; border-bottom:1px solid var(--border); }
+  header.page-head h1 { font-size:22px; margin:0 0 8px; font-weight:600; }
+  header.page-head p { color:var(--text-dim); font-size:14px; margin:0 0 12px; line-height:1.6; }
+  .change-list { font-size:13.5px; color:var(--text); background:rgba(79,140,255,.06); border:1px solid rgba(79,140,255,.2); border-radius:8px; padding:14px 18px; margin:16px 0 0; line-height:1.7; }
+  .change-list li { margin-bottom:4px; }
+  .not-touched { font-size:13px; background:rgba(74,222,128,.08); border:1px solid rgba(74,222,128,.25); color:#9adbb0; padding:10px 14px; border-radius:6px; margin:14px 0 0; line-height:1.6; }
+  .file-block { margin-bottom:48px; scroll-margin-top:24px; }
+  .file-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:8px; flex-wrap:wrap; }
+  .file-path { font-family:var(--mono); font-size:14px; color:#fff; background:rgba(79,140,255,.12); padding:4px 10px; border-radius:4px; display:inline-block; }
+  .tag { font-size:11px; font-family:var(--mono); padding:3px 8px; border-radius:4px; background:rgba(74,222,128,.12); color:#4ade80; border:1px solid rgba(74,222,128,.3); }
+  .tag.changed { background:rgba(255,176,32,.1); color:#ffb020; border-color:rgba(255,176,32,.3); }
+  .file-summary { font-size:13.5px; color:var(--text-dim); margin:8px 0 12px; line-height:1.6; }
+  .flag { font-size:13px; background:rgba(255,176,32,.1); border:1px solid rgba(255,176,32,.3); color:#ffb020; padding:8px 12px; border-radius:6px; margin:10px 0 14px; line-height:1.5; }
+  pre { margin:0; border-radius:8px; border:1px solid var(--border); overflow-x:auto; position:relative; }
+  pre code.hljs { padding:16px 18px !important; font-size:12.5px; line-height:1.6; background:#0b0f14 !important; }
+  .copy-btn { position:absolute; top:10px; right:10px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:var(--text-dim); font-size:12px; padding:4px 10px; border-radius:5px; cursor:pointer; font-family:var(--sans); }
+  .copy-btn:hover { color:var(--text); background:rgba(255,255,255,.1); }
+  .copy-btn.copied { color:#4ade80; border-color:#4ade80; }
+  .todo-note { font-size:12.5px; color:var(--text-dim); margin-top:10px; }
+  .toc-group-label { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); padding:14px 20px 6px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">Amenities wizard</div>
+  <div class="brand-sub">Non-breaking pass: recurring toggle + RHF/Zod</div>
+  <div class="toc-group-label">Overview</div>
+  <a href="#overview">Summary &amp; what changed</a>
+  <div class="toc-group-label">General info step</div>
+  <a href="#f1">lib/general-info-schema.ts</a>
+  <a href="#f2">components/GeneralInfoFields.tsx</a>
+  <div class="toc-group-label">Scheduling step</div>
+  <a href="#f3">components/schedule/RecurrenceRuleBuilder.tsx</a>
+</nav>
+
+<main>
+  <header class="page-head" id="overview">
+    <h1>Recurring toggle + RHF/Zod — non-breaking pass</h1>
+    <p>
+      Built directly on your actual working files, not on my earlier assumptions. Both changed components
+      keep their existing external API (<code>value</code>/<code>onChange</code>/<code>error</code> for the
+      scheduler, <code>values</code>/<code>onChange</code>/<code>error</code> for general info) exactly as
+      your current <code>GeneralAdmissionForm.tsx</code> and <code>ScheduledAdmissionForm.tsx</code> already
+      call them — so neither of those two files needs a single line changed.
+    </p>
+    <ul class="change-list">
+      <li><strong>Recurring toggle added</strong> to <code>RecurrenceRuleBuilder</code> — off by default, and everything from the Frequency dropdown down (frequency, monthly/yearly patterns, recurrence-end options) only renders once it's switched on.</li>
+      <li><strong>"Does not repeat" removed from the Frequency <code>&lt;select&gt;</code></strong> — the toggle now owns that state exclusively. Confirmed safe since no existing records have <code>frequency: 'NONE'</code> in the DB.</li>
+      <li><strong><code>isRecurring</code> is derived from <code>frequency</code></strong>, not tracked as separate state — this is what fixes the earlier toggle bug for good: there's nothing that can drift out of sync, since there's only one source of truth.</li>
+      <li><strong>Zod validation added to <code>GeneralInfoFields</code></strong> without changing its props — it stays a fully controlled component, RHF runs invisibly inside it, synced to the incoming <code>values</code> prop via RHF's <code>values</code> option.</li>
+    </ul>
+    <div class="not-touched">
+      <strong>Not touched:</strong> <code>components/forms/GeneralAdmissionForm.tsx</code>,
+      <code>components/forms/ScheduledAdmissionForm.tsx</code>, and every other file in the wizard —
+      none of them reference anything that changed shape here.
+    </div>
+  </header>
+
+  <div class="file-block" id="f1">
+    <div class="file-head">
+      <span class="file-path">lib/general-info-schema.ts</span>
+      <span class="tag">new</span>
+    </div>
+    <p class="file-summary">Small Zod schema covering the two validated fields. <code>amenityTypeId</code>
+      is typed loosely here since the shell/parent form already validates it separately (via its own
+      "please select a type" check) — this schema only needs to own Name/Description.</p>
+    <pre><code class="language-typescript">import { z } from 'zod';
+
+export const generalInfoSchema = z.object({
+  amenityTypeId: z.union([z.number(), z.literal('')]),
+  amenityName: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(120, 'Keep it under 120 characters'),
+  amenityDescription: z
+    .string()
+    .trim()
+    .max(500, 'Keep it under 500 characters'),
+});
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f2">
+    <div class="file-head">
+      <span class="file-path">components/GeneralInfoFields.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Same three props as before (<code>values</code>, <code>onChange</code>,
+      <code>error</code>) -- callers are unaffected. Internally, RHF now runs a validator against
+      the incoming <code>values</code> and surfaces per-field errors through your real
+      <code>Input</code> component's own <code>error</code> prop, while still calling the parent's
+      <code>onChange</code> on every keystroke exactly as the original did.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Input } from '@hlt/react-component-library';
+import type { GeneralInfoValues } from '@/types/amenities';
+import { generalInfoSchema } from '../lib/general-info-schema';
+
+interface Props {
+  values: GeneralInfoValues;
+  onChange: (values: GeneralInfoValues) =&gt; void;
+  error?: string | null;
+}
+
+export function GeneralInfoFields({ values, onChange, error }: Props) {
+  const {
+    control,
+    formState: { errors },
+  } = useForm&lt;GeneralInfoValues&gt;({
+    resolver: zodResolver(generalInfoSchema),
+    values, // keeps RHF's internal state synced to the parent's controlled `values` prop
+    mode: 'onChange',
+  });
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      {error &amp;&amp; &lt;p className="text-sm text-red-600"&gt;{error}&lt;/p&gt;}
+
+      &lt;Controller
+        name="amenityName"
+        control={control}
+        render={({ field }) =&gt; (
+          &lt;Input
+            label="Name"
+            placeholder="e.g. General Admission"
+            className=" bg-white"
+            name={field.name}
+            value={field.value}
+            onChange={(e) =&gt; {
+              field.onChange(e);
+              onChange({ ...values, amenityName: e.target.value });
+            }}
+            error={errors.amenityName?.message}
+          /&gt;
+        )}
+      /&gt;
+
+      &lt;div className="flex flex-col gap-1"&gt;
+        &lt;label className="text-sm font-medium text-gray-700"&gt;Description&lt;/label&gt;
+        &lt;Controller
+          name="amenityDescription"
+          control={control}
+          render={({ field }) =&gt; (
+            &lt;textarea
+              rows={3}
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Short description (optional)"
+              name={field.name}
+              value={field.value}
+              onChange={(e) =&gt; {
+                field.onChange(e);
+                onChange({ ...values, amenityDescription: e.target.value });
+              }}
+            /&gt;
+          )}
+        /&gt;
+        {errors.amenityDescription &amp;&amp; (
+          &lt;p className="text-xs text-red-600 mt-1"&gt;{errors.amenityDescription.message}&lt;/p&gt;
+        )}
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+    <p class="todo-note">Requires: <code>npm install react-hook-form zod @hookform/resolvers</code></p>
+  </div>
+
+  <div class="file-block" id="f3">
+    <div class="file-head">
+      <span class="file-path">components/schedule/RecurrenceRuleBuilder.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Full file, built directly on the version you shared. Only two things
+      changed: the toggle block was added above the Frequency dropdown, and the whole Frequency-and-below
+      section is now wrapped in <code>{isRecurring &amp;&amp; (...)}</code>. Every field, handler, and
+      class name below that point is identical to your original -- nothing else was touched.</p>
+    <div class="flag">
+      <code>value.frequency</code> starting at <code>'NONE'</code> for a brand-new (not-yet-recurring)
+      amenity is still perfectly valid here -- the toggle just renders as "off" in that case. Only the
+      dropdown's own <code>NONE</code> option was removed, since the toggle is now the only way to reach
+      or leave that state.
+    </div>
+    <pre><code class="language-typescript">'use client';
+
+import type {
+  RecurrenceRuleValues,
+  WeekDay,
+  SetPosition,
+  Frequency,
+} from '../../lib/schedule-recurrence-types';
+
+const ALL_DAYS: { key: WeekDay; label: string }[] = [
+  { key: 'SUN', label: 'Sun' },
+  { key: 'MON', label: 'Mon' },
+  { key: 'TUE', label: 'Tue' },
+  { key: 'WED', label: 'Wed' },
+  { key: 'THU', label: 'Thu' },
+  { key: 'FRI', label: 'Fri' },
+  { key: 'SAT', label: 'Sat' },
+];
+
+const SET_POSITIONS: { value: SetPosition; label: string }[] = [
+  { value: 1, label: 'First' },
+  { value: 2, label: 'Second' },
+  { value: 3, label: 'Third' },
+  { value: 4, label: 'Fourth' },
+  { value: -1, label: 'Last' },
+];
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+interface Props {
+  value: RecurrenceRuleValues;
+  onChange: (value: RecurrenceRuleValues) =&gt; void;
+  error?: string | null;
+}
+
+export function RecurrenceRuleBuilder({ value, onChange, error }: Props) {
+  function patch(partial: Partial&lt;RecurrenceRuleValues&gt;) {
+    onChange({ ...value, ...partial });
+  }
+
+  function toggleDay(day: WeekDay) {
+    const has = value.daysOfWeek.includes(day);
+    patch({
+      daysOfWeek: has
+        ? value.daysOfWeek.filter((d) =&gt; d !== day)
+        : [...value.daysOfWeek, day],
+    });
+  }
+
+  // NEW: derived directly from frequency -- nothing to keep in sync, so the
+  // toggle can never disagree with what's actually stored.
+  const isRecurring = value.frequency !== 'NONE';
+
+  // NEW: turning the toggle on jumps straight to a real, usable frequency
+  // (Weekly) instead of leaving it unset. Turning it off collapses back to
+  // a single, non-repeating occurrence.
+  function handleRecurringToggle(checked: boolean) {
+    patch({ frequency: checked ? 'WEEKLY' : 'NONE' });
+  }
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      {error &amp;&amp; &lt;p className="text-sm text-red-600"&gt;{error}&lt;/p&gt;}
+
+      &lt;div className="grid grid-cols-2 gap-3"&gt;
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Start&lt;/label&gt;
+          &lt;div className="flex gap-2"&gt;
+            &lt;input
+              type="date"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              value={value.startDate}
+              onChange={(e) =&gt; patch({ startDate: e.target.value })}
+            /&gt;
+            &lt;input
+              type="time"
+              className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              value={value.startTime}
+              onChange={(e) =&gt; patch({ startTime: e.target.value })}
+            /&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;End&lt;/label&gt;
+          &lt;div className="flex gap-2"&gt;
+            &lt;input
+              type="date"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              value={value.endDate}
+              onChange={(e) =&gt; patch({ endDate: e.target.value })}
+            /&gt;
+            &lt;input
+              type="time"
+              className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              value={value.endTime}
+              onChange={(e) =&gt; patch({ endTime: e.target.value })}
+            /&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;p className="text-xs text-gray-500 -mt-2"&gt;
+        The gap between start and end is reused as the duration for every generated occurrence.
+      &lt;/p&gt;
+
+      {/* NEW: recurring toggle -- everything below only shows once this is on */}
+      &lt;div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"&gt;
+        &lt;span className="text-sm font-medium text-gray-700"&gt;Recurring&lt;/span&gt;
+        &lt;button
+          type="button"
+          role="switch"
+          aria-checked={isRecurring}
+          onClick={() =&gt; handleRecurringToggle(!isRecurring)}
+          className={`relative h-6 w-11 rounded-full transition-colors ${
+            isRecurring ? 'bg-blue-600' : 'bg-gray-300'
+          }`}
+        &gt;
+          &lt;span
+            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+              isRecurring ? 'translate-x-5' : 'translate-x-0.5'
+            }`}
+          /&gt;
+        &lt;/button&gt;
+      &lt;/div&gt;
+
+      {isRecurring &amp;&amp; (
+        &lt;&gt;
+          &lt;div className="flex flex-col gap-1"&gt;
+            &lt;label className="text-sm font-medium text-gray-700"&gt;Frequency&lt;/label&gt;
+            &lt;select
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              value={value.frequency}
+              onChange={(e) =&gt; patch({ frequency: e.target.value as Frequency })}
+            &gt;
+              {/* "NONE" removed -- the toggle now owns "does not repeat" */}
+              &lt;option value="DAILY"&gt;Daily&lt;/option&gt;
+              &lt;option value="WEEKLY"&gt;Weekly&lt;/option&gt;
+              &lt;option value="MONTHLY"&gt;Monthly&lt;/option&gt;
+              &lt;option value="YEARLY"&gt;Yearly&lt;/option&gt;
+            &lt;/select&gt;
+          &lt;/div&gt;
+
+          {value.frequency === 'DAILY' &amp;&amp; (
+            &lt;div className="flex items-center gap-2"&gt;
+              &lt;span className="text-sm text-gray-700"&gt;Recur every&lt;/span&gt;
+              &lt;input
+                type="number"
+                min={1}
+                className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                value={value.interval}
+                onChange={(e) =&gt; patch({ interval: Number(e.target.value) || 1 })}
+              /&gt;
+              &lt;span className="text-sm text-gray-600"&gt;day(s)&lt;/span&gt;
+            &lt;/div&gt;
+          )}
+
+          {value.frequency === 'WEEKLY' &amp;&amp; (
+            &lt;&gt;
+              &lt;div className="flex items-center gap-2"&gt;
+                &lt;span className="text-sm text-gray-700"&gt;Recur every&lt;/span&gt;
+                &lt;input
+                  type="number"
+                  min={1}
+                  className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  value={value.interval}
+                  onChange={(e) =&gt; patch({ interval: Number(e.target.value) || 1 })}
+                /&gt;
+                &lt;span className="text-sm text-gray-600"&gt;week(s)&lt;/span&gt;
+              &lt;/div&gt;
+              &lt;div className="flex flex-col gap-1"&gt;
+                &lt;label className="text-sm font-medium text-gray-700"&gt;Days of the week&lt;/label&gt;
+                &lt;div className="flex flex-wrap gap-2"&gt;
+                  {ALL_DAYS.map((day) =&gt; {
+                    const active = value.daysOfWeek.includes(day.key);
+                    return (
+                      &lt;button
+                        key={day.key}
+                        type="button"
+                        onClick={() =&gt; toggleDay(day.key)}
+                        className={`text-xs px-3 py-1.5 rounded-full border ${
+                          active
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-600 border-gray-300'
+                        }`}
+                      &gt;
+                        {day.label}
+                      &lt;/button&gt;
+                    );
+                  })}
+                &lt;/div&gt;
+              &lt;/div&gt;
+            &lt;/&gt;
+          )}
+
+          {value.frequency === 'MONTHLY' &amp;&amp; (
+            &lt;div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3"&gt;
+              &lt;label className="text-sm font-medium text-gray-700"&gt;Recurrence pattern&lt;/label&gt;
+
+              &lt;div className="flex items-center gap-3 flex-wrap"&gt;
+                &lt;input
+                  type="radio"
+                  id="monthlyDayMode"
+                  checked={value.monthlyMode === 'DAY_OF_MONTH'}
+                  onChange={() =&gt; patch({ monthlyMode: 'DAY_OF_MONTH' })}
+                /&gt;
+                &lt;label htmlFor="monthlyDayMode" className="text-sm text-gray-700"&gt;
+                  Day
+                &lt;/label&gt;
+                &lt;input
+                  type="number"
+                  min={1}
+                  max={31}
+                  disabled={value.monthlyMode !== 'DAY_OF_MONTH'}
+                  className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                  value={value.monthlyDayOfMonth}
+                  onChange={(e) =&gt; patch({ monthlyDayOfMonth: Number(e.target.value) || 1 })}
+                /&gt;
+                &lt;span className="text-sm text-gray-600"&gt;of every&lt;/span&gt;
+                &lt;input
+                  type="number"
+                  min={1}
+                  disabled={value.monthlyMode !== 'DAY_OF_MONTH'}
+                  className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                  value={value.interval}
+                  onChange={(e) =&gt; patch({ interval: Number(e.target.value) || 1 })}
+                /&gt;
+                &lt;span className="text-sm text-gray-600"&gt;month(s)&lt;/span&gt;
+              &lt;/div&gt;
+
+              &lt;div className="flex items-center gap-2 flex-wrap"&gt;
+                &lt;input
+                  type="radio"
+                  id="monthlyPosMode"
+                  checked={value.monthlyMode === 'WEEKDAY_POSITION'}
+                  onChange={() =&gt; patch({ monthlyMode: 'WEEKDAY_POSITION' })}
+                /&gt;
+                &lt;label htmlFor="monthlyPosMode" className="text-sm text-gray-700"&gt;
+                  The
+                &lt;/label&gt;
+                &lt;select
+                  disabled={value.monthlyMode !== 'WEEKDAY_POSITION'}
+                  className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                  value={value.monthlySetPosition}
+                  onChange={(e) =&gt;
+                    patch({ monthlySetPosition: Number(e.target.value) as SetPosition })
+                  }
+                &gt;
+                  {SET_POSITIONS.map((p) =&gt; (
+                    &lt;option key={p.value} value={p.value}&gt;
+                      {p.label}
+                    &lt;/option&gt;
+                  ))}
+                &lt;/select&gt;
+                &lt;select
+                  disabled={value.monthlyMode !== 'WEEKDAY_POSITION'}
+                  className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                  value={value.monthlyWeekday}
+                  onChange={(e) =&gt; patch({ monthlyWeekday: e.target.value as WeekDay })}
+                &gt;
+                  {ALL_DAYS.map((d) =&gt; (
+                    &lt;option key={d.key} value={d.key}&gt;
+                      {d.label}
+                    &lt;/option&gt;
+                  ))}
+                &lt;/select&gt;
+                &lt;span className="text-sm text-gray-600"&gt;of every&lt;/span&gt;
+                &lt;input
+                  type="number"
+                  min={1}
+                  disabled={value.monthlyMode !== 'WEEKDAY_POSITION'}
+                  className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                  value={value.interval}
+                  onChange={(e) =&gt; patch({ interval: Number(e.target.value) || 1 })}
+                /&gt;
+                &lt;span className="text-sm text-gray-600"&gt;month(s)&lt;/span&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          )}
+
+          {value.frequency === 'YEARLY' &amp;&amp; (
+            &lt;div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3"&gt;
+              &lt;label className="text-sm font-medium text-gray-700"&gt;Recurrence pattern&lt;/label&gt;
+
+              &lt;div className="flex items-center gap-2"&gt;
+                &lt;span className="text-sm text-gray-700"&gt;Recur every&lt;/span&gt;
+                &lt;input
+                  type="number"
+                  min={1}
+                  className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                  value={value.interval}
+                  onChange={(e) =&gt; patch({ interval: Number(e.target.value) || 1 })}
+                /&gt;
+                &lt;span className="text-sm text-gray-600"&gt;year(s)&lt;/span&gt;
+              &lt;/div&gt;
+
+              &lt;div className="flex items-center gap-2 flex-wrap"&gt;
+                &lt;input
+                  type="radio"
+                  id="yearlyOnDate"
+                  checked={value.yearlyMode === 'ON_DATE'}
+                  onChange={() =&gt; patch({ yearlyMode: 'ON_DATE' })}
+                /&gt;
+                &lt;label htmlFor="yearlyOnDate" className="text-sm text-gray-700 w-12"&gt;
+                  On:
+                &lt;/label&gt;
+                &lt;select
+                  disabled={value.yearlyMode !== 'ON_DATE'}
+                  className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                  value={value.yearlyMonth}
+                  onChange={(e) =&gt; patch({ yearlyMonth: Number(e.target.value) })}
+                &gt;
+                  {MONTHS.map((m, i) =&gt; (
+                    &lt;option key={m} value={i + 1}&gt;
+                      {m}
+                    &lt;/option&gt;
+                  ))}
+                &lt;/select&gt;
+                &lt;input
+                  type="number"
+                  min={1}
+                  max={31}
+                  disabled={value.yearlyMode !== 'ON_DATE'}
+                  className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                  value={value.yearlyDayOfMonth}
+                  onChange={(e) =&gt; patch({ yearlyDayOfMonth: Number(e.target.value) || 1 })}
+                /&gt;
+              &lt;/div&gt;
+
+              &lt;div className="flex items-center gap-2 flex-wrap"&gt;
+                &lt;input
+                  type="radio"
+                  id="yearlyPosMode"
+                  checked={value.yearlyMode === 'WEEKDAY_POSITION'}
+                  onChange={() =&gt; patch({ yearlyMode: 'WEEKDAY_POSITION' })}
+                /&gt;
+                &lt;label htmlFor="yearlyPosMode" className="text-sm text-gray-700 w-12"&gt;
+                  On the:
+                &lt;/label&gt;
+                &lt;select
+                  disabled={value.yearlyMode !== 'WEEKDAY_POSITION'}
+                  className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                  value={value.yearlySetPosition}
+                  onChange={(e) =&gt;
+                    patch({ yearlySetPosition: Number(e.target.value) as SetPosition })
+                  }
+                &gt;
+                  {SET_POSITIONS.map((p) =&gt; (
+                    &lt;option key={p.value} value={p.value}&gt;
+                      {p.label}
+                    &lt;/option&gt;
+                  ))}
+                &lt;/select&gt;
+                &lt;select
+                  disabled={value.yearlyMode !== 'WEEKDAY_POSITION'}
+                  className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                  value={value.yearlyWeekday}
+                  onChange={(e) =&gt; patch({ yearlyWeekday: e.target.value as WeekDay })}
+                &gt;
+                  {ALL_DAYS.map((d) =&gt; (
+                    &lt;option key={d.key} value={d.key}&gt;
+                      {d.label}
+                    &lt;/option&gt;
+                  ))}
+                &lt;/select&gt;
+                &lt;span className="text-sm text-gray-600"&gt;of&lt;/span&gt;
+                &lt;select
+                  disabled={value.yearlyMode !== 'WEEKDAY_POSITION'}
+                  className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50"
+                  value={value.yearlyMonth}
+                  onChange={(e) =&gt; patch({ yearlyMonth: Number(e.target.value) })}
+                &gt;
+                  {MONTHS.map((m, i) =&gt; (
+                    &lt;option key={m} value={i + 1}&gt;
+                      {m}
+                    &lt;/option&gt;
+                  ))}
+                &lt;/select&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          )}
+
+          &lt;div className="flex flex-col gap-2"&gt;
+            &lt;label className="text-sm font-medium text-gray-700"&gt;Recurrence ends&lt;/label&gt;
+
+            &lt;div className="flex items-center gap-2"&gt;
+              &lt;input
+                type="radio"
+                id="endOnDate"
+                checked={value.recurrenceEndMode === 'ON_DATE'}
+                onChange={() =&gt; patch({ recurrenceEndMode: 'ON_DATE' })}
+              /&gt;
+              &lt;label htmlFor="endOnDate" className="text-sm text-gray-700 w-20"&gt;
+                End by
+              &lt;/label&gt;
+              &lt;input
+                type="date"
+                disabled={value.recurrenceEndMode !== 'ON_DATE'}
+                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
+                value={value.recurrenceEndDate ?? ''}
+                onChange={(e) =&gt; patch({ recurrenceEndDate: e.target.value })}
+              /&gt;
+            &lt;/div&gt;
+
+            &lt;div className="flex items-center gap-2"&gt;
+              &lt;input
+                type="radio"
+                id="endAfter"
+                checked={value.recurrenceEndMode === 'AFTER_OCCURRENCES'}
+                onChange={() =&gt; patch({ recurrenceEndMode: 'AFTER_OCCURRENCES' })}
+              /&gt;
+              &lt;label htmlFor="endAfter" className="text-sm text-gray-700 w-20"&gt;
+                End after
+              &lt;/label&gt;
+              &lt;input
+                type="number"
+                min={1}
+                disabled={value.recurrenceEndMode !== 'AFTER_OCCURRENCES'}
+                className="w-24 rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
+                value={value.occurrenceCount ?? ''}
+                onChange={(e) =&gt; patch({ occurrenceCount: Number(e.target.value) || undefined })}
+              /&gt;
+              &lt;span className="text-sm text-gray-600"&gt;occurrences&lt;/span&gt;
+            &lt;/div&gt;
+
+            &lt;div className="flex items-center gap-2"&gt;
+              &lt;input
+                type="radio"
+                id="noEndDate"
+                checked={value.recurrenceEndMode === 'NEVER'}
+                onChange={() =&gt; patch({ recurrenceEndMode: 'NEVER' })}
+              /&gt;
+              &lt;label htmlFor="noEndDate" className="text-sm text-gray-700"&gt;
+                No end date
+              &lt;/label&gt;
+            &lt;/div&gt;
+
+            {value.recurrenceEndMode === 'NEVER' &amp;&amp; (
+              &lt;p className="text-xs text-gray-500"&gt;
+                Occurrences are generated up to 2 years out; more are added automatically as that window approaches.
+              &lt;/p&gt;
+            )}
+          &lt;/div&gt;
+        &lt;/&gt;
+      )}
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  </div>
+
+</main>
+
+<script>
+  hljs.highlightAll();
+  document.querySelectorAll('pre').forEach((pre) => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+  const links = document.querySelectorAll('nav a');
+  const sections = Array.from(links).map((a) => document.querySelector(a.getAttribute('href')));
+  window.addEventListener('scroll', () => {
+    let activeIndex = 0;
+    sections.forEach((sec, i) => { if (sec && sec.getBoundingClientRect().top <= 100) activeIndex = i; });
+    links.forEach((a, i) => a.classList.toggle('active', i === activeIndex));
+  });
+</script>
+
+</body>
+</html>
