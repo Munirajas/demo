@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Amenities Wizard — Code Reference (v5, matched to real prop types)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
+<style>
+  :root { --bg:#0d1117; --panel:#12181f; --border:#232b34; --text:#d7dde4; --text-dim:#8b95a1; --accent:#4f8cff;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace; --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--sans); display:flex; min-height:100vh; }
+  nav { width:270px; flex-shrink:0; background:var(--panel); border-right:1px solid var(--border); padding:24px 0; position:sticky; top:0; height:100vh; overflow-y:auto; }
+  nav .brand { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); padding:0 20px 4px; }
+  nav .brand .ver { color:var(--accent); }
+  nav .brand-sub { font-size:11px; color:var(--text-dim); padding:0 20px 16px; border-bottom:1px solid var(--border); margin-bottom:8px; }
+  nav a { display:block; padding:8px 20px; color:var(--text); text-decoration:none; font-size:13px; font-family:var(--mono); border-left:2px solid transparent; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  nav a:hover { background:rgba(255,255,255,.04); }
+  nav a.active { border-left-color:var(--accent); color:var(--accent); background:rgba(79,140,255,.08); }
+  main { flex:1; padding:40px 48px 120px; max-width:920px; }
+  header.page-head { margin-bottom:32px; padding-bottom:24px; border-bottom:1px solid var(--border); }
+  header.page-head h1 { font-size:22px; margin:0 0 8px; font-weight:600; }
+  header.page-head p { color:var(--text-dim); font-size:14px; margin:0 0 12px; line-height:1.6; }
+  .change-list { font-size:13.5px; color:var(--text); background:rgba(79,140,255,.06); border:1px solid rgba(79,140,255,.2); border-radius:8px; padding:14px 18px; margin:16px 0 0; line-height:1.7; }
+  .change-list li { margin-bottom:4px; }
+  .file-block { margin-bottom:48px; scroll-margin-top:24px; }
+  .file-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:8px; flex-wrap:wrap; }
+  .file-path { font-family:var(--mono); font-size:14px; color:#fff; background:rgba(79,140,255,.12); padding:4px 10px; border-radius:4px; display:inline-block; }
+  .tag { font-size:11px; font-family:var(--mono); padding:3px 8px; border-radius:4px; background:rgba(74,222,128,.12); color:#4ade80; border:1px solid rgba(74,222,128,.3); }
+  .tag.changed { background:rgba(255,176,32,.1); color:#ffb020; border-color:rgba(255,176,32,.3); }
+  .file-summary { font-size:13.5px; color:var(--text-dim); margin:8px 0 12px; line-height:1.6; }
+  .flag { font-size:13px; background:rgba(255,176,32,.1); border:1px solid rgba(255,176,32,.3); color:#ffb020; padding:8px 12px; border-radius:6px; margin:10px 0 14px; line-height:1.5; }
+  pre { margin:0; border-radius:8px; border:1px solid var(--border); overflow-x:auto; position:relative; }
+  pre code.hljs { padding:16px 18px !important; font-size:12.5px; line-height:1.6; background:#0b0f14 !important; }
+  .copy-btn { position:absolute; top:10px; right:10px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:var(--text-dim); font-size:12px; padding:4px 10px; border-radius:5px; cursor:pointer; font-family:var(--sans); }
+  .copy-btn:hover { color:var(--text); background:rgba(255,255,255,.1); }
+  .copy-btn.copied { color:#4ade80; border-color:#4ade80; }
+  .todo-note { font-size:12.5px; color:var(--text-dim); margin-top:10px; }
+  .toc-group-label { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); padding:14px 20px 6px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">Amenities wizard <span class="ver">v5</span></div>
+  <div class="brand-sub">Matched to real AmenityTypeFormProps + Input types</div>
+  <div class="toc-group-label">Overview</div>
+  <a href="#overview">Summary &amp; what changed</a>
+  <div class="toc-group-label">Files</div>
+  <a href="#f1">components/GeneralInfoFields.tsx</a>
+  <a href="#f2">components/forms/GeneralAdmissionForm.tsx</a>
+  <a href="#f3">components/forms/ScheduledAdmissionForm.tsx</a>
+</nav>
+
+<main>
+  <header class="page-head" id="overview">
+    <h1>General info + both amenity forms — matched to your real types</h1>
+    <p>
+      Rebuilt against the actual <code>AmenityTypeFormProps</code> and <code>Input</code> types you shared,
+      rather than the shape I'd been assuming. Two things changed as a direct result:
+    </p>
+    <ul class="change-list">
+      <li><strong><code>AmenityTypeFormProps</code> has no <code>generalInfo</code>/<code>amenity</code> object</strong> — just <code>amenityTypeId: number</code>, <code>amenityId</code>, <code>isEditing</code>, <code>locationFunctionId</code>, <code>locationSlug</code>, <code>onClose</code>. All three components below now destructure exactly these fields, nothing invented. A nice side effect: since <code>amenityTypeId</code> is a real <code>number</code> here (not the <code>number | ''</code> the shell uses internally), there's no "please select a type" check needed inside these forms anymore — the shell already guarantees a valid type before mounting them.</li>
+      <li><strong><code>Input</code> doesn't expose <code>onBlur</code>.</strong> RHF's <code>register()</code> spread returns <code>onBlur</code> among its props, which would fail to type-check against <code>Input</code>'s declared prop list, and <code>mode: 'onBlur'</code> validation wouldn't have anywhere to fire anyway. Switched <code>GeneralInfoFields</code> to <code>mode: 'onChange'</code> and wired the name field through <code>Controller</code> instead of <code>register</code>, passing <code>error</code> straight into <code>Input</code>'s own built-in error prop rather than rendering a separate error paragraph for that field.</li>
+    </ul>
+    <div class="flag">
+      <strong>Please verify:</strong> <code>useInsertAmenity</code> / <code>useUpdateAmenity</code> are called
+      below as <code>(locationFunctionId, locationSlug)</code> and <code>(amenityId, locationSlug)</code>
+      respectively, based on <code>AmenityTypeFormProps</code> carrying both fields. Your actual hook
+      signatures have appeared slightly differently across earlier screenshots (sometimes a single
+      argument) — double check against the current hook files before wiring this in, since a mismatched
+      argument here would silently pass the wrong value where the hook expects something else.
+    </div>
+  </header>
+
+  <div class="file-block" id="f1">
+    <div class="file-head">
+      <span class="file-path">components/GeneralInfoFields.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Name field now goes through <code>Controller</code> + your real
+      <code>Input</code> component, using its native <code>error</code>/<code>label</code> props instead of
+      a hand-rolled error paragraph. Description stays a plain <code>textarea</code> since no Storybook
+      textarea equivalent was shown.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { forwardRef, useImperativeHandle } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Input } from '@hlt/react-component-library';
+import { generalInfoSchema, type GeneralInfoFormValues } from '../lib/general-info-schema';
+
+export interface GeneralInfoFieldsHandle {
+  validate: () =&gt; Promise&lt;boolean&gt;;
+  getValues: () =&gt; GeneralInfoFormValues;
+  reset: (values: GeneralInfoFormValues) =&gt; void;
+}
+
+interface Props {
+  defaultValues?: Partial&lt;GeneralInfoFormValues&gt;;
+}
+
+export const GeneralInfoFields = forwardRef&lt;GeneralInfoFieldsHandle, Props&gt;(
+  function GeneralInfoFields({ defaultValues }, ref) {
+    const {
+      control,
+      trigger,
+      getValues,
+      reset,
+      formState: { errors },
+    } = useForm&lt;GeneralInfoFormValues&gt;({
+      resolver: zodResolver(generalInfoSchema),
+      defaultValues: { amenityName: '', amenityDescription: '', ...defaultValues },
+      // Input doesn't expose onBlur, so 'onBlur' mode has nothing to trigger
+      // off of -- validate as the user types instead.
+      mode: 'onChange',
+    });
+
+    useImperativeHandle(ref, () =&gt; ({ validate: () =&gt; trigger(), getValues, reset }));
+
+    return (
+      &lt;div className="flex flex-col gap-4"&gt;
+        &lt;Controller
+          name="amenityName"
+          control={control}
+          render={({ field }) =&gt; (
+            &lt;Input
+              ref={field.ref}
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              label="Name"
+              placeholder="e.g. General Admission"
+              className=" bg-white"
+              error={errors.amenityName?.message}
+            /&gt;
+          )}
+        /&gt;
+
+        &lt;div className="flex flex-col gap-1"&gt;
+          &lt;label className="text-sm font-medium text-gray-700"&gt;Description&lt;/label&gt;
+          &lt;Controller
+            name="amenityDescription"
+            control={control}
+            render={({ field }) =&gt; (
+              &lt;textarea
+                rows={3}
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Short description (optional)"
+                {...field}
+              /&gt;
+            )}
+          /&gt;
+          {errors.amenityDescription &amp;&amp; (
+            &lt;p className="text-xs text-red-600 mt-1"&gt;{errors.amenityDescription.message}&lt;/p&gt;
+          )}
+        &lt;/div&gt;
+      &lt;/div&gt;
+    );
+  },
+);
+</code></pre>
+    <p class="todo-note">If <code>Input</code>'s internal implementation does actually spread an
+      <code>onBlur</code> through to the native <code>&lt;input&gt;</code> (just not declared in its
+      public type), you could switch back to <code>mode: 'onBlur'</code> and pass
+      <code>onBlur={field.onBlur}</code> alongside the other Controller props with an
+      <code>as any</code>/type augmentation. Safer to leave as <code>onChange</code> mode unless you've
+      confirmed that from the component's source.</p>
+  </div>
+
+  <div class="file-block" id="f2">
+    <div class="file-head">
+      <span class="file-path">components/forms/GeneralAdmissionForm.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Destructures exactly the fields <code>AmenityTypeFormProps</code> declares --
+      no invented <code>generalInfo</code>/<code>amenity</code> object. Since <code>amenityTypeId</code> is
+      guaranteed a valid number by the time this mounts, the old "please select a type" check is gone.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { useEffect, useRef } from 'react';
+import { useInsertAmenity } from '../../hooks/useInsertAmenity';
+import { useUpdateAmenity } from '../../hooks/useUpdateAmenity';
+import { useAmenityGeneralInfo } from '../../hooks/useAmenityGeneralInfo';
+import { GeneralInfoFields, type GeneralInfoFieldsHandle } from '../GeneralInfoFields';
+import type { AmenityTypeFormProps } from '@/types/amenities';
+import { Button } from '@hlt/react-component-library';
+
+export function GeneralAdmissionForm({
+  amenityTypeId,
+  isEditing,
+  amenityId,
+  locationFunctionId,
+  locationSlug,
+  onClose,
+}: AmenityTypeFormProps) {
+  const formRef = useRef&lt;GeneralInfoFieldsHandle&gt;(null);
+  const hasHydrated = useRef(false);
+
+  const { mutate: insertMutate, isPending: insertIsPending } =
+    useInsertAmenity(locationFunctionId, locationSlug);
+  const { mutate: updateAmenityGeneralInfoMutate, isPending: updateGeneralInfoPending } =
+    useUpdateAmenity(amenityId ?? 0, locationSlug);
+
+  const isSaving = insertIsPending || updateGeneralInfoPending;
+
+  const {
+    data: fetchedGeneralInfo,
+    isLoading: isLoadingGeneral,
+    isError: isGeneralError,
+    error: generalError,
+  } = useAmenityGeneralInfo(isEditing ? (amenityId ?? null) : null);
+
+  useEffect(() =&gt; {
+    if (fetchedGeneralInfo &amp;&amp; !hasHydrated.current) {
+      formRef.current?.reset({
+        amenityName: fetchedGeneralInfo.amenityName,
+        amenityDescription: fetchedGeneralInfo.amenityDescription ?? '',
+      });
+      hasHydrated.current = true;
+    }
+  }, [fetchedGeneralInfo]);
+
+  async function handleSave() {
+    const isValid = await formRef.current?.validate();
+    if (!isValid) return;
+
+    const values = formRef.current!.getValues();
+    const payload = {
+      amenityTypeId,
+      amenityName: values.amenityName,
+      amenityDescription: values.amenityDescription ?? '',
+    };
+
+    if (isEditing &amp;&amp; amenityId) {
+      updateAmenityGeneralInfoMutate(
+        { type: 'client', amenityId, ...payload },
+        { onSuccess: (data) =&gt; { if (data.updateAmenity.success) onClose(); } },
+      );
+    } else {
+      insertMutate(
+        { type: 'client', locationFunctionId, ...payload },
+        { onSuccess: (data) =&gt; { if (data.insertAmenity.success) onClose(); } },
+      );
+    }
+  }
+
+  const isLoadingInitial = isEditing &amp;&amp; isLoadingGeneral &amp;&amp; !hasHydrated.current;
+
+  if (isLoadingInitial) {
+    return (
+      &lt;div className="flex flex-col gap-3 animate-pulse"&gt;
+        &lt;div className="h-9 bg-gray-100 rounded-md" /&gt;
+        &lt;div className="h-24 bg-gray-100 rounded-md" /&gt;
+      &lt;/div&gt;
+    );
+  }
+
+  if (isEditing &amp;&amp; isGeneralError) {
+    return &lt;p className="text-sm text-red-600"&gt;Could not load this amenity. {generalError?.message}&lt;/p&gt;;
+  }
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      &lt;GeneralInfoFields ref={formRef} /&gt;
+      &lt;div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1"&gt;
+        &lt;Button
+          className="text-center px-4 w-40 text-white"
+          onClick={onClose}
+          disabled={isSaving}
+          loading={isSaving}
+          size="md"
+          variant="buttonGrey"
+        &gt;
+          Cancel
+        &lt;/Button&gt;
+        &lt;Button
+          className="text-center px-4 w-40"
+          onClick={handleSave}
+          disabled={isSaving}
+          loading={isSaving}
+          size="md"
+        &gt;
+          {isSaving ? 'Saving...' : 'Save'}
+        &lt;/Button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  </div>
+
+  <div class="file-block" id="f3">
+    <div class="file-head">
+      <span class="file-path">components/forms/ScheduledAdmissionForm.tsx</span>
+      <span class="tag changed">changed</span>
+    </div>
+    <p class="file-summary">Same prop-shape fix applied. <code>amenityId</code> starts from the prop (for
+      edit mode) and is promoted to local state once an insert succeeds (for create mode), exactly as in
+      your current version -- this part didn't need to change, since it already matched how the real data
+      flows.</p>
+    <pre><code class="language-typescript">'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { useInsertAmenity } from '../../hooks/useInsertAmenity';
+import { useUpdateAmenity } from '../../hooks/useUpdateAmenity';
+import { useUpsertAmenitySchedule } from '../../hooks/useUpsertAmenitySchedule';
+import { useAmenityGeneralInfo } from '../../hooks/useAmenityGeneralInfo';
+import { useAmenitySchedule } from '../../hooks/useAmenitySchedule';
+import { GeneralInfoFields, type GeneralInfoFieldsHandle } from '../GeneralInfoFields';
+import { RecurrenceRuleBuilder, type RecurrenceRuleBuilderHandle } from '../schedule/RecurrenceRuleBuilder';
+import { buildScheduleSavePayload } from '../../lib/schedule-recurrence-engine';
+import type { AmenityTypeFormProps } from '@/types/amenities';
+import { Button, Tabs } from '@hlt/react-component-library';
+
+export function ScheduledAdmissionForm({
+  amenityTypeId,
+  isEditing,
+  amenityId: amenityIdProp,
+  locationFunctionId,
+  locationSlug,
+  onClose,
+}: AmenityTypeFormProps) {
+  const [activeTab, setActiveTab] = useState('general');
+  const [amenityId, setAmenityId] = useState&lt;number | null&gt;(amenityIdProp ?? null);
+
+  const generalFormRef = useRef&lt;GeneralInfoFieldsHandle&gt;(null);
+  const scheduleFormRef = useRef&lt;RecurrenceRuleBuilderHandle&gt;(null);
+  const hasHydratedGeneral = useRef(false);
+  const hasHydratedSchedule = useRef(false);
+
+  const {
+    mutate: insertMutate,
+    isPending: insertIsPending,
+    data: insertSuccessData,
+  } = useInsertAmenity(locationFunctionId, locationSlug);
+  const { mutate: updateAmenityGeneralInfoMutate, isPending: updateGeneralInfoPending } =
+    useUpdateAmenity(amenityId ?? 0, locationSlug);
+  const { mutate: upsertAmenitySchedule, isPending: updateScheduleInfoPending } =
+    useUpsertAmenitySchedule(amenityId ?? 0);
+
+  const isSaving = insertIsPending || updateGeneralInfoPending || updateScheduleInfoPending;
+  const amenityIdFromInsert = insertSuccessData?.insertAmenity?.data?.amenityId ?? null;
+
+  const {
+    data: fetchedGeneralInfo,
+    isLoading: isLoadingGeneral,
+    isError: isGeneralError,
+    error: generalError,
+  } = useAmenityGeneralInfo(isEditing ? (amenityId ?? null) : null);
+
+  const {
+    data: fetchedSchedule,
+    isLoading: isLoadingSchedule,
+    isError: isScheduleError,
+    error: scheduleError,
+  } = useAmenitySchedule(
+    isEditing ? (amenityId ?? null) : null,
+    activeTab === 'scheduler',
+  );
+
+  useEffect(() =&gt; {
+    if (amenityIdFromInsert) setAmenityId(amenityIdFromInsert);
+  }, [amenityIdFromInsert]);
+
+  useEffect(() =&gt; {
+    if (fetchedGeneralInfo &amp;&amp; !hasHydratedGeneral.current) {
+      generalFormRef.current?.reset({
+        amenityName: fetchedGeneralInfo.amenityName,
+        amenityDescription: fetchedGeneralInfo.amenityDescription ?? '',
+      });
+      hasHydratedGeneral.current = true;
+    }
+  }, [fetchedGeneralInfo]);
+
+  useEffect(() =&gt; {
+    if (fetchedSchedule &amp;&amp; fetchedSchedule.length &amp;&amp; !hasHydratedSchedule.current) {
+      const { scheduleJson } = fetchedSchedule[0];
+      const scheduleJsonParsed = JSON.parse(scheduleJson).rule;
+      scheduleFormRef.current?.reset(scheduleJsonParsed);
+      hasHydratedSchedule.current = true;
+    }
+  }, [fetchedSchedule]);
+
+  async function handleNext() {
+    const isValid = await generalFormRef.current?.validate();
+    if (!isValid) return;
+
+    const values = generalFormRef.current!.getValues();
+    const payload = {
+      amenityTypeId,
+      amenityName: values.amenityName,
+      amenityDescription: values.amenityDescription ?? '',
+    };
+
+    if (isEditing &amp;&amp; amenityId) {
+      updateAmenityGeneralInfoMutate(
+        { type: 'client', amenityId, ...payload },
+        { onSuccess: (data) =&gt; { if (data.updateAmenity.success) setActiveTab('scheduler'); } },
+      );
+    } else {
+      insertMutate(
+        { type: 'client', locationFunctionId, ...payload },
+        { onSuccess: (data) =&gt; { if (data.insertAmenity.success) setActiveTab('scheduler'); } },
+      );
+    }
+  }
+
+  async function handleSave() {
+    const isValid = await scheduleFormRef.current?.validate();
+    if (!isValid) return;
+
+    const recurrenceRule = scheduleFormRef.current!.getValues();
+    const { occurrences, rule, rruleText } = buildScheduleSavePayload(recurrenceRule);
+    const payload = {
+      amenityId: amenityId || 0,
+      scheduleJson: JSON.stringify({ rule, rruleText }),
+      datesJson: JSON.stringify(occurrences),
+    };
+    upsertAmenitySchedule(
+      { type: 'client', ...payload },
+      { onSuccess: (data) =&gt; { if (data.upsertAmenitySchedule.success) onClose(); } },
+    );
+  }
+
+  const isLoadingInitialGeneral = isEditing &amp;&amp; isLoadingGeneral &amp;&amp; !hasHydratedGeneral.current;
+  const isLoadingInitialSchedule = isEditing &amp;&amp; isLoadingSchedule &amp;&amp; !hasHydratedSchedule.current;
+
+  const tabs = [
+    {
+      id: 'general',
+      label: 'General',
+      content: isLoadingInitialGeneral ? (
+        &lt;div className="flex flex-col gap-3 animate-pulse"&gt;
+          &lt;div className="h-9 bg-gray-100 rounded-md" /&gt;
+          &lt;div className="h-24 bg-gray-100 rounded-md" /&gt;
+        &lt;/div&gt;
+      ) : isGeneralError ? (
+        &lt;p className="text-sm text-red-600"&gt;
+          Could not load general info. {generalError?.message}
+        &lt;/p&gt;
+      ) : (
+        &lt;&gt;
+          &lt;GeneralInfoFields ref={generalFormRef} /&gt;
+          &lt;div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1"&gt;
+            &lt;Button
+              className="text-center px-4 w-40 text-white"
+              onClick={onClose}
+              disabled={isSaving}
+              loading={isSaving}
+              size="md"
+              variant="buttonGrey"
+            &gt;
+              Cancel
+            &lt;/Button&gt;
+            &lt;Button
+              className="text-center px-4 w-40"
+              onClick={handleNext}
+              disabled={isSaving}
+              loading={isSaving}
+              size="md"
+            &gt;
+              Next
+            &lt;/Button&gt;
+          &lt;/div&gt;
+        &lt;/&gt;
+      ),
+    },
+    {
+      id: 'scheduler',
+      label: 'Scheduler',
+      disabled: !amenityId,
+      content: isLoadingInitialSchedule ? (
+        &lt;div className="flex flex-col gap-3 animate-pulse"&gt;
+          &lt;div className="h-9 bg-gray-100 rounded-md" /&gt;
+          &lt;div className="h-9 bg-gray-100 rounded-md" /&gt;
+          &lt;div className="h-32 bg-gray-100 rounded-md" /&gt;
+        &lt;/div&gt;
+      ) : isScheduleError ? (
+        &lt;p className="text-sm text-red-600"&gt;
+          Could not load the schedule. {scheduleError?.message}
+        &lt;/p&gt;
+      ) : (
+        &lt;&gt;
+          &lt;RecurrenceRuleBuilder ref={scheduleFormRef} /&gt;
+          &lt;div className="flex justify-between gap-2 pt-3 border-t border-gray-100 mt-6"&gt;
+            &lt;Button
+              className="text-center px-4 w-38"
+              onClick={() =&gt; setActiveTab('general')}
+              disabled={isSaving}
+              loading={isSaving}
+              size="md"
+              variant="outlineAccent"
+            &gt;
+              Back
+            &lt;/Button&gt;
+            &lt;div className="flex gap-2"&gt;
+              &lt;Button
+                className="text-center px-4 w-40 text-white"
+                onClick={onClose}
+                disabled={isSaving}
+                loading={isSaving}
+                size="md"
+                variant="buttonGrey"
+              &gt;
+                Cancel
+              &lt;/Button&gt;
+              &lt;Button
+                className="text-center px-4 w-40"
+                onClick={handleSave}
+                disabled={isSaving}
+                loading={isSaving}
+                size="md"
+              &gt;
+                {isSaving ? 'Saving...' : 'Save'}
+              &lt;/Button&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/&gt;
+      ),
+    },
+  ];
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      &lt;Tabs tabs={tabs} activeTabId={activeTab} onTabChange={(id) =&gt; setActiveTab(id)} /&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  </div>
+
+</main>
+
+<script>
+  hljs.highlightAll();
+  document.querySelectorAll('pre').forEach((pre) => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+  const links = document.querySelectorAll('nav a');
+  const sections = Array.from(links).map((a) => document.querySelector(a.getAttribute('href')));
+  window.addEventListener('scroll', () => {
+    let activeIndex = 0;
+    sections.forEach((sec, i) => { if (sec && sec.getBoundingClientRect().top <= 100) activeIndex = i; });
+    links.forEach((a, i) => a.classList.toggle('active', i === activeIndex));
+  });
+</script>
+
+</body>
+</html>
