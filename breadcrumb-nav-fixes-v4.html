@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Breadcrumb & Nav Fixes — v4</title>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--border:#2a2f3a;--text:#e6e8ec;--muted:#9aa3b2;--accent:#6ea8fe;--accent2:#7ee6c0;--code:#0b0d12}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55}
+  .wrap{max-width:940px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:1.6rem;margin-bottom:.2em}
+  .subtitle{color:var(--muted);margin-top:0;margin-bottom:2em}
+  h2{font-size:1.2rem;margin-top:2.4em;border-bottom:1px solid var(--border);padding-bottom:.4em}
+  p{color:#d6d9e0}
+  .muted{color:var(--muted)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin:14px 0}
+  .card.bug{border-left:3px solid #f28b82}
+  .card.fix{border-left:3px solid var(--accent2)}
+  .badge{display:inline-block;font-size:.7rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase;border-radius:999px;padding:2px 10px;margin-bottom:8px}
+  .badge.bug{color:#f28b82;background:#3a1414;border:1px solid #5c1f1f}
+  .badge.fix{color:var(--accent2);background:#123028;border:1px solid #1f4e3f}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.83rem;line-height:1.5}
+  code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
+  .filepath{display:inline-block;font-family:monospace;font-size:.8rem;color:var(--accent);background:#0f2140;border:1px solid #1c3c6b;border-radius:6px;padding:2px 8px;margin-bottom:8px}
+  .footer{margin-top:3em;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Breadcrumb &amp; Active-Nav Fixes</h1>
+  <p class="subtitle">Fixes: dead "provide-amenities" crumb, raw-slug label, inactive left nav on nested routes</p>
+
+  <div class="card bug">
+    <span class="badge bug">root cause</span>
+    <p><strong>Bug 1 &amp; 2 (dead link, raw-slug label):</strong> the previous <code>baseHref</code> calculation used string-suffix slicing on <code>pathname</code>, which is fragile. It silently produced an unusable href, so the crumb fell back to the non-link, unmapped-label render path.</p>
+    <p><strong>Bug 3 (nav not active):</strong> <code>FunctionsNav</code> uses <code>pathname === href</code> (exact match) — a nested URL like <span class="muted">.../provide-amenities/view-amenity/184</span> never equals <span class="muted">.../provide-amenities</span>, so it never lights up.</p>
+  </div>
+
+  <h2>1. Breadcrumbs.tsx — robust href + label resolution</h2>
+  <span class="filepath">src/components/layout/Breadcrumbs.tsx</span>
+  <pre><code>'use client';
+
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useSelectedLayoutSegments } from 'next/navigation';
+import type { BreadcrumbItem } from '@/types/locations';
+import { ROUTE_SEGMENT_LABELS } from '@/lib/breadcrumb-segments';
+
+const MAX_LOCATION_CRUMBS = 3;
+
+interface Props {
+  items: BreadcrumbItem[];
+}
+
+export function Breadcrumbs({ items }: Props) {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const nestedSegments = useSelectedLayoutSegments();
+
+  const allItems = useMemo(
+    () => appendNestedCrumbs(items, nestedSegments, pathname),
+    [items, nestedSegments, pathname],
+  );
+
+  if (!allItems.length) return null;
+
+  const fnItem = allItems[allItems.length - 1];
+  const locationItems = allItems.slice(0, -1);
+  const needsCollapse = locationItems.length > MAX_LOCATION_CRUMBS;
+  const visibleLocations = needsCollapse
+    ? [locationItems[0], ...locationItems.slice(-(MAX_LOCATION_CRUMBS - 1))]
+    : locationItems;
+  const hiddenLocations = needsCollapse
+    ? locationItems.slice(1, -(MAX_LOCATION_CRUMBS - 1))
+    : [];
+
+  return (
+    &lt;nav className="flex items-center gap-1 flex-wrap text-sm min-w-0"&gt;
+      {visibleLocations.map((item, i) =&gt; (
+        &lt;span key={item.href ?? item.label} className="flex items-center gap-1 min-w-0"&gt;
+          {i &gt; 0 &amp;&amp; &lt;Sep /&gt;}
+          &lt;Crumb item={item} /&gt;
+          {needsCollapse &amp;&amp; i === 0 &amp;&amp; (
+            &lt;&gt;
+              &lt;Sep /&gt;
+              &lt;div className="relative"&gt;
+                &lt;button type="button" onClick={() =&gt; setOpen((o) =&gt; !o)}
+                  className="px-2 py-0.5 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-md"&gt;
+                  …
+                &lt;/button&gt;
+                {open &amp;&amp; (
+                  &lt;&gt;
+                    &lt;div className="fixed inset-0 z-40" onClick={() =&gt; setOpen(false)} /&gt;
+                    &lt;div className="absolute left-0 top-full mt-1 min-w-[180px] bg-white rounded-lg shadow-lg border border-gray-100 z-50 overflow-hidden py-1"&gt;
+                      {hiddenLocations.map((h) =&gt; (
+                        &lt;Link key={h.href} href={h.href ?? '#'} onClick={() =&gt; setOpen(false)}
+                          className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors truncate"&gt;
+                          {h.label}
+                        &lt;/Link&gt;
+                      ))}
+                    &lt;/div&gt;
+                  &lt;/&gt;
+                )}
+              &lt;/div&gt;
+            &lt;/&gt;
+          )}
+        &lt;/span&gt;
+      ))}
+      &lt;Sep /&gt;
+      &lt;span className="px-4 py-0.5 font-medium text-blue-700 bg-blue-50 rounded-md" title={fnItem.label}&gt;
+        {fnItem.label}
+      &lt;/span&gt;
+    &lt;/nav&gt;
+  );
+}
+
+/**
+ * Appends crumbs for route segments below [fn], and resolves display
+ * labels for BOTH the fn crumb and nested segments from one shared map —
+ * this is what fixes the raw "provide-amenities" text bug, since the
+ * label no longer depends on whatever buildBreadcrumbs happened to pass in.
+ *
+ * href for the fn crumb is computed by removing exactly `segments.length`
+ * parts from the END of the pathname's path segments (array-based, not
+ * string-suffix slicing) — this is what fixes the dead-link bug, since it
+ * can't be thrown off by trailing slashes or encoding quirks.
+ */
+function appendNestedCrumbs(
+  baseItems: BreadcrumbItem[],
+  segments: string[],
+  pathname: string,
+): BreadcrumbItem[] {
+  if (!baseItems.length) return baseItems;
+
+  const pathParts = pathname.split('/').filter(Boolean);
+  const baseParts = segments.length
+    ? pathParts.slice(0, pathParts.length - segments.length)
+    : pathParts;
+  const baseHref = '/' + baseParts.join('/');
+  const fnSlug = baseParts[baseParts.length - 1];
+
+  const items = [...baseItems];
+  const last = items[items.length - 1];
+  items[items.length - 1] = {
+    ...last,
+    label: ROUTE_SEGMENT_LABELS[fnSlug] ?? last.label,
+    href: baseHref,
+  };
+
+  if (!segments.length) return items;
+
+  const extra: BreadcrumbItem[] = [];
+  let hrefSoFar = baseHref;
+
+  for (const seg of segments) {
+    hrefSoFar = `${hrefSoFar}/${seg}`;
+    const label = ROUTE_SEGMENT_LABELS[seg];
+    if (label) {
+      extra.push({ label, href: hrefSoFar });
+    } else if (extra.length) {
+      // dynamic id (e.g. amenityId) folds into the previous crumb —
+      // "view-amenity/184" stays ONE link, ending in /184
+      extra[extra.length - 1] = { ...extra[extra.length - 1], href: hrefSoFar };
+    }
+  }
+
+  return [...items, ...extra];
+}
+
+function Sep() {
+  return &lt;span className="text-gray-300 select-none"&gt;/&lt;/span&gt;;
+}
+
+function Crumb({ item }: { item: BreadcrumbItem }) {
+  if (item.href) {
+    return (
+      &lt;Link href={item.href}
+        className="px-4 py-0.5 text-sm text-left rounded-md transition-colors text-gray-900 hover:text-blue-700 hover:bg-blue-50 font-medium border-transparent cursor-pointer"
+        title={item.label}&gt;
+        {item.label}
+      &lt;/Link&gt;
+    );
+  }
+  return &lt;span className="px-4 py-0.5 text-sm text-gray-500" title={item.label}&gt;{item.label}&lt;/span&gt;;
+}
+</code></pre>
+
+  <h2>2. Shared label map (single source of truth)</h2>
+  <span class="filepath">src/lib/breadcrumb-segments.ts</span>
+  <pre><code>/**
+ * Display label for ANY route segment — top-level fn or nested —
+ * keyed by the raw URL slug. One map, one place to extend.
+ */
+export const ROUTE_SEGMENT_LABELS: Record&lt;string, string&gt; = {
+  // top-level functions
+  'provide-amenities': 'Provide Amenities',
+  'plan-selection': 'Plan Selection',
+  configurations: 'Configurations',
+  tickets: 'Tickets',
+
+  // nested amenity routes
+  'add-amenity': 'Add Amenity',
+  'view-amenity': 'View Amenity',
+};
+</code></pre>
+  <p class="muted">Reuse this same map for <code>FunctionsNav</code>'s display labels too if it currently uses raw <code>fn.functionTypeName</code> text — keeps every label consistent across nav, breadcrumb, and page titles from one file.</p>
+
+  <h2>3. FunctionsNav.tsx — active state on nested routes</h2>
+  <span class="filepath">src/components/layout/nav/FunctionsNav.tsx (excerpt)</span>
+  <pre><code>{navItems?.map((fn) =&gt; {
+  const href = `/location/${locationSlug}/${fn.slug}`;
+
+  // Was: const isActive = pathname === href;
+  // Now: also active when the current path is NESTED under this fn,
+  // e.g. .../provide-amenities/view-amenity/184 still highlights
+  // "Provide Amenities" in the left nav.
+  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+
+  return (
+    &lt;button
+      key={fn.slug}
+      type="button"
+      onClick={() =&gt; handleClick(fn.slug)}
+      disabled={isPending}
+      aria-current={isActive ? 'page' : undefined}
+      className={[
+        'flex w-full items-center justify-between',
+        'px-4 py-2.5 text-sm text-left',
+        'border-l-2 transition-colors',
+        isActive
+          ? 'border-blue-600 bg-blue-50 font-medium text-blue-700'
+          : 'border-transparent text-gray-600' +
+            ' hover:bg-gray-50 hover:text-gray-900',
+        isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+      ].join(' ')}
+    &gt;
+      &lt;span&gt;{fn.functionTypeName}&lt;/span&gt;
+    &lt;/button&gt;
+  );
+})}
+</code></pre>
+  <p class="muted">Only line changed: the <code>isActive</code> definition. Everything else in <code>FunctionsNav</code> stays as-is.</p>
+
+  <div class="footer">
+    v4 — fixes the three issues seen on <code>/location/explore-vr/provide-amenities/view-amenity/184</code>: dead crumb link, raw-slug label, inactive nav item on nested routes.
+  </div>
+</div>
+</body>
+</html>
