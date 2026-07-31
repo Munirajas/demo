@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Performance Fixes — v5</title>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--border:#2a2f3a;--text:#e6e8ec;--muted:#9aa3b2;--accent:#6ea8fe;--accent2:#7ee6c0;--code:#0b0d12}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55}
+  .wrap{max-width:940px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:1.6rem;margin-bottom:.2em}
+  .subtitle{color:var(--muted);margin-top:0;margin-bottom:2em}
+  h2{font-size:1.2rem;margin-top:2.4em;border-bottom:1px solid var(--border);padding-bottom:.4em}
+  p{color:#d6d9e0}
+  .muted{color:var(--muted)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin:14px 0}
+  .card.fix{border-left:3px solid var(--accent2)}
+  .badge{display:inline-block;font-size:.7rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase;border-radius:999px;padding:2px 10px;margin-bottom:8px;color:var(--accent2);background:#123028;border:1px solid #1f4e3f}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.83rem;line-height:1.5}
+  code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
+  .filepath{display:inline-block;font-family:monospace;font-size:.8rem;color:var(--accent);background:#0f2140;border:1px solid #1c3c6b;border-radius:6px;padding:2px 8px;margin-bottom:8px}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  .footer{margin-top:3em;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Performance Fixes — view-amenity load time</h1>
+  <p class="subtitle">Dedupe location lookup, parallelize fetches, scoped loading state, optional hover-prefetch</p>
+
+  <table>
+    <tr><th>File</th><th>Change</th></tr>
+    <tr><td><code>lib/get-location-context.ts</code></td><td><span class="badge">new</span> cached tree lookup, shared by layout + both leaf pages</td></tr>
+    <tr><td><code>[fn]/layout.tsx</code></td><td>updated to use the cached helper</td></tr>
+    <tr><td><code>(amenity)/add-amenity/page.tsx</code></td><td>updated to use the cached helper</td></tr>
+    <tr><td><code>(amenity)/view-amenity/[amenityId]/page.tsx</code></td><td>updated: cached helper + <code>Promise.all</code></td></tr>
+    <tr><td><code>(amenity)/view-amenity/[amenityId]/loading.tsx</code></td><td><span class="badge">new</span> scoped fallback</td></tr>
+    <tr><td>Add Amenity button</td><td>optional hover-prefetch</td></tr>
+  </table>
+
+  <h2>1. Cached location lookup — single source, fetched once per request</h2>
+  <span class="filepath">src/modules/locations/lib/get-location-context.ts</span>
+  <pre><code>import { cache } from 'react';
+import { getLocationsTree } from '@/modules/locations/actions/server-locations';
+import { getNodeAndPathBySlug } from '@/modules/locations/lib/utils';
+
+/**
+ * React's cache() memoizes by argument for the lifetime of a single
+ * request/render pass. The layout calls this for breadcrumbs/nav, and
+ * the leaf page calls it again for locationId — with the same slug,
+ * the second call resolves instantly from cache instead of re-fetching
+ * and re-walking the tree.
+ */
+export const getLocationContext = cache(async (slug: string) =&gt; {
+  const tree = await getLocationsTree();
+  return getNodeAndPathBySlug(tree, slug);
+});
+</code></pre>
+
+  <h2>2. [fn]/layout.tsx — use the cached helper</h2>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/layout.tsx</span>
+  <pre><code>import { LocationShell } from '@/components/layout/LocationShell';
+
+interface Props {
+  children: React.ReactNode;
+  params: Promise&lt;{ slug: string; fn: string }&gt;;
+}
+
+export default async function LocationFnLayout({ children, params }: Props) {
+  const { slug, fn } = await params;
+
+  return (
+    &lt;LocationShell slug={slug} activeFn={fn}&gt;
+      {children}
+    &lt;/LocationShell&gt;
+  );
+}
+</code></pre>
+  <p class="muted">No change needed here — <code>LocationShell</code> itself is where <code>getLocationsTree</code> is called; that's the file to update:</p>
+
+  <span class="filepath">src/components/layout/LocationShell.tsx (excerpt)</span>
+  <pre><code>import { getLocationContext } from '@/modules/locations/lib/get-location-context';
+// remove: import { getLocationsTree } from '@/modules/locations/actions/server-locations';
+// remove: import { getNodeAndPathBySlug } from '@/modules/locations/lib/utils';
+
+export async function LocationShell({ slug, activeFn, children }: Props) {
+  const found = await getLocationContext(slug);
+  if (!found) notFound();
+
+  const { node, path } = found;
+  const breadcrumbs = buildBreadcrumbs(node, path, activeFn);
+  // ...rest unchanged
+}
+</code></pre>
+
+  <h2>3. add-amenity/page.tsx — use the cached helper</h2>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/(amenity)/add-amenity/page.tsx</span>
+  <pre><code>import { notFound } from 'next/navigation';
+import { getLocationContext } from '@/modules/locations/lib/get-location-context';
+import { AddAmenityForm } from '@/modules/amenities/components/forms/AddAmenityForm';
+
+interface Props {
+  params: Promise&lt;{ slug: string; fn: string }&gt;;
+}
+
+export default async function AddAmenityPage({ params }: Props) {
+  const { slug, fn } = await params;
+  if (fn !== 'provide-amenities') notFound();
+
+  const found = await getLocationContext(slug);
+  if (!found) notFound();
+
+  return (
+    &lt;AddAmenityForm locationId={Number(found.node.id)} locationSlug={slug} /&gt;
+  );
+}
+</code></pre>
+
+  <h2>4. view-amenity/[amenityId]/page.tsx — cached helper + parallel fetch</h2>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/(amenity)/view-amenity/[amenityId]/page.tsx</span>
+  <pre><code>import { notFound } from 'next/navigation';
+import { getLocationContext } from '@/modules/locations/lib/get-location-context';
+import { getAmenityById } from '@/modules/amenities/actions/server-amenities';
+import { ViewAmenityDetail } from '@/modules/amenities/components/ViewAmenityDetail';
+
+interface Props {
+  params: Promise&lt;{ slug: string; fn: string; amenityId: string }&gt;;
+}
+
+export default async function ViewAmenityPage({ params }: Props) {
+  const { slug, fn, amenityId } = await params;
+  if (fn !== 'provide-amenities') notFound();
+
+  // Independent fetches — run together instead of one after another.
+  // Total wait becomes max(a, b) instead of a + b.
+  const [found, amenity] = await Promise.all([
+    getLocationContext(slug),
+    getAmenityById(amenityId),
+  ]);
+
+  if (!found) notFound();
+  if (!amenity) notFound();
+
+  return (
+    &lt;ViewAmenityDetail
+      amenity={amenity}
+      locationId={Number(found.node.id)}
+      locationSlug={slug}
+    /&gt;
+  );
+}
+</code></pre>
+
+  <h2>5. Scoped loading state — instant feedback for just this route</h2>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/(amenity)/view-amenity/[amenityId]/loading.tsx</span>
+  <pre><code>export default function ViewAmenityLoading() {
+  return (
+    &lt;div className="p-6 animate-pulse space-y-3"&gt;
+      &lt;div className="h-5 w-40 bg-gray-100 rounded" /&gt;
+      &lt;div className="h-4 w-full bg-gray-100 rounded" /&gt;
+      &lt;div className="h-4 w-3/4 bg-gray-100 rounded" /&gt;
+      &lt;div className="h-4 w-5/6 bg-gray-100 rounded" /&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  <p class="muted">Next.js automatically uses this as the Suspense fallback for this exact segment — it appears the instant navigation starts, so the wait for the now-parallelized data reads as responsive instead of a full-page freeze.</p>
+
+  <h2>6. Optional — hover-prefetch for the Add Amenity button</h2>
+  <p><code>&lt;Link&gt;</code> gets automatic prefetch on viewport-visibility for free. A button doesn't — but you can opt in manually:</p>
+  <span class="filepath">src/modules/amenities/hooks/useAmenityNavigation.ts</span>
+  <pre><code>'use client';
+
+import { useRouter } from 'next/navigation';
+
+export function useAmenityNavigation(locationSlug: string) {
+  const router = useRouter();
+  const base = `/location/${locationSlug}/provide-amenities`;
+
+  return {
+    goToAmenitiesList: () =&gt; router.push(base),
+    goToAddAmenity: () =&gt; router.push(`${base}/add-amenity`),
+    goToViewAmenity: (amenityId: string | number) =&gt;
+      router.push(`${base}/view-amenity/${amenityId}`),
+    prefetchAddAmenity: () =&gt; router.prefetch(`${base}/add-amenity`),
+    prefetchViewAmenity: (amenityId: string | number) =&gt;
+      router.prefetch(`${base}/view-amenity/${amenityId}`),
+  };
+}
+</code></pre>
+
+  <span class="filepath">src/modules/amenities/components/AmenitiesPage.tsx (excerpt)</span>
+  <pre><code>const { goToAddAmenity, prefetchAddAmenity } = useAmenityNavigation(locationSlug);
+
+&lt;button
+  type="button"
+  onClick={goToAddAmenity}
+  onMouseEnter={prefetchAddAmenity}
+  className="btn-primary"
+&gt;
+  Add Amenity +
+&lt;/button&gt;
+</code></pre>
+  <p class="muted">Prefetch kicks off on hover, so by the time the click registers, the route's RSC payload is often already in flight — same head start a <code>&lt;Link&gt;</code> gets automatically.</p>
+
+  <div class="card fix">
+    <span class="badge">net effect</span>
+    <p>One tree fetch per request instead of two, the two remaining independent fetches run concurrently instead of sequentially, and a route-scoped skeleton replaces the full-pane freeze — the visible "whole page reloading" feeling should be gone or reduced to a brief, expected skeleton flash.</p>
+  </div>
+
+  <div class="footer">
+    v5 — performance pass on the view-amenity route. No change to breadcrumb, active-nav, or routing logic from earlier rounds.
+  </div>
+</div>
+</body>
+</html>
