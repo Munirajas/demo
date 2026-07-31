@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nested Amenities Routes — Architecture Notes</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --border:#2a2f3a;
+    --text:#e6e8ec; --muted:#9aa3b2; --accent:#6ea8fe; --accent2:#7ee6c0;
+    --warn:#f4b860; --code:#0b0d12;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.55;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:1.7rem;margin-bottom:.2em}
+  .subtitle{color:var(--muted);margin-top:0;margin-bottom:2em}
+  h2{font-size:1.25rem;margin-top:2.6em;border-bottom:1px solid var(--border);padding-bottom:.4em}
+  h3{font-size:1.02rem;color:var(--accent);margin-top:1.8em}
+  p{color:#d6d9e0}
+  .muted{color:var(--muted)}
+  .card{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:18px 20px;margin:16px 0;
+  }
+  .card.why{border-left:3px solid var(--accent2)}
+  .card.warn{border-left:3px solid var(--warn)}
+  .badge{
+    display:inline-block;font-size:.72rem;font-weight:600;letter-spacing:.03em;
+    text-transform:uppercase;color:var(--accent2);background:#123028;
+    border:1px solid #1f4e3f;border-radius:999px;padding:2px 10px;margin-bottom:8px;
+  }
+  .badge.q{color:var(--accent);background:#0f2140;border-color:#1c3c6b}
+  pre{
+    background:var(--code);border:1px solid var(--border);border-radius:8px;
+    padding:16px;overflow-x:auto;font-size:.85rem;line-height:1.5;
+  }
+  code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
+  .tree{
+    background:var(--code);border:1px solid var(--border);border-radius:8px;
+    padding:16px;font-size:.85rem;white-space:pre;overflow-x:auto;color:#c8cdd6;
+  }
+  .tree .new{color:var(--accent2)}
+  .tree .existing{color:var(--muted)}
+  .tree .removed{color:#f28b82;text-decoration:line-through}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.92rem}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600}
+  .filepath{
+    display:inline-block;font-family:monospace;font-size:.8rem;color:var(--accent);
+    background:#0f2140;border:1px solid #1c3c6b;border-radius:6px;padding:2px 8px;margin-bottom:8px;
+  }
+  ul{color:#d6d9e0}
+  li{margin-bottom:.4em}
+  .toc{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:16px 20px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  .toc ol{margin:0;padding-left:20px}
+  .footer{margin-top:3em;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Nested Amenities Routes: Create &amp; View</h1>
+  <p class="subtitle">HLT-WEB-GLOBAL-ADMIN &nbsp;·&nbsp; location/[slug]/[fn] feature architecture</p>
+
+  <div class="toc">
+    <strong>Contents</strong>
+    <ol>
+      <li><a href="#summary">Summary of changes</a></li>
+      <li><a href="#q1">Q1 — Keep render-function-page or go full App Router?</a></li>
+      <li><a href="#q2">Q2 — Do breadcrumbs work the same at every nesting level?</a></li>
+      <li><a href="#q3">Q3 — Folder structure for create vs. view</a></li>
+      <li><a href="#code">Code</a></li>
+    </ol>
+  </div>
+
+  <h2 id="summary">1. Summary of changes</h2>
+  <table>
+    <tr><th>File</th><th>Change</th></tr>
+    <tr><td><code>render-function-page.tsx</code></td><td>Revert — remove the <code>'provide-amenities/add-amenity'</code> and <code>'provide-amenities/view-amenity'</code> switch cases. The switch goes back to only top-level <code>fn</code> values.</td></tr>
+    <tr><td><code>location/[slug]/[fn]/layout.tsx</code></td><td><span class="badge">new</span> Wraps the fn page + its nested routes, renders the composed breadcrumb trail.</td></tr>
+    <tr><td><code>location/[slug]/[fn]/add-amenity/page.tsx</code></td><td><span class="badge">new</span> Create-amenity flow.</td></tr>
+    <tr><td><code>location/[slug]/[fn]/view-amenity/[amenityId]/page.tsx</code></td><td><span class="badge">new</span> View/edit one amenity.</td></tr>
+    <tr><td><code>lib/breadcrumbs.ts</code></td><td><span class="badge">new</span> Small shared helper to build the crumb array (location path + feature label + optional leaf label), consumed by your existing <code>Breadcrumbs.tsx</code>.</td></tr>
+  </table>
+
+  <h2 id="q1">2. Q1 — render-function-page vs. App Router</h2>
+  <div class="card why">
+    <span class="badge">why</span>
+    <p><strong>Keep the switch for top-level <code>fn</code>.</strong> Your <code>FunctionsNav</code> resolves the enabled function list per location <em>at request time</em> via <code>useLocationFunctionsQuery</code> — the set of valid <code>fn</code> values isn't static across locations, it's config-driven. A folder-per-fn approach doesn't remove that dynamism (Next still needs code for every possible fn folder regardless), and a switch is the clearer place to encode "if this fn isn't recognized, notFound()".</p>
+    <p><strong>Don't extend the switch for anything nested inside a feature.</strong> Add-amenity and view-amenity are permanently-fixed children of "provide-amenities" — they don't vary by location or config. That's exactly what folder-based routing is for: browser back/forward, deep-linking, per-route loading/error boundaries, and no more string-concatenated <code>fn</code> values to keep in sync in three places.</p>
+  </div>
+  <p class="muted">Rule of thumb: <strong>dynamic sibling set → switch. Fixed nested children → folders.</strong></p>
+
+  <h2 id="q2">3. Q2 — Breadcrumbs at every nesting level</h2>
+  <div class="card">
+    <p>Your breadcrumb is really two independent trails glued together:</p>
+    <ul>
+      <li><strong>Location trail</strong> (Museum of the Bible › Grand Hall › theater) — already solved by <code>getNodeAndPathBySlug(tree, slug)</code>. This works at any depth today; nothing changes here.</li>
+      <li><strong>Feature trail</strong> (Provide Amenities › Add Amenity) — this is what's currently missing a home. It should be built once, in the <code>[fn]/layout.tsx</code>, from the route segments below <code>fn</code>.</li>
+    </ul>
+  </div>
+  <div class="card why">
+    <span class="badge">why</span>
+    <p>Centralizing this in a layout (rather than each page hardcoding its own crumb array) means every future nested page under any <code>fn</code> gets breadcrumbs for free just by existing in the folder tree — you're not maintaining a parallel breadcrumb map. Use <code>useSelectedLayoutSegments()</code> (client) or read the matched route in the server layout to know how deep you are, and a small label lookup (<code>{ 'add-amenity': 'Add Amenity', 'view-amenity': 'View Amenity' }</code>) for display text.</p>
+  </div>
+  <p>Answer: <strong>yes</strong>, breadcrumbs work identically regardless of location nesting depth or feature nesting depth, as long as both trails are composed from actual route/tree data rather than hand-typed per page.</p>
+
+  <h2 id="q3">4. Q3 — Folder structure for create/view</h2>
+  <div class="tree"><span class="existing">location/[slug]/[fn]/
+├── page.tsx                          (existing — dispatch via render-function-page)
+├── render-function-page.tsx          (existing — reverted, top-level fn switch only)</span>
+<span class="new">├── layout.tsx                        NEW — breadcrumb shell for this fn + children
+├── add-amenity/
+│   └── page.tsx                      NEW — create flow
+└── view-amenity/
+    └── [amenityId]/
+        └── page.tsx                  NEW — view/edit flow, keyed by amenity id</span></div>
+
+  <div class="card warn">
+    <span class="badge q">note</span>
+    <p><code>[fn]</code> is a single dynamic segment, so <code>add-amenity</code> and <code>view-amenity</code> folders nested under it will technically match under <em>any</em> <code>fn</code> value (e.g. <code>/location/x/plan-selection/add-amenity</code> would also resolve to this file). Guard against that explicitly in each page by checking <code>fn === 'provide-amenities'</code> and calling <code>notFound()</code> otherwise — shown in the code below. This is a one-line safeguard, not a reason to avoid the nested-folder approach.</p>
+  </div>
+
+  <div class="card why">
+    <span class="badge">why</span>
+    <p><strong>view-amenity needs an <code>amenityId</code> segment</strong>, not just the location context — you're viewing/editing one specific amenity, so it must be addressable and shareable as its own URL (<code>.../view-amenity/amn_123</code>), and it lets you fetch that single amenity server-side before render instead of passing it through client state.</p>
+    <p><strong>add-amenity doesn't need an id</strong> — it's a fixed creation form scoped to the location, so no extra dynamic segment required.</p>
+  </div>
+
+  <h2 id="code">5. Code</h2>
+
+  <h3>render-function-page.tsx — revert</h3>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/render-function-page.tsx</span>
+  <pre><code>import { notFound } from 'next/navigation';
+import { getLocationPlans } from '@/modules/plans/actions/server-location-plans';
+import { PlanShell } from '@/modules/plans/components/planShell';
+import { ConfigurationsShell } from '@/modules/configurations/components/configShell';
+import AmenitiesPage from './amenities/page';
+
+interface Props {
+  fn: string;
+  locationId: number;
+  locationSlug: string;
+}
+
+export async function renderFunctionPage({
+  fn,
+  locationId,
+  locationSlug,
+}: Props) {
+  switch (fn) {
+    case 'plan-selection': {
+      const locationPlansResult = await getLocationPlans(locationId);
+      return (
+        &lt;PlanShell data={locationPlansResult} locationId={locationId} /&gt;
+      );
+    }
+
+    case 'configurations': {
+      return &lt;ConfigurationsShell locationId={locationId} /&gt;;
+    }
+
+    // Add next function here when ready:
+    // case 'tickets': {
+    //   const result = await getLocationTickets(locationId);
+    //   return &lt;TicketsShell ... /&gt;;
+    // }
+
+    case 'provide-amenities': {
+      return (
+        &lt;AmenitiesPage locationId={locationId} locationSlug={locationSlug} /&gt;
+      );
+    }
+
+    default:
+      notFound();
+  }
+}
+</code></pre>
+  <p class="muted">The two composite-string cases are gone. Add/view amenity are no longer this file's concern — they're resolved directly by the filesystem router below.</p>
+
+  <h3>[fn]/layout.tsx — breadcrumb shell</h3>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/layout.tsx</span>
+  <pre><code>import { getLocationsTree } from '@/modules/locations/actions/server-locations';
+import { getNodeAndPathBySlug } from '@/modules/locations/lib/utils';
+import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
+import { buildFeatureCrumbs, FN_LABELS } from '@/lib/breadcrumbs';
+
+interface Props {
+  children: React.ReactNode;
+  params: Promise&lt;{ slug: string; fn: string }&gt;;
+}
+
+export default async function FnLayout({ children, params }: Props) {
+  const { slug, fn } = await params;
+
+  const tree = await getLocationsTree();
+  const found = getNodeAndPathBySlug(tree, slug);
+
+  const locationCrumbs =
+    found?.path.map((node) => ({
+      label: node.name,
+      href: `/location/${node.slug}`,
+    })) ?? [];
+
+  const featureCrumbs = buildFeatureCrumbs(slug, fn);
+
+  return (
+    &lt;div&gt;
+      &lt;Breadcrumbs items={[...locationCrumbs, ...featureCrumbs]} /&gt;
+      {children}
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+
+  <h3>lib/breadcrumbs.ts — shared crumb builder</h3>
+  <span class="filepath">src/lib/breadcrumbs.ts</span>
+  <pre><code>export const FN_LABELS: Record&lt;string, string&gt; = {
+  'provide-amenities': 'Provide Amenities',
+  'plan-selection': 'Plan Selection',
+  configurations: 'Configurations',
+  tickets: 'Tickets',
+};
+
+const LEAF_LABELS: Record&lt;string, string&gt; = {
+  'add-amenity': 'Add Amenity',
+  'view-amenity': 'View Amenity',
+};
+
+/**
+ * Builds the "feature" portion of the breadcrumb trail from the fn slug
+ * and (optionally) a trailing leaf segment, e.g. add-amenity / view-amenity.
+ * Location portion is built separately from the locations tree.
+ */
+export function buildFeatureCrumbs(
+  locationSlug: string,
+  fn: string,
+  leaf?: string,
+) {
+  const crumbs = [
+    {
+      label: FN_LABELS[fn] ?? fn,
+      href: `/location/${locationSlug}/${fn}`,
+    },
+  ];
+
+  if (leaf) {
+    crumbs.push({
+      label: LEAF_LABELS[leaf] ?? leaf,
+      href: `/location/${locationSlug}/${fn}/${leaf}`,
+    });
+  }
+
+  return crumbs;
+}
+</code></pre>
+
+  <h3>add-amenity/page.tsx — create flow</h3>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/add-amenity/page.tsx</span>
+  <pre><code>import { notFound } from 'next/navigation';
+import { getLocationsTree } from '@/modules/locations/actions/server-locations';
+import { getNodeAndPathBySlug } from '@/modules/locations/lib/utils';
+import { AddAmenityForm } from '@/modules/amenities/components/forms/AddAmenityForm';
+
+interface Props {
+  params: Promise&lt;{ slug: string; fn: string }&gt;;
+}
+
+export default async function AddAmenityPage({ params }: Props) {
+  const { slug, fn } = await params;
+
+  // Guard: this nested route only makes sense under provide-amenities,
+  // since [fn] is a single dynamic segment shared by all features.
+  if (fn !== 'provide-amenities') notFound();
+
+  const tree = await getLocationsTree();
+  const found = getNodeAndPathBySlug(tree, slug);
+  if (!found) notFound();
+
+  const locationId = Number(found.node.id);
+
+  return &lt;AddAmenityForm locationId={locationId} locationSlug={slug} /&gt;;
+}
+</code></pre>
+
+  <h3>view-amenity/[amenityId]/page.tsx — view/edit flow</h3>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/view-amenity/[amenityId]/page.tsx</span>
+  <pre><code>import { notFound } from 'next/navigation';
+import { getLocationsTree } from '@/modules/locations/actions/server-locations';
+import { getNodeAndPathBySlug } from '@/modules/locations/lib/utils';
+import { getAmenityById } from '@/modules/amenities/actions/server-amenities';
+import { ViewAmenityDetail } from '@/modules/amenities/components/ViewAmenityDetail';
+
+interface Props {
+  params: Promise&lt;{ slug: string; fn: string; amenityId: string }&gt;;
+}
+
+export default async function ViewAmenityPage({ params }: Props) {
+  const { slug, fn, amenityId } = await params;
+
+  if (fn !== 'provide-amenities') notFound();
+
+  const tree = await getLocationsTree();
+  const found = getNodeAndPathBySlug(tree, slug);
+  if (!found) notFound();
+
+  const amenity = await getAmenityById(amenityId);
+  if (!amenity) notFound();
+
+  return (
+    &lt;ViewAmenityDetail
+      amenity={amenity}
+      locationId={Number(found.node.id)}
+      locationSlug={slug}
+    /&gt;
+  );
+}
+</code></pre>
+
+  <h3>Linking to these routes from the amenities list</h3>
+  <span class="filepath">src/modules/amenities/components/AmenityList.tsx (excerpt)</span>
+  <pre><code>&lt;Link href={`/location/${locationSlug}/provide-amenities/add-amenity`}&gt;
+  Add Amenity +
+&lt;/Link&gt;
+
+{amenities.map((a) =&gt; (
+  &lt;Link
+    key={a.id}
+    href={`/location/${locationSlug}/provide-amenities/view-amenity/${a.id}`}
+  &gt;
+    {a.name}
+  &lt;/Link&gt;
+))}
+</code></pre>
+
+  <div class="footer">
+    Notes reflect the current state of <code>HLI-WEB-GLOBAL-ADMIN</code> as of the screenshots reviewed (2026-07-31). Component names (<code>AddAmenityForm</code>, <code>ViewAmenityDetail</code>, <code>getAmenityById</code>) are placeholders — swap in your real module names.
+  </div>
+
+</div>
+</body>
+</html>
