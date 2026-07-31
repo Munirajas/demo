@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Amenity Routes v2 — Route Group + ID-based View</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --border:#2a2f3a;
+    --text:#e6e8ec; --muted:#9aa3b2; --accent:#6ea8fe; --accent2:#7ee6c0;
+    --warn:#f4b860; --code:#0b0d12;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.55;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:1.7rem;margin-bottom:.2em}
+  .subtitle{color:var(--muted);margin-top:0;margin-bottom:2em}
+  h2{font-size:1.25rem;margin-top:2.6em;border-bottom:1px solid var(--border);padding-bottom:.4em}
+  h3{font-size:1.02rem;color:var(--accent);margin-top:1.8em}
+  p{color:#d6d9e0}
+  .muted{color:var(--muted)}
+  .card{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:18px 20px;margin:16px 0;
+  }
+  .card.why{border-left:3px solid var(--accent2)}
+  .card.warn{border-left:3px solid var(--warn)}
+  .badge{
+    display:inline-block;font-size:.72rem;font-weight:600;letter-spacing:.03em;
+    text-transform:uppercase;color:var(--accent2);background:#123028;
+    border:1px solid #1f4e3f;border-radius:999px;padding:2px 10px;margin-bottom:8px;
+  }
+  .badge.q{color:var(--accent);background:#0f2140;border-color:#1c3c6b}
+  .badge.v2{color:#ffd166;background:#3a2a08;border-color:#5c4413}
+  pre{
+    background:var(--code);border:1px solid var(--border);border-radius:8px;
+    padding:16px;overflow-x:auto;font-size:.85rem;line-height:1.5;
+  }
+  code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
+  .tree{
+    background:var(--code);border:1px solid var(--border);border-radius:8px;
+    padding:16px;font-size:.85rem;white-space:pre;overflow-x:auto;color:#c8cdd6;
+  }
+  .tree .new{color:var(--accent2)}
+  .tree .existing{color:var(--muted)}
+  .tree .group{color:#ffd166}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.92rem}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  .filepath{
+    display:inline-block;font-family:monospace;font-size:.8rem;color:var(--accent);
+    background:#0f2140;border:1px solid #1c3c6b;border-radius:6px;padding:2px 8px;margin-bottom:8px;
+  }
+  ul{color:#d6d9e0}
+  li{margin-bottom:.4em}
+  .toc{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:16px 20px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  .toc ol{margin:0;padding-left:20px}
+  .footer{margin-top:3em;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:16px}
+  .url{font-family:monospace;font-size:.85rem;color:var(--accent2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Amenity Routes — v2</h1>
+  <p class="subtitle">Route group + ID-based view route + extracted listing component</p>
+
+  <div class="toc">
+    <strong>Contents</strong>
+    <ol>
+      <li><a href="#decision">ID vs. slug decision</a></li>
+      <li><a href="#tree">Final folder structure</a></li>
+      <li><a href="#code">Code</a></li>
+      <li><a href="#urls">Resulting URLs</a></li>
+    </ol>
+  </div>
+
+  <h2 id="decision">1. ID vs. slug for the amenity route</h2>
+  <div class="card why">
+    <span class="badge">decision</span>
+    <p><strong>Use the amenity ID in the URL. Do not slugify the amenity name.</strong></p>
+  </div>
+  <table>
+    <tr><th>Locations / Functions</th><th>Amenities</th></tr>
+    <tr>
+      <td>Curated taxonomy — admin-defined, stable, hierarchical. Built for human-readable, shareable URLs. You already have slug-resolution infra (<code>getLocationsTree</code>) for this.</td>
+      <td>User-generated records — created/renamed/deleted freely, no uniqueness guarantee on name. Slugging invites collisions and broken links on rename.</td>
+    </tr>
+  </table>
+  <p>This is the same pattern as <span class="url">/orders/8841</span> or <span class="url">/issues/492</span> — opaque, stable identifiers for mutable records. Zero extra infrastructure, never breaks.</p>
+  <p class="muted">Future option if you want it more readable without giving up stability: a slug-id hybrid like <span class="url">/view-amenity/8841-cafe-wifi</span>, where only the leading id resolves the record and the trailing text is cosmetic. Not needed now — flagging for later.</p>
+
+  <h2 id="tree">2. Final folder structure</h2>
+  <div class="tree"><span class="existing">location/[slug]/[fn]/
+├── page.tsx                              (dispatch — unchanged)
+├── render-function-page.tsx              (top-level fn switch — unchanged)</span>
+<span class="group">├── (amenity)/                            route group — adds no URL segment
+│   ├── layout.tsx                        NEW — breadcrumb prefix, add/view only
+│   ├── add-amenity/
+│   │   └── page.tsx
+│   └── view-amenity/
+│       └── [amenityId]/
+│           └── page.tsx</span></div>
+
+  <div class="card">
+    <p><code>(amenity)</code> — parentheses mean Next.js treats it as an organizational route group: it groups files in the tree and lets you attach a shared layout, but is <strong>stripped from the actual URL</strong>. The listing page at <code>[fn]/page.tsx</code> sits outside the group, so the group's breadcrumb layout doesn't apply to it — correct, since the list page shouldn't show "Provide Amenities ›" pointing at itself.</p>
+  </div>
+
+  <div class="card">
+    <span class="badge v2">confirmed</span>
+    <p>Listing component extracted out of the routed tree, per your restructure — it now lives as a plain component, not a <code>page.tsx</code>, so it can never be accidentally hit as its own route:</p>
+    <p class="filepath">src/modules/amenities/components/AmenitiesPage.tsx</p>
+  </div>
+
+  <h2 id="code">3. Code</h2>
+
+  <h3>render-function-page.tsx</h3>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/render-function-page.tsx</span>
+  <pre><code>import { notFound } from 'next/navigation';
+import { getLocationPlans } from '@/modules/plans/actions/server-location-plans';
+import { PlanShell } from '@/modules/plans/components/planShell';
+import { ConfigurationsShell } from '@/modules/configurations/components/configShell';
+import { AmenitiesPage } from '@/modules/amenities/components/AmenitiesPage';
+
+interface Props {
+  fn: string;
+  locationId: number;
+  locationSlug: string;
+}
+
+export async function renderFunctionPage({
+  fn,
+  locationId,
+  locationSlug,
+}: Props) {
+  switch (fn) {
+    case 'plan-selection': {
+      const locationPlansResult = await getLocationPlans(locationId);
+      return (
+        &lt;PlanShell data={locationPlansResult} locationId={locationId} /&gt;
+      );
+    }
+
+    case 'configurations': {
+      return &lt;ConfigurationsShell locationId={locationId} /&gt;;
+    }
+
+    case 'provide-amenities': {
+      return (
+        &lt;AmenitiesPage locationId={locationId} locationSlug={locationSlug} /&gt;
+      );
+    }
+
+    default:
+      notFound();
+  }
+}
+</code></pre>
+
+  <h3>(amenity)/layout.tsx — breadcrumb prefix, scoped to create/view only</h3>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/(amenity)/layout.tsx</span>
+  <pre><code>import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
+import { getLocationsTree } from '@/modules/locations/actions/server-locations';
+import { getNodeAndPathBySlug } from '@/modules/locations/lib/utils';
+import { buildFeatureCrumbs } from '@/lib/breadcrumbs';
+
+interface Props {
+  children: React.ReactNode;
+  params: Promise&lt;{ slug: string; fn: string }&gt;;
+}
+
+export default async function AmenityGroupLayout({ children, params }: Props) {
+  const { slug, fn } = await params;
+
+  const tree = await getLocationsTree();
+  const found = getNodeAndPathBySlug(tree, slug);
+
+  const locationCrumbs =
+    found?.path.map((node) =&gt; ({
+      label: node.name,
+      href: `/location/${node.slug}`,
+    })) ?? [];
+
+  // "Provide Amenities" crumb only — the leaf (Add/View Amenity) crumb
+  // is appended by each page below, since only it knows which leaf it is.
+  const featureCrumbs = buildFeatureCrumbs(slug, fn);
+
+  return (
+    &lt;div&gt;
+      &lt;Breadcrumbs items={[...locationCrumbs, ...featureCrumbs]} /&gt;
+      {children}
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+
+  <h3>lib/breadcrumbs.ts</h3>
+  <span class="filepath">src/lib/breadcrumbs.ts</span>
+  <pre><code>export const FN_LABELS: Record&lt;string, string&gt; = {
+  'provide-amenities': 'Provide Amenities',
+  'plan-selection': 'Plan Selection',
+  configurations: 'Configurations',
+  tickets: 'Tickets',
+};
+
+export function buildFeatureCrumbs(locationSlug: string, fn: string) {
+  return [
+    {
+      label: FN_LABELS[fn] ?? fn,
+      href: `/location/${locationSlug}/${fn}`,
+    },
+  ];
+}
+</code></pre>
+
+  <h3>add-amenity/page.tsx</h3>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/(amenity)/add-amenity/page.tsx</span>
+  <pre><code>import { notFound } from 'next/navigation';
+import { getLocationsTree } from '@/modules/locations/actions/server-locations';
+import { getNodeAndPathBySlug } from '@/modules/locations/lib/utils';
+import { AddAmenityForm } from '@/modules/amenities/components/forms/AddAmenityForm';
+
+interface Props {
+  params: Promise&lt;{ slug: string; fn: string }&gt;;
+}
+
+export default async function AddAmenityPage({ params }: Props) {
+  const { slug, fn } = await params;
+  if (fn !== 'provide-amenities') notFound();
+
+  const tree = await getLocationsTree();
+  const found = getNodeAndPathBySlug(tree, slug);
+  if (!found) notFound();
+
+  return (
+    &lt;AddAmenityForm locationId={Number(found.node.id)} locationSlug={slug} /&gt;
+  );
+}
+</code></pre>
+
+  <h3>view-amenity/[amenityId]/page.tsx</h3>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/(amenity)/view-amenity/[amenityId]/page.tsx</span>
+  <pre><code>import { notFound } from 'next/navigation';
+import { getLocationsTree } from '@/modules/locations/actions/server-locations';
+import { getNodeAndPathBySlug } from '@/modules/locations/lib/utils';
+import { getAmenityById } from '@/modules/amenities/actions/server-amenities';
+import { ViewAmenityDetail } from '@/modules/amenities/components/ViewAmenityDetail';
+
+interface Props {
+  params: Promise&lt;{ slug: string; fn: string; amenityId: string }&gt;;
+}
+
+export default async function ViewAmenityPage({ params }: Props) {
+  const { slug, fn, amenityId } = await params;
+  if (fn !== 'provide-amenities') notFound();
+
+  const tree = await getLocationsTree();
+  const found = getNodeAndPathBySlug(tree, slug);
+  if (!found) notFound();
+
+  const amenity = await getAmenityById(amenityId);
+  if (!amenity) notFound();
+
+  return (
+    &lt;ViewAmenityDetail
+      amenity={amenity}
+      locationId={Number(found.node.id)}
+      locationSlug={slug}
+    /&gt;
+  );
+}
+</code></pre>
+
+  <h3>Linking from the (extracted) listing page</h3>
+  <span class="filepath">src/modules/amenities/components/AmenitiesPage.tsx (excerpt)</span>
+  <pre><code>&lt;Link href={`/location/${locationSlug}/provide-amenities/add-amenity`}&gt;
+  Add Amenity +
+&lt;/Link&gt;
+
+{amenities.map((a) =&gt; (
+  &lt;Link
+    key={a.id}
+    href={`/location/${locationSlug}/provide-amenities/view-amenity/${a.id}`}
+  &gt;
+    {a.name}
+  &lt;/Link&gt;
+))}
+</code></pre>
+
+  <h2 id="urls">4. Resulting URLs</h2>
+  <table>
+    <tr><th>Page</th><th>URL</th></tr>
+    <tr><td>Amenities list</td><td class="url">/location/museum-of-the-bible/provide-amenities</td></tr>
+    <tr><td>Add amenity</td><td class="url">/location/museum-of-the-bible/provide-amenities/add-amenity</td></tr>
+    <tr><td>View amenity</td><td class="url">/location/museum-of-the-bible/provide-amenities/view-amenity/8841</td></tr>
+  </table>
+  <p class="muted">The <code>(amenity)</code> group is invisible in every URL above — exactly the outcome you wanted.</p>
+
+  <div class="footer">
+    v2 — supersedes the earlier draft that nested add/view under a plain <code>amenities</code> folder and slug-questioned the amenity id. Component names remain placeholders for your real module names.
+  </div>
+
+</div>
+</body>
+</html>
