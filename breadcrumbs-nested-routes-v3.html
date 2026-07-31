@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Breadcrumbs v3 — Generic Nested Route Support</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --border:#2a2f3a;
+    --text:#e6e8ec; --muted:#9aa3b2; --accent:#6ea8fe; --accent2:#7ee6c0;
+    --warn:#f4b860; --code:#0b0d12;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55}
+  .wrap{max-width:940px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:1.7rem;margin-bottom:.2em}
+  .subtitle{color:var(--muted);margin-top:0;margin-bottom:2em}
+  h2{font-size:1.25rem;margin-top:2.6em;border-bottom:1px solid var(--border);padding-bottom:.4em}
+  h3{font-size:1.02rem;color:var(--accent);margin-top:1.8em}
+  p{color:#d6d9e0}
+  .muted{color:var(--muted)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin:16px 0}
+  .card.why{border-left:3px solid var(--accent2)}
+  .card.warn{border-left:3px solid var(--warn)}
+  .card.del{border-left:3px solid #f28b82}
+  .badge{display:inline-block;font-size:.72rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--accent2);background:#123028;border:1px solid #1f4e3f;border-radius:999px;padding:2px 10px;margin-bottom:8px}
+  .badge.unchanged{color:#9aa3b2;background:#1a1d24;border-color:#2a2f3a}
+  .badge.del{color:#f28b82;background:#3a1414;border-color:#5c1f1f}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.83rem;line-height:1.5}
+  code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  .filepath{display:inline-block;font-family:monospace;font-size:.8rem;color:var(--accent);background:#0f2140;border:1px solid #1c3c6b;border-radius:6px;padding:2px 8px;margin-bottom:8px}
+  .toc{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:16px 20px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  .toc ol{margin:0;padding-left:20px}
+  .footer{margin-top:3em;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:16px}
+  .url{font-family:monospace;font-size:.83rem;color:var(--accent2)}
+  .arrow{color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Breadcrumbs v3 — Generic Nested Route Support</h1>
+  <p class="subtitle">Add/View Amenity crumbs, folded dynamic id, button-based navigation</p>
+
+  <div class="toc">
+    <strong>Contents</strong>
+    <ol>
+      <li><a href="#whatchanges">What actually needs to change</a></li>
+      <li><a href="#breadcrumbs">Breadcrumbs.tsx — updated</a></li>
+      <li><a href="#registry">Nested segment label registry</a></li>
+      <li><a href="#nav">Add Amenity button handler</a></li>
+      <li><a href="#example">Worked example</a></li>
+    </ol>
+  </div>
+
+  <h2 id="whatchanges">1. What actually needs to change</h2>
+  <table>
+    <tr><th>File</th><th>Status</th></tr>
+    <tr><td><code>location/[slug]/[fn]/layout.tsx</code></td><td><span class="badge unchanged">unchanged</span> still just passes <code>slug</code> + <code>activeFn</code> to <code>LocationShell</code></td></tr>
+    <tr><td><code>components/layout/LocationShell.tsx</code></td><td><span class="badge unchanged">unchanged</span> still calls <code>buildBreadcrumbs(node, path, activeFn)</code> and renders <code>&lt;Breadcrumbs items={breadcrumbs}/&gt;</code> once, wrapping all children</td></tr>
+    <tr><td><code>modules/locations/lib/utils.ts</code> (<code>buildBreadcrumbs</code>)</td><td><span class="badge unchanged">unchanged</span> keeps building location path + one fn crumb, exactly as today</td></tr>
+    <tr><td><code>components/layout/Breadcrumbs.tsx</code></td><td><span class="badge">updated</span> now appends any nested route segments below <code>fn</code>, generically</td></tr>
+    <tr><td><code>lib/breadcrumb-segments.ts</code></td><td><span class="badge">new</span> one-line-per-route label registry — the only thing you touch when adding a future nested route</td></tr>
+    <tr><td><code>(amenity)/layout.tsx</code> (suggested last round)</td><td><span class="badge del">remove</span> no longer needed — <code>LocationShell</code> already wraps everything once</td></tr>
+    <tr><td>Add Amenity button</td><td><span class="badge">new</span> <code>useAmenityNavigation</code> hook + <code>onClick</code> handler, since it's a button not a Link</td></tr>
+  </table>
+
+  <div class="card why">
+    <span class="badge">why this is the right layer</span>
+    <p><code>[fn]/layout.tsx</code> physically cannot see <code>add-amenity</code> or <code>view-amenity/222</code> — Next.js only gives a layout the params for its own segment and everything above it, never below. Rather than threading extra props down through every nested page back up to a layout that can't receive them, we read the route client-side with <code>useSelectedLayoutSegments()</code>, which returns exactly "everything rendered below this layout" live, for any current or future route. One registry entry per new route segment is the only future maintenance this needs.</p>
+  </div>
+
+  <h2 id="breadcrumbs">2. Breadcrumbs.tsx — updated</h2>
+  <span class="filepath">src/components/layout/Breadcrumbs.tsx</span>
+  <pre><code>'use client';
+
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useSelectedLayoutSegments } from 'next/navigation';
+import type { BreadcrumbItem } from '@/types/locations';
+import { NESTED_SEGMENT_LABELS } from '@/lib/breadcrumb-segments';
+
+const MAX_LOCATION_CRUMBS = 3;
+
+interface Props {
+  items: BreadcrumbItem[]; // location path + fn crumb, from buildBreadcrumbs — unchanged input
+}
+
+export function Breadcrumbs({ items }: Props) {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Everything rendered below the [fn] layout: [] | ['add-amenity'] |
+  // ['view-amenity', '222'] | any future nested route, automatically.
+  const nestedSegments = useSelectedLayoutSegments();
+
+  const allItems = useMemo(
+    () => appendNestedCrumbs(items, nestedSegments, pathname),
+    [items, nestedSegments, pathname],
+  );
+
+  if (!allItems.length) return null;
+
+  const fnItem = allItems[allItems.length - 1];
+  const locationItems = allItems.slice(0, -1);
+  const needsCollapse = locationItems.length > MAX_LOCATION_CRUMBS;
+  const visibleLocations = needsCollapse
+    ? [locationItems[0], ...locationItems.slice(-(MAX_LOCATION_CRUMBS - 1))]
+    : locationItems;
+  const hiddenLocations = needsCollapse
+    ? locationItems.slice(1, -(MAX_LOCATION_CRUMBS - 1))
+    : [];
+
+  return (
+    &lt;nav className="flex items-center gap-1 flex-wrap text-sm min-w-0"&gt;
+      {visibleLocations.map((item, i) =&gt; (
+        &lt;span key={item.href ?? item.label} className="flex items-center gap-1 min-w-0"&gt;
+          {i &gt; 0 &amp;&amp; &lt;Sep /&gt;}
+          &lt;Crumb item={item} /&gt;
+          {needsCollapse &amp;&amp; i === 0 &amp;&amp; (
+            &lt;&gt;
+              &lt;Sep /&gt;
+              &lt;div className="relative"&gt;
+                &lt;button
+                  type="button"
+                  onClick={() =&gt; setOpen((o) =&gt; !o)}
+                  className="px-2 py-0.5 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-md"
+                &gt;
+                  …
+                &lt;/button&gt;
+                {open &amp;&amp; (
+                  &lt;&gt;
+                    &lt;div className="fixed inset-0 z-40" onClick={() =&gt; setOpen(false)} /&gt;
+                    &lt;div className="absolute left-0 top-full mt-1 min-w-[180px] bg-white rounded-lg shadow-lg border border-gray-100 z-50 overflow-hidden py-1"&gt;
+                      {hiddenLocations.map((h) =&gt; (
+                        &lt;Link
+                          key={h.href}
+                          href={h.href ?? '#'}
+                          onClick={() =&gt; setOpen(false)}
+                          className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors truncate"
+                        &gt;
+                          {h.label}
+                        &lt;/Link&gt;
+                      ))}
+                    &lt;/div&gt;
+                  &lt;/&gt;
+                )}
+              &lt;/div&gt;
+            &lt;/&gt;
+          )}
+        &lt;/span&gt;
+      ))}
+      &lt;Sep /&gt;
+      &lt;span
+        className="px-4 py-0.5 font-medium text-blue-700 bg-blue-50 rounded-md"
+        title={fnItem.label}
+      &gt;
+        {fnItem.label}
+      &lt;/span&gt;
+    &lt;/nav&gt;
+  );
+}
+
+/**
+ * Appends breadcrumb entries for any route segments rendered below [fn].
+ * - A segment found in NESTED_SEGMENT_LABELS starts a new crumb.
+ * - A segment NOT found (a dynamic id, e.g. amenityId) is folded into the
+ *   previous crumb's href instead of becoming its own entry — so
+ *   "view-amenity/222" renders as ONE "View Amenity" link, not two.
+ * - If there's nothing nested, the original items (location + fn) pass
+ *   through unchanged — this is a pure no-op for existing routes.
+ */
+function appendNestedCrumbs(
+  baseItems: BreadcrumbItem[],
+  segments: string[],
+  pathname: string,
+): BreadcrumbItem[] {
+  if (!segments.length || !baseItems.length) return baseItems;
+
+  const suffix = `/${segments.join('/')}`;
+  const baseHref = pathname.endsWith(suffix)
+    ? pathname.slice(0, -suffix.length) || '/'
+    : pathname;
+
+  // The fn crumb was previously always "last" (rendered as the non-link
+  // current-page badge). Now that something is nested below it, make sure
+  // it's clickable — it slides into the regular Crumb group below.
+  const items = [...baseItems];
+  items[items.length - 1] = { ...items[items.length - 1], href: baseHref };
+
+  const extra: BreadcrumbItem[] = [];
+  let hrefSoFar = baseHref;
+
+  for (const seg of segments) {
+    hrefSoFar = `${hrefSoFar}/${seg}`;
+    const label = NESTED_SEGMENT_LABELS[seg];
+    if (label) {
+      extra.push({ label, href: hrefSoFar });
+    } else if (extra.length) {
+      extra[extra.length - 1] = { ...extra[extra.length - 1], href: hrefSoFar };
+    }
+  }
+
+  return [...items, ...extra];
+}
+
+function Sep() {
+  return &lt;span className="text-gray-300 select-none"&gt;/&lt;/span&gt;;
+}
+
+function Crumb({ item }: { item: BreadcrumbItem }) {
+  if (item.href) {
+    return (
+      &lt;Link
+        href={item.href}
+        className="px-4 py-0.5 text-sm text-left rounded-md transition-colors text-gray-900 hover:text-blue-700 hover:bg-blue-50 font-medium border-transparent cursor-pointer"
+        title={item.label}
+      &gt;
+        {item.label}
+      &lt;/Link&gt;
+    );
+  }
+  return (
+    &lt;span className="px-4 py-0.5 text-sm text-gray-500" title={item.label}&gt;
+      {item.label}
+    &lt;/span&gt;
+  );
+}
+</code></pre>
+  <p class="muted">Only additions: the <code>useSelectedLayoutSegments</code> import/call and the <code>appendNestedCrumbs</code> function. The render logic below (collapse, <code>Crumb</code>, final badge) is your existing code, untouched — it already worked generically on whatever array it's handed.</p>
+
+  <h2 id="registry">3. Nested segment label registry</h2>
+  <span class="filepath">src/lib/breadcrumb-segments.ts</span>
+  <pre><code>/**
+ * Display label for any route segment nested below a location's [fn].
+ * Add one line here whenever you add a new nested route (add-amenity,
+ * view-amenity, edit-amenity, whatever comes next) — Breadcrumbs.tsx
+ * picks it up automatically, no other file needs to change.
+ *
+ * Segments NOT listed here (dynamic ids like an amenityId) are treated
+ * as belonging to the previous crumb rather than shown on their own.
+ */
+export const NESTED_SEGMENT_LABELS: Record&lt;string, string&gt; = {
+  'add-amenity': 'Add Amenity',
+  'view-amenity': 'View Amenity',
+};
+</code></pre>
+
+  <h2 id="nav">4. Add Amenity — button handler</h2>
+  <span class="filepath">src/modules/amenities/hooks/useAmenityNavigation.ts</span>
+  <pre><code>'use client';
+
+import { useRouter } from 'next/navigation';
+
+/**
+ * Central place for amenity route paths. If the URL shape ever changes,
+ * it changes once here instead of in every component that links to it.
+ */
+export function useAmenityNavigation(locationSlug: string) {
+  const router = useRouter();
+  const base = `/location/${locationSlug}/provide-amenities`;
+
+  return {
+    goToAmenitiesList: () =&gt; router.push(base),
+    goToAddAmenity: () =&gt; router.push(`${base}/add-amenity`),
+    goToViewAmenity: (amenityId: string | number) =&gt;
+      router.push(`${base}/view-amenity/${amenityId}`),
+  };
+}
+</code></pre>
+
+  <span class="filepath">src/modules/amenities/components/AmenitiesPage.tsx (excerpt)</span>
+  <pre><code>'use client';
+
+import { useAmenityNavigation } from '../hooks/useAmenityNavigation';
+
+export function AmenitiesToolbar({ locationSlug }: { locationSlug: string }) {
+  const { goToAddAmenity } = useAmenityNavigation(locationSlug);
+
+  return (
+    &lt;button type="button" onClick={goToAddAmenity} className="btn-primary"&gt;
+      Add Amenity +
+    &lt;/button&gt;
+  );
+}
+
+// List items can stay as plain Links — no async work needed before navigating:
+// &lt;Link href={`/location/${locationSlug}/provide-amenities/view-amenity/${a.id}`}&gt;
+</code></pre>
+  <p class="muted">Use the hook (button) where you need a click handler — e.g. if you later add validation, analytics, or a confirmation step before navigating. Keep plain <code>&lt;Link&gt;</code> anywhere a direct navigation is fine, like the amenity list rows.</p>
+
+  <h2 id="example">5. Worked example</h2>
+  <table>
+    <tr><th>URL</th><th>nestedSegments</th><th>Rendered breadcrumb</th></tr>
+    <tr>
+      <td class="url">/location/museum-of-the-bible/provide-amenities</td>
+      <td><code>[]</code></td>
+      <td>Museum of the Bible <span class="arrow">›</span> <strong>Provide Amenities</strong></td>
+    </tr>
+    <tr>
+      <td class="url">/location/museum-of-the-bible/provide-amenities/add-amenity</td>
+      <td><code>['add-amenity']</code></td>
+      <td>Museum of the Bible <span class="arrow">›</span> Provide Amenities <span class="arrow">›</span> <strong>Add Amenity</strong></td>
+    </tr>
+    <tr>
+      <td class="url">/location/museum-of-the-bible/provide-amenities/view-amenity/222</td>
+      <td><code>['view-amenity', '222']</code></td>
+      <td>Museum of the Bible <span class="arrow">›</span> Provide Amenities <span class="arrow">›</span> <strong>View Amenity</strong> <span class="muted">(one link, href ends in /222)</span></td>
+    </tr>
+  </table>
+  <p>Adding a brand new nested route later — say <span class="url">.../provide-amenities/view-amenity/222/edit</span> — needs exactly one line: <code>'edit': 'Edit Amenity'</code> in the registry. Nothing else in the routing or layout code changes.</p>
+
+  <div class="footer">
+    v3 — supersedes the <code>(amenity)/layout.tsx</code> breadcrumb wrapper suggested previously; that approach is replaced by this single change to the existing <code>Breadcrumbs.tsx</code>. <code>LocationShell</code>, <code>[fn]/layout.tsx</code>, and <code>buildBreadcrumbs</code> are confirmed unchanged.
+  </div>
+
+</div>
+</body>
+</html>
