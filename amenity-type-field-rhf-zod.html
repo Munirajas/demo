@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Amenity Type Field — RHF + Zod Wiring</title>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--border:#2a2f3a;--text:#e6e8ec;--muted:#9aa3b2;--accent:#6ea8fe;--accent2:#7ee6c0;--code:#0b0d12}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55}
+  .wrap{max-width:940px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:1.5rem;margin-bottom:.2em}
+  .subtitle{color:var(--muted);margin-top:0;margin-bottom:2em}
+  h2{font-size:1.15rem;margin-top:2.2em;border-bottom:1px solid var(--border);padding-bottom:.4em}
+  p{color:#d6d9e0}
+  .muted{color:var(--muted)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin:14px 0}
+  .badge{display:inline-block;font-size:.7rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase;border-radius:999px;padding:2px 10px;margin-bottom:8px;color:var(--accent2);background:#123028;border:1px solid #1f4e3f}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.82rem;line-height:1.5}
+  code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
+  .filepath{display:inline-block;font-family:monospace;font-size:.8rem;color:var(--accent);background:#0f2140;border:1px solid #1c3c6b;border-radius:6px;padding:2px 8px;margin-bottom:8px}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  .footer{margin-top:3em;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Amenity Type — wired into RHF + Zod</h1>
+  <p class="subtitle">Consistent with amenityName/amenityDescription; keeps the "locked once created" behavior</p>
+
+  <table>
+    <tr><th>Rule</th><th>Where it's enforced</th></tr>
+    <tr><td>Mandatory overall</td><td>zod schema: <code>.refine(val =&gt; val !== null)</code></td></tr>
+    <tr><td>Can be <code>null</code> while creating (before a pick)</td><td>zod type stays <code>number | null</code>, only fails validation on submit if still null</td></tr>
+    <tr><td>Mandatory / can't change once created</td><td>your existing pattern kept: <code>amenityId</code> present → render read-only text instead of the select at all</td></tr>
+  </table>
+
+  <h2>1. Schema — add the required-when-submitted rule</h2>
+  <span class="filepath">src/modules/amenities/lib/general-info-schema.ts</span>
+  <pre><code>import { z } from 'zod';
+
+export const generalInfoSchema = z.object({
+  amenityTypeId: z
+    .number({ invalid_type_error: 'Amenity Type is required' })
+    .nullable()
+    .refine((val) =&gt; val !== null, { message: 'Amenity Type is required' }),
+  amenityName: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(120, 'Keep it under 120 characters'),
+  amenityDescription: z
+    .string()
+    .trim()
+    .max(500, 'Keep it under 500 characters'),
+});
+</code></pre>
+  <p class="muted">Type stays <code>number | null</code> (nothing else in your types needs to change) — the <code>refine</code> only affects validation timing, not the TypeScript shape of <code>GeneralInfoValues</code>.</p>
+
+  <h2>2. GeneralInfoFields.tsx — Controller-wired select</h2>
+  <span class="filepath">src/modules/amenities/components/GeneralInfoFields.tsx</span>
+  <pre><code>'use client';
+
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Input } from '@hlt/react-component-library';
+import type { AmenityType, GeneralInfoValues, GeneralInfoValuesWithId } from '@/types/amenities';
+import { generalInfoSchema } from '../lib/general-info-schema';
+
+interface Props {
+  values: GeneralInfoValues;
+  onChange: (values: GeneralInfoValues) =&gt; void;
+  error?: string;
+  amenityTypes: AmenityType[];
+  amenityId?: number;
+}
+
+export function GeneralInfoFields({
+  values,
+  onChange,
+  error,
+  amenityTypes,
+  amenityId,
+}: Props) {
+  const {
+    control,
+    formState: { errors },
+  } = useForm&lt;GeneralInfoValues&gt;({
+    resolver: zodResolver(generalInfoSchema),
+    values,
+    mode: 'onChange',
+  });
+
+  const amenityTypeName =
+    amenityTypes.find((t) =&gt; t.amenityTypeId === values.amenityTypeId)
+      ?.amenityTypeName || 'General Admission';
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      {error &amp;&amp; &lt;p className="text-sm text-red-600"&gt;{error}&lt;/p&gt;}
+
+      &lt;div className="flex flex-row gap-4"&gt;
+        &lt;div className="flex flex-col gap-1 mb-2 max-w-md w-1/2"&gt;
+          &lt;label className="text-sm font-medium text-gray-700 mb-1"&gt;
+            Amenity Type
+          &lt;/label&gt;
+
+          {amenityId ? (
+            &lt;p className="font-bold"&gt;{amenityTypeName}&lt;/p&gt;
+          ) : (
+            &lt;Controller
+              name="amenityTypeId"
+              control={control}
+              render={({ field }) =&gt; (
+                &lt;select
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed h-11"
+                  value={field.value ?? ''}
+                  onChange={(e) =&gt; {
+                    const next = e.target.value === '' ? null : Number(e.target.value);
+                    field.onChange(next);
+                    onChange({ ...values, amenityTypeId: next });
+                  }}
+                  onBlur={field.onBlur}
+                &gt;
+                  &lt;option value=""&gt;Select...&lt;/option&gt;
+                  {amenityTypes.map((t) =&gt; (
+                    &lt;option key={t.amenityTypeId} value={t.amenityTypeId}&gt;
+                      {t.amenityTypeName}
+                    &lt;/option&gt;
+                  ))}
+                &lt;/select&gt;
+              )}
+            /&gt;
+          )}
+          {errors.amenityTypeId &amp;&amp; (
+            &lt;p className="text-sm text-red-600"&gt;{errors.amenityTypeId.message}&lt;/p&gt;
+          )}
+        &lt;/div&gt;
+
+        &lt;div className="w-1/2"&gt;
+          &lt;Controller
+            name="amenityName"
+            control={control}
+            render={({ field }) =&gt; (
+              &lt;Input
+                label="Amenity Name"
+                placeholder="e.g. General Admission"
+                className="w-full font-medium disabled:bg-gray-50 max-w-md text-black! border-gray-100!"
+                name={field.name}
+                value={field.value}
+                onChange={(e) =&gt; {
+                  field.onChange(e);
+                  onChange({ ...values, amenityName: e.target.value });
+                }}
+                error={errors.amenityName?.message}
+              /&gt;
+            )}
+          /&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+
+      &lt;div className="flex flex-col gap-1"&gt;
+        &lt;label className="text-sm font-medium text-gray-700"&gt;
+          Amenity Description
+        &lt;/label&gt;
+        &lt;Controller
+          name="amenityDescription"
+          control={control}
+          render={({ field }) =&gt; (
+            &lt;textarea
+              {...field}
+              onChange={(e) =&gt; {
+                field.onChange(e);
+                onChange({ ...values, amenityDescription: e.target.value });
+              }}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              rows={4}
+            /&gt;
+          )}
+        /&gt;
+        {errors.amenityDescription &amp;&amp; (
+          &lt;p className="text-sm text-red-600"&gt;{errors.amenityDescription.message}&lt;/p&gt;
+        )}
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+
+  <div class="card">
+    <span class="badge">what changed</span>
+    <p><strong>Removed:</strong> <code>amenityTypeId</code> and <code>setSelectedAmenityTypeId</code> props — they duplicated state that <code>values</code> + RHF's <code>values</code>-sync option already own.</p>
+    <p><strong>Added:</strong> <code>Controller</code> wraps the select exactly like the other two fields, so <code>zodResolver</code> validates it, and <code>errors.amenityTypeId?.message</code> now renders "Amenity Type is required" if left unselected.</p>
+    <p><strong>Kept as-is:</strong> the <code>amenityId ? &lt;p&gt;...&lt;/p&gt; : &lt;select&gt;</code> branch — this is still what enforces "can't change once created," it's just that the select branch is now validated instead of being plain local state.</p>
+  </div>
+
+  <h2>3. Parent component (AddAmenity.tsx) — one line to remove</h2>
+  <p>Wherever this component is used, drop the now-unused local state and props:</p>
+  <pre><code>// Remove:
+// const [selectedAmenityTypeId, setSelectedAmenityTypeId] = useState&lt;number | null&gt;(null);
+
+&lt;GeneralInfoFields
+  values={values}
+  onChange={setValues}
+  error={error}
+  amenityTypes={amenityTypes}
+  amenityId={amenityId}
+  // amenityTypeId={selectedAmenityTypeId}          ← remove
+  // setSelectedAmenityTypeId={setSelectedAmenityTypeId}  ← remove
+/&gt;
+</code></pre>
+  <p class="muted"><code>values.amenityTypeId</code> (initialized to <code>null</code> for create, pre-filled for edit/view) is now the single source of truth — same pattern <code>amenityName</code>/<code>amenityDescription</code> already use.</p>
+
+  <div class="footer">
+    Net effect: all three fields now go through the same Controller + zod path — one validation source, one error-display pattern, no more parallel manual state for the type dropdown.
+  </div>
+</div>
+</body>
+</html>
