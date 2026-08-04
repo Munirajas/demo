@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Amenity Server Fetchers — v6</title>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--border:#2a2f3a;--text:#e6e8ec;--muted:#9aa3b2;--accent:#6ea8fe;--accent2:#7ee6c0;--code:#0b0d12}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55}
+  .wrap{max-width:960px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:1.5rem;margin-bottom:.2em}
+  .subtitle{color:var(--muted);margin-top:0;margin-bottom:2em}
+  h2{font-size:1.15rem;margin-top:2.4em;border-bottom:1px solid var(--border);padding-bottom:.4em}
+  p{color:#d6d9e0}
+  .muted{color:var(--muted)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin:14px 0}
+  .card.why{border-left:3px solid var(--accent2)}
+  .badge{display:inline-block;font-size:.7rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase;border-radius:999px;padding:2px 10px;margin-bottom:8px;color:var(--accent2);background:#123028;border:1px solid #1f4e3f}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.8rem;line-height:1.5}
+  code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
+  .filepath{display:inline-block;font-family:monospace;font-size:.8rem;color:var(--accent);background:#0f2140;border:1px solid #1c3c6b;border-radius:6px;padding:2px 8px;margin-bottom:8px}
+  .footer{margin-top:3em;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Server-Side Amenity Fetchers</h1>
+  <p class="subtitle">Same pattern as server-location-functions.ts: server-only, cache(), typed response, RateLimitError handling</p>
+
+  <div class="card why">
+    <span class="badge">the one unavoidable waterfall</span>
+    <p>General info must resolve before you know the amenity's type — so "fetch schedule only if Scheduled Admission" can't be parallelized with the general-info fetch itself. Everything else that doesn't depend on that decision (location functions, amenity types dropdown options) still runs alongside it via <code>Promise.all</code>.</p>
+  </div>
+
+  <h2>1. GraphQL queries</h2>
+  <span class="filepath">src/modules/amenities/graphql/amenities.queries.ts</span>
+  <pre><code>export const GET_AMENITY_GENERAL_INFO = /* GraphQL */ `
+  query GetAmenityGeneralInfo($amenityId: Int!) {
+    getAmenityGeneralInfo(amenityId: $amenityId) {
+      success
+      message
+      data {
+        amenityId
+        amenityName
+        amenityDescription
+        amenityTypeId
+        amenityTypeName
+        locationId
+      }
+    }
+  }
+`;
+
+export const GET_AMENITY_SCHEDULE = /* GraphQL */ `
+  query GetAmenitySchedule($amenityId: Int!) {
+    getAmenitySchedule(amenityId: $amenityId) {
+      success
+      message
+      data {
+        amenityId
+        recurrenceType
+        startDate
+        endDate
+        timeSlots {
+          startTime
+          endTime
+          capacity
+        }
+      }
+    }
+  }
+`;
+</code></pre>
+
+  <h2>2. Server fetchers — mirrors server-location-functions.ts exactly</h2>
+  <span class="filepath">src/modules/amenities/actions/server-amenities.ts</span>
+  <pre><code>import 'server-only';
+
+import { cache } from 'react';
+import { serverGqlFetch } from '@/lib/graphql/server-gql-fetcher';
+import { RateLimitError } from '@/lib/graphql/gql-errors';
+import type {
+  AmenityGeneralInfo,
+  RawAmenityGeneralInfo,
+  AmenitySchedule,
+  RawAmenitySchedule,
+} from '@/types/amenities';
+import { mapAmenityGeneralInfo, mapAmenitySchedule } from '../lib/utils';
+import { SCHEDULED_ADMISSION_TYPE_NAME } from '../lib/constants';
+import {
+  GET_AMENITY_GENERAL_INFO,
+  GET_AMENITY_SCHEDULE,
+} from '../graphql/amenities.queries';
+
+interface GetAmenityGeneralInfoResponse {
+  getAmenityGeneralInfo: {
+    success: boolean;
+    message: string;
+    data: RawAmenityGeneralInfo;
+  };
+}
+
+export const getAmenityGeneralInfo = cache(
+  async (amenityId: number): Promise&lt;AmenityGeneralInfo | null&gt; =&gt; {
+    try {
+      const response = await serverGqlFetch&lt;GetAmenityGeneralInfoResponse&gt;(
+        GET_AMENITY_GENERAL_INFO,
+        { type: 'client', amenityId },
+      );
+      if (!response.getAmenityGeneralInfo?.success) {
+        return null;
+      }
+      return mapAmenityGeneralInfo(response.getAmenityGeneralInfo.data);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        console.warn('[getAmenityGeneralInfo] Rate limited — returning null');
+        return null;
+      }
+      console.error('[getAmenityGeneralInfo]', error);
+      return null;
+    }
+  },
+);
+
+interface GetAmenityScheduleResponse {
+  getAmenitySchedule: {
+    success: boolean;
+    message: string;
+    data: RawAmenitySchedule;
+  };
+}
+
+export const getAmenitySchedule = cache(
+  async (amenityId: number): Promise&lt;AmenitySchedule | null&gt; =&gt; {
+    try {
+      const response = await serverGqlFetch&lt;GetAmenityScheduleResponse&gt;(
+        GET_AMENITY_SCHEDULE,
+        { type: 'client', amenityId },
+      );
+      if (!response.getAmenitySchedule?.success) {
+        return null;
+      }
+      return mapAmenitySchedule(response.getAmenitySchedule.data);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        console.warn('[getAmenitySchedule] Rate limited — returning null');
+        return null;
+      }
+      console.error('[getAmenitySchedule]', error);
+      return null;
+    }
+  },
+);
+
+/**
+ * Orchestrator for the view/edit page: always fetches general info,
+ * then conditionally fetches type-specific detail based on
+ * amenityTypeName. Add a new branch here (seatedInfo, pricing, ...)
+ * whenever a new amenity type needs its own detail call — the page
+ * component itself never has to change.
+ */
+export async function getAmenityDetails(amenityId: number) {
+  const generalInfo = await getAmenityGeneralInfo(amenityId);
+  if (!generalInfo) {
+    return { generalInfo: null, schedule: null };
+  }
+
+  const schedule =
+    generalInfo.amenityTypeName === SCHEDULED_ADMISSION_TYPE_NAME
+      ? await getAmenitySchedule(amenityId)
+      : null;
+
+  // Future: seatedInfo / pricing follow the same conditional pattern here.
+
+  return { generalInfo, schedule };
+}
+</code></pre>
+
+  <h2>3. View-amenity page.tsx — parallel where possible</h2>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/(amenity)/view-amenity/[amenityId]/page.tsx</span>
+  <pre><code>import { notFound } from 'next/navigation';
+import { getLocationContext } from '@/modules/locations/lib/get-location-context';
+import { getLocationFunctions } from '@/modules/locations/actions/server-location-functions';
+import { getAmenityTypes, getAmenityDetails } from '@/modules/amenities/actions/server-amenities';
+import { PROVIDE_AMENITIES_SLUG } from '@/modules/amenities/lib/constants';
+import { EditAmenity } from '@/modules/amenities/components/AddAmenity/EditAmenity';
+
+interface Props {
+  params: Promise&lt;{ slug: string; fn: string; amenityId: number }&gt;;
+}
+
+export default async function ViewAmenityPage({ params }: Props) {
+  const { slug, fn, amenityId } = await params;
+  if (fn !== 'provide-amenities') notFound();
+
+  const found = await getLocationContext(slug);
+  if (!found) notFound();
+  const locationId = Number(found.node.id);
+
+  // getAmenityDetails resolves general info first, then conditionally
+  // fetches schedule — that pair can't be parallelized. Everything else
+  // (location functions, amenity type options) has no such dependency
+  // and runs alongside it instead of after it.
+  const [{ generalInfo, schedule }, functions, amenityTypesResult] =
+    await Promise.all([
+      getAmenityDetails(amenityId),
+      getLocationFunctions(String(locationId)),
+      getAmenityTypes(),
+    ]);
+
+  if (!generalInfo) notFound();
+
+  const amenitiesFn = functions.find((f) =&gt; f.slug === PROVIDE_AMENITIES_SLUG);
+
+  return (
+    &lt;EditAmenity
+      amenityId={amenityId}
+      locationId={locationId}
+      locationSlug={slug}
+      amenityTypes={amenityTypesResult.amenityTypes}
+      locationFunctionId={amenitiesFn?.locationFunctionId ?? 0}
+      generalInfo={generalInfo}
+      schedule={schedule}
+    /&gt;
+  );
+}
+</code></pre>
+
+  <h2>4. EditAmenity.tsx (client) — picks the right form, wires the mutation hooks</h2>
+  <span class="filepath">src/modules/amenities/components/AddAmenity/EditAmenity.tsx</span>
+  <pre><code>'use client';
+
+import { GeneralAdmissionForm } from '../forms/GeneralAdmissionForm';
+import { ScheduledAdmissionForm } from '../forms/ScheduledAdmissionForm';
+import { useUpdateAmenity } from '@/modules/amenities/hooks/useUpdateAmenity';
+import { useUpsertAmenitySchedule } from '@/modules/amenities/hooks/useUpsertAmenitySchedule';
+import { SCHEDULED_ADMISSION_TYPE_NAME } from '@/modules/amenities/lib/constants';
+import type { AmenityGeneralInfo, AmenitySchedule, AmenityType } from '@/types/amenities';
+
+interface Props {
+  amenityId: number;
+  locationId: number;
+  locationSlug: string;
+  amenityTypes: AmenityType[];
+  locationFunctionId: number;
+  generalInfo: AmenityGeneralInfo;
+  schedule: AmenitySchedule | null;
+}
+
+export function EditAmenity({
+  amenityId,
+  locationId,
+  locationSlug,
+  amenityTypes,
+  locationFunctionId,
+  generalInfo,
+  schedule,
+}: Props) {
+  const updateAmenity = useUpdateAmenity(amenityId);
+  const upsertSchedule = useUpsertAmenitySchedule(amenityId);
+
+  const isScheduled = generalInfo.amenityTypeName === SCHEDULED_ADMISSION_TYPE_NAME;
+
+  return (
+    &lt;div className="flex flex-col gap-6"&gt;
+      &lt;GeneralAdmissionForm
+        amenityId={amenityId}
+        locationId={locationId}
+        amenityTypes={amenityTypes}
+        initialValues={generalInfo}
+        onSubmit={(values) =&gt; updateAmenity.mutate(values)}
+        isSubmitting={updateAmenity.isPending}
+      /&gt;
+
+      {isScheduled &amp;&amp; (
+        &lt;ScheduledAdmissionForm
+          amenityId={amenityId}
+          locationFunctionId={locationFunctionId}
+          initialSchedule={schedule}
+          onSubmit={(values) =&gt; upsertSchedule.mutate(values)}
+          isSubmitting={upsertSchedule.isPending}
+        /&gt;
+      )}
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+  <p class="muted">Both forms receive server-fetched data as <code>initialValues</code>/<code>initialSchedule</code> — no client-side fetch or loading spinner on mount. Submission (edit) stays entirely client-side through your existing <code>useUpdateAmenity</code> / <code>useUpsertAmenitySchedule</code> mutation hooks, which already handle cache invalidation/refetch after a successful save.</p>
+
+  <div class="footer">
+    v6 — general info + schedule wired end to end, server → client, following the exact <code>server-location-functions.ts</code> pattern (server-only, cache(), RateLimitError handling). Seated info / pricing slot into <code>getAmenityDetails</code> the same way when you're ready to add them.
+  </div>
+</div>
+</body>
+</html>
