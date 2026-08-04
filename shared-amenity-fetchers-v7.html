@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shared Queries/Types — Server + Client</title>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--border:#2a2f3a;--text:#e6e8ec;--muted:#9aa3b2;--accent:#6ea8fe;--accent2:#7ee6c0;--code:#0b0d12}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55}
+  .wrap{max-width:960px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:1.5rem;margin-bottom:.2em}
+  .subtitle{color:var(--muted);margin-top:0;margin-bottom:2em}
+  h2{font-size:1.15rem;margin-top:2.4em;border-bottom:1px solid var(--border);padding-bottom:.4em}
+  p{color:#d6d9e0}
+  .muted{color:var(--muted)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin:14px 0}
+  .card.why{border-left:3px solid var(--accent2)}
+  .badge{display:inline-block;font-size:.7rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase;border-radius:999px;padding:2px 10px;margin-bottom:8px;color:var(--accent2);background:#123028;border:1px solid #1f4e3f}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.8rem;line-height:1.5}
+  code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
+  .filepath{display:inline-block;font-family:monospace;font-size:.8rem;color:var(--accent);background:#0f2140;border:1px solid #1c3c6b;border-radius:6px;padding:2px 8px;margin-bottom:8px}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  .footer{margin-top:3em;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>One Query, One Type, One Selector — Server &amp; Client</h1>
+  <p class="subtitle">No new GraphQL, no new response types — server fetchers reuse exactly what the hooks already use</p>
+
+  <table>
+    <tr><th>File</th><th>Change</th></tr>
+    <tr><td><code>lib/constants.ts</code></td><td>add <code>AMENITY_REQUEST_TYPE</code> — currently duplicated as a local const in both hook files</td></tr>
+    <tr><td><code>lib/selectors.ts</code></td><td><span class="badge">new</span> the mapping logic pulled out of both hooks' <code>select:</code> callbacks — one function each, used by client <em>and</em> server</td></tr>
+    <tr><td><code>hooks/useAmenityGeneralInfo.ts</code></td><td>trimmed — <code>select</code> now just calls the shared selector</td></tr>
+    <tr><td><code>hooks/useAmenitySchedule.ts</code></td><td>trimmed — same</td></tr>
+    <tr><td><code>actions/server-amenities.ts</code></td><td><span class="badge">new</span> same query, same type, same selector, wrapped in <code>cache()</code></td></tr>
+    <tr><td>view-amenity <code>page.tsx</code></td><td>updated to use the new server fetchers</td></tr>
+  </table>
+
+  <h2>1. Shared constant — dedupe the literal that's currently in both hooks</h2>
+  <span class="filepath">src/modules/amenities/lib/constants.ts (add to existing file)</span>
+  <pre><code>export const AMENITY_REQUEST_TYPE = 'client' as const;
+</code></pre>
+
+  <h2>2. Shared selectors — the ONE place this mapping logic lives</h2>
+  <span class="filepath">src/modules/amenities/lib/selectors.ts</span>
+  <pre><code>import type {
+  GeneralInfoValues,
+  GetAmenityGeneralInfoResponse,
+  GetAmenityScheduleDetailsResponse,
+  AmenitySchedule,
+} from '@/types/amenities';
+
+/**
+ * Same logic that was inline in useAmenityGeneralInfo's `select` — moved
+ * here so the server fetcher can call the exact same function instead of
+ * re-implementing the mapping.
+ */
+export function selectGeneralInfo(
+  data: GetAmenityGeneralInfoResponse,
+): GeneralInfoValues | null {
+  const d = data?.getAmenityDetail?.data;
+  if (!d?.[0]) return null;
+
+  const { amenityTypeId, amenityName, amenityDescription } = d[0];
+  return {
+    amenityTypeId,
+    amenityName,
+    amenityDescription: amenityDescription ?? '',
+  };
+}
+
+/** Same logic that was inline in useAmenitySchedule's `select`. */
+export function selectSchedule(
+  data: GetAmenityScheduleDetailsResponse,
+): AmenitySchedule | null {
+  return data.getAmenitySchedule?.data ?? null;
+}
+</code></pre>
+
+  <h2>3. Client hooks — now call the shared selector instead of inlining it</h2>
+  <span class="filepath">src/modules/amenities/hooks/useAmenityGeneralInfo.ts</span>
+  <pre><code>'use client';
+
+import { useAuthQuery } from '@/modules/auth/hooks/useAuthQuery';
+import { amenityKeys, AMENITY_REQUEST_TYPE } from '../lib/constants';
+import { selectGeneralInfo } from '../lib/selectors';
+import { GET_AMENITY_DETAIL } from '../graphql/amenity.queries';
+
+export function useAmenityGeneralInfo(amenityId: number | null) {
+  return useAuthQuery(
+    amenityKeys.generalInfo(amenityId ?? -1),
+    GET_AMENITY_DETAIL,
+    { type: AMENITY_REQUEST_TYPE, amenityId: amenityId ?? undefined },
+    {
+      enabled: amenityId !== null,
+      select: selectGeneralInfo,
+    },
+  );
+}
+</code></pre>
+
+  <span class="filepath">src/modules/amenities/hooks/useAmenitySchedule.ts</span>
+  <pre><code>'use client';
+
+import { useAuthQuery } from '@/modules/auth/hooks/useAuthQuery';
+import { amenityKeys, AMENITY_REQUEST_TYPE } from '../lib/constants';
+import { selectSchedule } from '../lib/selectors';
+import { GET_AMENITY_SCHEDULE } from '../graphql/amenity.queries';
+
+export function useAmenitySchedule(amenityId: number | null, enabled: boolean) {
+  return useAuthQuery(
+    amenityKeys.schedule(amenityId ?? -1),
+    GET_AMENITY_SCHEDULE,
+    { type: AMENITY_REQUEST_TYPE, amenityId: amenityId ?? undefined },
+    {
+      enabled: enabled && amenityId !== null,
+      select: selectSchedule,
+    },
+  );
+}
+</code></pre>
+  <p class="muted">Behavior is identical to before — this is purely extracting the two <code>select:</code> callback bodies into named functions so the server side can import them too.</p>
+
+  <h2>4. Server fetchers — same query, same type, same selector</h2>
+  <span class="filepath">src/modules/amenities/actions/server-amenities.ts</span>
+  <pre><code>import 'server-only';
+
+import { cache } from 'react';
+import { serverGqlFetch } from '@/lib/graphql/server-gql-fetcher';
+import { RateLimitError } from '@/lib/graphql/gql-errors';
+import { GET_AMENITY_DETAIL, GET_AMENITY_SCHEDULE } from '../graphql/amenity.queries';
+import { AMENITY_REQUEST_TYPE } from '../lib/constants';
+import { selectGeneralInfo, selectSchedule } from '../lib/selectors';
+import type {
+  GeneralInfoValues,
+  GetAmenityGeneralInfoResponse,
+  AmenitySchedule,
+  GetAmenityScheduleDetailsResponse,
+} from '@/types/amenities';
+
+export const getAmenityGeneralInfo = cache(
+  async (amenityId: number): Promise&lt;GeneralInfoValues | null&gt; =&gt; {
+    try {
+      const data = await serverGqlFetch&lt;GetAmenityGeneralInfoResponse&gt;(
+        GET_AMENITY_DETAIL,
+        { type: AMENITY_REQUEST_TYPE, amenityId },
+      );
+      return selectGeneralInfo(data);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        console.warn('[getAmenityGeneralInfo] Rate limited — returning null');
+        return null;
+      }
+      console.error('[getAmenityGeneralInfo]', error);
+      return null;
+    }
+  },
+);
+
+export const getAmenitySchedule = cache(
+  async (amenityId: number): Promise&lt;AmenitySchedule | null&gt; =&gt; {
+    try {
+      const data = await serverGqlFetch&lt;GetAmenityScheduleDetailsResponse&gt;(
+        GET_AMENITY_SCHEDULE,
+        { type: AMENITY_REQUEST_TYPE, amenityId },
+      );
+      return selectSchedule(data);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        console.warn('[getAmenitySchedule] Rate limited — returning null');
+        return null;
+      }
+      console.error('[getAmenitySchedule]', error);
+      return null;
+    }
+  },
+);
+</code></pre>
+  <p class="muted">Zero new GraphQL documents, zero new response types. The only "new" code here is the <code>cache()</code> wrapper and the try/catch — the query, the variables shape, and the data mapping are all the exact same ones the client hooks use.</p>
+
+  <div class="card why">
+    <span class="badge">why the type-check happens in the page, not the fetcher</span>
+    <p><code>selectGeneralInfo</code> only returns <code>amenityTypeId</code>, <code>amenityName</code>, <code>amenityDescription</code> — it never selected <code>amenityTypeName</code>, matching what the client hook already does. So "is this Scheduled Admission?" is answered by matching <code>generalInfo.amenityTypeId</code> against the already-fetched amenity types list, rather than adding a new field the client side doesn't use.</p>
+  </div>
+
+  <h2>5. view-amenity page.tsx — using the reused fetchers</h2>
+  <span class="filepath">src/app/(protected)/location/[slug]/[fn]/(amenity)/view-amenity/[amenityId]/page.tsx</span>
+  <pre><code>import { notFound } from 'next/navigation';
+import { getLocationContext } from '@/modules/locations/lib/get-location-context';
+import { getLocationFunctions } from '@/modules/locations/actions/server-location-functions';
+import { getAmenityTypes } from '@/modules/amenities/actions/server-amenities';
+import { getAmenityGeneralInfo, getAmenitySchedule } from '@/modules/amenities/actions/server-amenities';
+import { PROVIDE_AMENITIES_SLUG, SCHEDULED_ADMISSION_TYPE_NAME } from '@/modules/amenities/lib/constants';
+import { EditAmenity } from '@/modules/amenities/components/AddAmenity/EditAmenity';
+
+interface Props {
+  params: Promise&lt;{ slug: string; fn: string; amenityId: number }&gt;;
+}
+
+export default async function ViewAmenityPage({ params }: Props) {
+  const { slug, fn, amenityId } = await params;
+  if (fn !== 'provide-amenities') notFound();
+
+  const found = await getLocationContext(slug);
+  if (!found) notFound();
+  const locationId = Number(found.node.id);
+
+  // None of these three depend on each other — run together.
+  const [generalInfo, amenityTypesResult, functions] = await Promise.all([
+    getAmenityGeneralInfo(amenityId),
+    getAmenityTypes(),
+    getLocationFunctions(String(locationId)),
+  ]);
+
+  if (!generalInfo) notFound();
+
+  const amenityTypeName = amenityTypesResult.amenityTypes.find(
+    (t) =&gt; t.amenityTypeId === generalInfo.amenityTypeId,
+  )?.amenityTypeName;
+
+  // Only known after generalInfo + amenityTypes resolve — this fetch
+  // can't start any earlier than this.
+  const schedule =
+    amenityTypeName === SCHEDULED_ADMISSION_TYPE_NAME
+      ? await getAmenitySchedule(amenityId)
+      : null;
+
+  const amenitiesFn = functions.find((f) =&gt; f.slug === PROVIDE_AMENITIES_SLUG);
+
+  return (
+    &lt;EditAmenity
+      amenityId={amenityId}
+      locationId={locationId}
+      locationSlug={slug}
+      amenityTypes={amenityTypesResult.amenityTypes}
+      locationFunctionId={amenitiesFn?.locationFunctionId ?? 0}
+      generalInfo={generalInfo}
+      schedule={schedule}
+    /&gt;
+  );
+}
+</code></pre>
+
+  <div class="footer">
+    Net result: <code>GET_AMENITY_DETAIL</code>, <code>GET_AMENITY_SCHEDULE</code>, <code>GetAmenityGeneralInfoResponse</code>, <code>GetAmenityScheduleDetailsResponse</code> — each defined exactly once, imported by both server and client. Mapping logic exists exactly once per query, in <code>selectors.ts</code>, imported by both.
+  </div>
+</div>
+</body>
+</html>
