@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RichTextEditor — Lexical demo</title>
+
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f5f6f8;
+    margin: 0;
+    padding: 40px 20px;
+  }
+  .page {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .page h1 {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  .page p.sub {
+    color: #667085;
+    font-size: 14px;
+    margin-top: 0;
+    margin-bottom: 24px;
+  }
+
+  .rte {
+    border: 1px solid #d0d5dd;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .rte-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-bottom: 1px solid #e4e7ec;
+    background: #f9fafb;
+  }
+
+  .rte-toolbar__btn {
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 6px;
+    padding: 4px 8px;
+    min-width: 30px;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    color: #344054;
+  }
+  .rte-toolbar__btn:hover:not(:disabled) { background: #eef0f3; }
+  .rte-toolbar__btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .rte-toolbar__btn.is-active {
+    background: #e0e7ff;
+    border-color: #a4b6fc;
+    color: #3730a3;
+  }
+
+  .rte-toolbar__select {
+    border: 1px solid #d0d5dd;
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 13px;
+    background: #fff;
+    color: #344054;
+  }
+
+  .rte-toolbar__divider {
+    width: 1px;
+    height: 20px;
+    background: #e4e7ec;
+    margin: 0 4px;
+  }
+
+  .rte-editor { position: relative; padding: 12px 14px; }
+
+  .rte-content {
+    outline: none;
+    min-height: 160px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #101828;
+  }
+
+  .rte-content h1 { font-size: 1.6em; font-weight: 700; margin: 0.4em 0; }
+  .rte-content h2 { font-size: 1.3em; font-weight: 700; margin: 0.4em 0; }
+  .rte-content h3 { font-size: 1.1em; font-weight: 600; margin: 0.4em 0; }
+
+  .rte-content blockquote {
+    border-left: 3px solid #d0d5dd;
+    margin: 0.5em 0;
+    padding-left: 12px;
+    color: #475467;
+    font-style: italic;
+  }
+
+  .rte-content ul, .rte-content ol { padding-left: 1.4em; margin: 0.4em 0; }
+  .rte-content a { color: #4338ca; text-decoration: underline; }
+
+  .rte-content code {
+    background: #f2f4f7;
+    border-radius: 4px;
+    padding: 0 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9em;
+  }
+
+  .rte-content pre {
+    background: #101828;
+    color: #f2f4f7;
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85em;
+    line-height: 1.5;
+    margin: 0.5em 0;
+  }
+
+  .rte-image-wrapper { margin: 0.5em 0; }
+  .rte-image { max-width: 100%; border-radius: 8px; display: block; }
+  .rte-hidden-input { display: none; }
+
+  .rte-placeholder {
+    position: absolute;
+    top: 12px;
+    left: 14px;
+    color: #98a2b3;
+    font-size: 14px;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .output {
+    margin-top: 20px;
+    font-size: 12px;
+  }
+  .output summary { cursor: pointer; color: #475467; }
+  .output pre {
+    background: #101828;
+    color: #d0d5dd;
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <h1>Rich Text Editor</h1>
+  <p class="sub">Standalone Lexical demo — everything in one file, loaded from a CDN.</p>
+  <div id="root"></div>
+</div>
+
+<!-- Import map: pins the single React copy every Lexical package will share -->
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client"
+  }
+}
+</script>
+
+<!-- Babel standalone: strips JSX in the browser, no build step needed -->
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react" data-type="module">
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
+
+import { LexicalComposer } from "https://esm.sh/@lexical/react/LexicalComposer?external=react,react-dom";
+import { useLexicalComposerContext } from "https://esm.sh/@lexical/react/LexicalComposerContext?external=react,react-dom";
+import { RichTextPlugin } from "https://esm.sh/@lexical/react/LexicalRichTextPlugin?external=react,react-dom";
+import { ContentEditable } from "https://esm.sh/@lexical/react/LexicalContentEditable?external=react,react-dom";
+import { HistoryPlugin } from "https://esm.sh/@lexical/react/LexicalHistoryPlugin?external=react,react-dom";
+import { LinkPlugin } from "https://esm.sh/@lexical/react/LexicalLinkPlugin?external=react,react-dom";
+import { ListPlugin } from "https://esm.sh/@lexical/react/LexicalListPlugin?external=react,react-dom";
+import { OnChangePlugin } from "https://esm.sh/@lexical/react/LexicalOnChangePlugin?external=react,react-dom";
+import { LexicalErrorBoundary } from "https://esm.sh/@lexical/react/LexicalErrorBoundary?external=react,react-dom";
+
+import {
+  $getRoot,
+  $getSelection,
+  $isRangeSelection,
+  $createParagraphNode,
+  $insertNodes,
+  DecoratorNode,
+  createCommand,
+  FORMAT_TEXT_COMMAND,
+  FORMAT_ELEMENT_COMMAND,
+  INDENT_CONTENT_COMMAND,
+  OUTDENT_CONTENT_COMMAND,
+  UNDO_COMMAND,
+  REDO_COMMAND,
+  SELECTION_CHANGE_COMMAND,
+  CAN_UNDO_COMMAND,
+  CAN_REDO_COMMAND,
+  COMMAND_PRIORITY_LOW,
+  COMMAND_PRIORITY_EDITOR,
+} from "https://esm.sh/lexical";
+
+import {
+  $isListNode,
+  INSERT_UNORDERED_LIST_COMMAND,
+  INSERT_ORDERED_LIST_COMMAND,
+  REMOVE_LIST_COMMAND,
+  ListNode,
+  ListItemNode,
+} from "https://esm.sh/@lexical/list";
+
+import {
+  $isHeadingNode,
+  $createHeadingNode,
+  $createQuoteNode,
+  HeadingNode,
+  QuoteNode,
+} from "https://esm.sh/@lexical/rich-text";
+
+import { $createCodeNode, $isCodeNode, CodeNode } from "https://esm.sh/@lexical/code";
+import { $setBlocksType } from "https://esm.sh/@lexical/selection";
+import { $findMatchingParent, mergeRegister } from "https://esm.sh/@lexical/utils";
+import { TOGGLE_LINK_COMMAND, LinkNode, AutoLinkNode } from "https://esm.sh/@lexical/link";
+import { $generateHtmlFromNodes, $generateNodesFromDOM } from "https://esm.sh/@lexical/html";
+
+/* ---------- Custom image node (Lexical core has no built-in image support) ---------- */
+
+function ImageComponent({ src, altText }) {
+  return React.createElement("img", { src, alt: altText, className: "rte-image" });
+}
+
+class ImageNode extends DecoratorNode {
+  static getType() { return "image"; }
+  static clone(node) { return new ImageNode(node.__src, node.__altText, node.__key); }
+  static importJSON(serializedNode) {
+    return $createImageNode({ src: serializedNode.src, altText: serializedNode.altText });
+  }
+  exportJSON() {
+    return { src: this.__src, altText: this.__altText, type: "image", version: 1 };
+  }
+  constructor(src, altText, key) {
+    super(key);
+    this.__src = src;
+    this.__altText = altText;
+  }
+  createDOM() {
+    const div = document.createElement("div");
+    div.className = "rte-image-wrapper";
+    return div;
+  }
+  updateDOM() { return false; }
+  decorate() {
+    return React.createElement(ImageComponent, { src: this.__src, altText: this.__altText });
+  }
+}
+
+function $createImageNode({ src, altText, key }) {
+  return new ImageNode(src, altText, key);
+}
+
+const INSERT_IMAGE_COMMAND = createCommand("INSERT_IMAGE_COMMAND");
+
+function ImagesPlugin() {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    return editor.registerCommand(
+      INSERT_IMAGE_COMMAND,
+      (payload) => {
+        $insertNodes([$createImageNode(payload)]);
+        return true;
+      },
+      COMMAND_PRIORITY_EDITOR
+    );
+  }, [editor]);
+  return null;
+}
+
+/* ---------- Toolbar ---------- */
+
+function ToolbarPlugin() {
+  const [editor] = useLexicalComposerContext();
+  const fileInputRef = useRef(null);
+
+  const [blockType, setBlockType] = useState("paragraph");
+  const [isBold, setIsBold] = useState(false);
+  const [isItalic, setIsItalic] = useState(false);
+  const [isUnderline, setIsUnderline] = useState(false);
+  const [isStrikethrough, setIsStrikethrough] = useState(false);
+  const [isCode, setIsCode] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const updateToolbar = useCallback(() => {
+    const selection = $getSelection();
+    if (!$isRangeSelection(selection)) return;
+
+    setIsBold(selection.hasFormat("bold"));
+    setIsItalic(selection.hasFormat("italic"));
+    setIsUnderline(selection.hasFormat("underline"));
+    setIsStrikethrough(selection.hasFormat("strikethrough"));
+    setIsCode(selection.hasFormat("code"));
+
+    const anchorNode = selection.anchor.getNode();
+    const targetNode =
+      anchorNode.getKey() === "root"
+        ? anchorNode
+        : $findMatchingParent(anchorNode, (e) => {
+            const parent = e.getParent();
+            return parent !== null && parent.getKey() === "root";
+          }) ?? anchorNode;
+
+    const element = targetNode.getTopLevelElementOrThrow
+      ? targetNode.getTopLevelElementOrThrow()
+      : targetNode;
+
+    if ($isListNode(element)) {
+      const parentList = $findMatchingParent(anchorNode, $isListNode);
+      const type = parentList ? parentList.getListType() : element.getListType();
+      setBlockType(type === "bullet" ? "bullet" : "number");
+    } else if ($isHeadingNode(element)) {
+      setBlockType(element.getTag());
+    } else if ($isCodeNode(element)) {
+      setBlockType("code");
+    } else {
+      const type = element.getType ? element.getType() : "paragraph";
+      setBlockType(type === "quote" ? "quote" : "paragraph");
+    }
+  }, []);
+
+  useEffect(() => {
+    return mergeRegister(
+      editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(() => updateToolbar());
+      }),
+      editor.registerCommand(SELECTION_CHANGE_COMMAND, () => { updateToolbar(); return false; }, COMMAND_PRIORITY_LOW),
+      editor.registerCommand(CAN_UNDO_COMMAND, (p) => { setCanUndo(p); return false; }, COMMAND_PRIORITY_LOW),
+      editor.registerCommand(CAN_REDO_COMMAND, (p) => { setCanRedo(p); return false; }, COMMAND_PRIORITY_LOW)
+    );
+  }, [editor, updateToolbar]);
+
+  const formatHeading = (tag) => editor.update(() => {
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) $setBlocksType(selection, () => $createHeadingNode(tag));
+  });
+
+  const formatParagraph = () => editor.update(() => {
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) $setBlocksType(selection, () => $createParagraphNode());
+  });
+
+  const formatQuote = () => editor.update(() => {
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) $setBlocksType(selection, () => $createQuoteNode());
+  });
+
+  const formatCodeBlock = () => editor.update(() => {
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) $setBlocksType(selection, () => $createCodeNode());
+  });
+
+  const insertLink = () => {
+    const url = window.prompt("Enter URL");
+    if (!url) return;
+    editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
+  };
+
+  const handleImageButtonClick = () => fileInputRef.current?.click();
+
+  const handleImageFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      editor.dispatchCommand(INSERT_IMAGE_COMMAND, { src: reader.result, altText: file.name });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const Divider = () => React.createElement("span", { className: "rte-toolbar__divider" });
+
+  const Btn = (props, children) =>
+    React.createElement("button", { type: "button", className: `rte-toolbar__btn ${props.active ? "is-active" : ""}`, ...props }, children);
+
+  return React.createElement(
+    "div",
+    { className: "rte-toolbar", role: "toolbar", "aria-label": "Text formatting" },
+    Btn({ "aria-label": "Undo", disabled: !canUndo, onClick: () => editor.dispatchCommand(UNDO_COMMAND, undefined) }, "↺"),
+    Btn({ "aria-label": "Redo", disabled: !canRedo, onClick: () => editor.dispatchCommand(REDO_COMMAND, undefined) }, "↻"),
+    React.createElement(Divider),
+    React.createElement(
+      "select",
+      {
+        "aria-label": "Block type",
+        className: "rte-toolbar__select",
+        value: blockType,
+        onChange: (e) => {
+          const value = e.target.value;
+          if (value === "paragraph") formatParagraph();
+          else if (value === "h1" || value === "h2" || value === "h3") formatHeading(value);
+          else if (value === "quote") formatQuote();
+          else if (value === "code") formatCodeBlock();
+        },
+      },
+      React.createElement("option", { value: "paragraph" }, "Normal"),
+      React.createElement("option", { value: "h1" }, "Heading 1"),
+      React.createElement("option", { value: "h2" }, "Heading 2"),
+      React.createElement("option", { value: "h3" }, "Heading 3"),
+      React.createElement("option", { value: "quote" }, "Quote"),
+      React.createElement("option", { value: "code" }, "Code block")
+    ),
+    React.createElement(Divider),
+    Btn({ "aria-label": "Bold", active: isBold, onClick: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold") }, React.createElement("strong", null, "B")),
+    Btn({ "aria-label": "Italic", active: isItalic, onClick: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic") }, React.createElement("em", null, "I")),
+    Btn({ "aria-label": "Underline", active: isUnderline, onClick: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline") }, React.createElement("u", null, "U")),
+    Btn({ "aria-label": "Strikethrough", active: isStrikethrough, onClick: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough") }, React.createElement("s", null, "S")),
+    Btn({ "aria-label": "Inline code", active: isCode, onClick: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code") }, "</>"),
+    React.createElement(Divider),
+    Btn({ "aria-label": "Align left", onClick: () => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "left") }, "⯇≡"),
+    Btn({ "aria-label": "Align center", onClick: () => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "center") }, "≡"),
+    Btn({ "aria-label": "Align right", onClick: () => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "right") }, "≡⯈"),
+    Btn({ "aria-label": "Justify", onClick: () => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "justify") }, "☰"),
+    React.createElement(Divider),
+    Btn({ "aria-label": "Bulleted list", active: blockType === "bullet", onClick: () => blockType === "bullet" ? editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined) : editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined) }, "• List"),
+    Btn({ "aria-label": "Numbered list", active: blockType === "number", onClick: () => blockType === "number" ? editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined) : editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined) }, "1. List"),
+    Btn({ "aria-label": "Outdent", onClick: () => editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined) }, "⇤"),
+    Btn({ "aria-label": "Indent", onClick: () => editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined) }, "⇥"),
+    React.createElement(Divider),
+    Btn({ "aria-label": "Insert link", onClick: insertLink }, "🔗"),
+    Btn({ "aria-label": "Insert image", onClick: handleImageButtonClick }, "🖼"),
+    React.createElement("input", { ref: fileInputRef, type: "file", accept: "image/*", className: "rte-hidden-input", onChange: handleImageFileChange })
+  );
+}
+
+/* ---------- Editor shell ---------- */
+
+const editorNodes = [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode, AutoLinkNode, CodeNode, ImageNode];
+
+function RichTextEditor({ placeholder = "Start typing...", initialHtml, onChange, minHeight = "160px" }) {
+  const initialConfig = {
+    namespace: "RichTextEditor",
+    nodes: editorNodes,
+    onError(error) { throw error; },
+    editorState: initialHtml
+      ? (editor) => {
+          const parser = new DOMParser();
+          const dom = parser.parseFromString(initialHtml, "text/html");
+          const nodes = $generateNodesFromDOM(editor, dom);
+          $getRoot().select();
+          $insertNodes(nodes);
+        }
+      : undefined,
+  };
+
+  const handleChange = (editorState, editor) => {
+    if (!onChange) return;
+    editorState.read(() => {
+      const html = $generateHtmlFromNodes(editor, null);
+      const text = $getRoot().getTextContent();
+      onChange({ html, text });
+    });
+  };
+
+  return React.createElement(
+    "div",
+    { className: "rte" },
+    React.createElement(
+      LexicalComposer,
+      { initialConfig },
+      React.createElement(ToolbarPlugin),
+      React.createElement(
+        "div",
+        { className: "rte-editor", style: { minHeight } },
+        React.createElement(RichTextPlugin, {
+          contentEditable: React.createElement(ContentEditable, { className: "rte-content", "aria-placeholder": placeholder }),
+          placeholder: React.createElement("div", { className: "rte-placeholder" }, placeholder),
+          ErrorBoundary: LexicalErrorBoundary,
+        }),
+      ),
+      React.createElement(HistoryPlugin),
+      React.createElement(ListPlugin),
+      React.createElement(LinkPlugin),
+      React.createElement(ImagesPlugin),
+      onChange ? React.createElement(OnChangePlugin, { onChange: handleChange }) : null
+    )
+  );
+}
+
+/* ---------- Demo app ---------- */
+
+const sampleContent = `
+  <h2>Welcome to the editor</h2>
+  <p>This is a <strong>rich text</strong> editor built with <em>Lexical</em>. Try the toolbar above: headings, lists, alignment, code, links, and images.</p>
+  <ul><li>Bold, italic, underline, strikethrough, inline code</li><li>Headings, quotes, code blocks</li><li>Bulleted and numbered lists</li></ul>
+  <blockquote>Edit this content directly.</blockquote>
+`;
+
+function App() {
+  const [output, setOutput] = useState({ html: "", text: "" });
+  return React.createElement(
+    React.Fragment,
+    null,
+    React.createElement(RichTextEditor, {
+      initialHtml: sampleContent,
+      minHeight: "220px",
+      onChange: setOutput,
+    }),
+    React.createElement(
+      "details",
+      { className: "output" },
+      React.createElement("summary", null, "View live HTML output"),
+      React.createElement("pre", null, output.html)
+    )
+  );
+}
+
+createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+
+</body>
+</html>
